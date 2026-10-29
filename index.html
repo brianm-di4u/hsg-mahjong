@@ -7,7 +7,7 @@
 <meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, five local layouts, always-solvable deals.">
 <!--
   Bathhouse Mahjong, part of Hot Springs Games (MIT License).
-  Single self-contained file: all art is drawn in code, all sound is WebAudio, all data is inlined.
+  One HTML file plus painted art in assets/ (vector fallbacks built in); all sound is WebAudio, all data is inlined.
   Colors come from shared/design/tokens.css (every hex is an estimate, not an official color).
   Facts come from research/ (see games/mahjong/research/town-content.md).
 -->
@@ -85,7 +85,7 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);marg
 
 /* ---------- game ---------- */
 #s-game{background:var(--color-bg)}
-.hud{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:1px solid var(--color-border);flex:none;min-height:52px}
+.hud{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:2px solid #D4AF37;border-image:linear-gradient(90deg,#A6D9C8,#D4AF37 30%,#F0907F 50%,#D4AF37 70%,#A6D9C8) 1;flex:none;min-height:52px}
 .hud .name{flex:1;min-width:0;line-height:1.15}
 .hud .name b{display:block;font-family:var(--font-serif-victorian);font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hud .name span{font-size:.8rem;color:var(--color-muted)}
@@ -96,7 +96,7 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);marg
 #board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:pointer}
 .status{flex:none;min-height:40px;display:flex;align-items:center;padding:var(--space-2) var(--space-4);background:var(--panel);border-top:1px solid var(--color-border);font-size:.92rem;line-height:1.25}
 .status span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.toolbar{flex:none;display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));background:var(--bar);border-top:1px solid var(--color-border)}
+.toolbar{flex:none;display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));background:var(--bar);border-top:2px solid #D4AF37;border-image:linear-gradient(90deg,#A6D9C8,#D4AF37 30%,#F0907F 50%,#D4AF37 70%,#A6D9C8) 1}
 .tool{flex:1;max-width:110px;min-height:52px;min-width:44px;border-radius:var(--radius-md);border:2px solid var(--color-border);background:var(--btn);color:var(--btn-text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.75rem;font-weight:600;padding:2px}
 .tool:hover{border-color:var(--color-primary)}
 .tool[aria-pressed="true"]{background:var(--pressed);color:var(--on-pressed);border-color:var(--pressed)}
@@ -272,6 +272,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <div class="setrow"><label for="se-vol">Volume</label><input type="range" id="se-vol" min="0" max="100" step="5"></div>
     <div class="setrow"><span class="lbl">Motion</span><div class="seg" role="group" aria-label="Motion" data-set="motion"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="full">Full</button><button class="btn small" data-v="reduced">Reduced</button></div></div>
     <div class="setrow"><span class="lbl">Theme</span><div class="seg" role="group" aria-label="Theme" data-set="theme"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="light">Light</button><button class="btn small" data-v="dark">Neon Night</button></div></div>
+    <div class="setrow"><span class="lbl">Tile set</span><div class="seg" role="group" aria-label="Tile set" data-set="tileset"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="palm">Palm</button><button class="btn small" data-v="ribbon">Ribbon</button><button class="btn small" data-v="peacock">Peacock</button></div></div>
     <div class="setrow"><span class="lbl" id="lb-free">Highlight free tiles</span><button class="btn small" id="se-free" aria-labelledby="lb-free" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-timer">Show timer</span><button class="btn small" id="se-timer" aria-labelledby="lb-timer" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-cap">Names on tiles (when large)</span><button class="btn small" id="se-cap" aria-labelledby="lb-cap" aria-pressed="true">On</button></div>
@@ -700,7 +701,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
-const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true };
+const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true, tileset: 'auto' };
 const SETTINGS = Object.assign({}, DEFAULT_SETTINGS, store.get('bhm.settings.v1', {}));
 function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
@@ -803,6 +804,81 @@ const ARR = [
   [[-0.66, -0.7], [0, -0.7], [0.66, -0.7], [-0.66, 0], [0, 0], [0.66, 0], [-0.66, 0.7], [0, 0.7], [0.66, 0.7]],
 ];
 const ARR_R = [24, 16, 13, 13, 11.5, 10.5, 9.5, 8.6, 9.2];
+
+// --------------- painted art: assets/*.webp (generated, packed by shared/test-harness/art-pack.mjs) ---------------
+// Loaded with <img> decoding so file:// works too. Every painted face has the vector art below as its
+// fallback, so a missing folder (or ?art=0) still gives a complete game.
+const ART_ON = !/[?&]art=0\b/.test(location.search);
+const art = {}, artWant = new Set();
+let artTick = 0, artPending = 0;
+const artImg = (n) => art[n] || null;
+const BATH_ART = ['superior', 'hale', 'maurice', 'fordyce', 'quapaw', 'ozark', 'buckstaff', 'lamar', 'admin'];
+const HONOR_ART = ['mtn-hotsprings', 'mtn-north', 'mtn-west', 'mtn-sugarloaf', 'dragon-red', 'dragon-green', 'dragon-white',
+  'flower-magnolia', 'flower-dogwood', 'flower-redbud', 'flower-sweetgum', 'season-spring', 'season-summer', 'season-autumn', 'season-winter'];
+// Tile sets: layered acrylic side stripes (face side first), back art, table art.
+const TILESETS = {
+  palm: { name: 'Palm', bands: ['#FFFFFF', '#F4F6EE', '#C6E38A', '#A6D9C8', '#93C455'], rim: 'rgba(70,96,60,.28)' },
+  ribbon: { name: 'Ribbon', bands: ['#FFFFFF', '#F7F2EF', '#F0907F', '#3F7D5C', '#E57C6C'], rim: 'rgba(120,60,50,.28)' },
+  peacock: { name: 'Peacock', bands: ['#FFFFFF', '#EEF3F1', '#1F807A', '#D4AF37', '#15504E'], rim: 'rgba(212,175,55,.55)' },
+};
+function tileSet() { return TILESETS[SETTINGS.tileset] ? SETTINGS.tileset : (isDark() ? 'peacock' : 'palm'); }
+function essentialArt() {
+  const t = tileSet();
+  return ['spring-one', 'pip-spring-a', 'pip-spring-b', 'pip-spring-c', 'fish-bass', 'fish-trout', ...BATH_ART.map((b) => 'bath-' + b), ...HONOR_ART, 'back-' + t, 'table-' + t, 'title-hero'];
+}
+function loadArt(names) {
+  if (!ART_ON) return Promise.resolve();
+  return Promise.all(names.filter((n) => !artWant.has(n)).map((n) => {
+    artWant.add(n); artPending++; const im = new Image(); im.decoding = 'async'; im.src = 'assets/' + n + '.webp';
+    return im.decode().then(() => { art[n] = im; artChanged(); }, () => {}).finally(() => { artPending--; });
+  }));
+}
+// New art arrived: rebake sprites, table, title and guide at most once per frame.
+function artChanged() {
+  if (artTick) return;
+  artTick = requestAnimationFrame(() => {
+    artTick = 0; SPR.key = ''; bgCache = null;
+    if (scene === 'title') drawTitleArt();
+    if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
+    if (G) { layoutBoard(); markDirty(); }
+  });
+}
+function containImg(c, im, x, y, w, h) {
+  const k = Math.min(w / im.naturalWidth, h / im.naturalHeight), dw = im.naturalWidth * k, dh = im.naturalHeight * k;
+  c.imageSmoothingQuality = 'high'; c.drawImage(im, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+function coverImg(c, im, x, y, w, h) {
+  const k = Math.max(w / im.naturalWidth, h / im.naturalHeight), dw = im.naturalWidth * k, dh = im.naturalHeight * k;
+  c.imageSmoothingQuality = 'high'; c.drawImage(im, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+// Painted counted-suit layout: pip diameters and spread (unit space) for 1..9.
+const PIP_D = [44, 38, 32, 29, 27, 25, 19, 21, 16.5];
+// Paint a face from the art set; false when the art is not loaded (the vector art is used instead).
+function paintFace(c, f, caption) {
+  const top = 8, bot = caption ? 108 : 124;
+  if (f < 9) {
+    const n = f + 1;
+    if (n === 1) { const im = artImg('spring-one'); if (!im) return false; containImg(c, im, 28, top + 14, 70, bot - top - 20); return true; }
+    const ims = ['a', 'b', 'c'].map((k) => artImg('pip-spring-' + k)); if (ims.some((x) => !x)) return false;
+    const d = PIP_D[n - 1];
+    ARR[n - 1].forEach(([ax, ay], k) => { c.imageSmoothingQuality = 'high'; c.drawImage(ims[k % 3], 63 + ax * (Math.abs(ax) === .5 ? 30 : 25) - d / 2, 68 + ay * 42 - d / 2, d, d); });
+    return true;
+  }
+  if (f < 18) { const im = artImg('bath-' + BATH_ART[f - 9]); if (!im) return false; containImg(c, im, 28, top, 70, bot - top); return true; }
+  if (f < 27) {
+    const fish = [artImg('fish-bass'), artImg('fish-trout')]; if (!fish[0] || !fish[1]) return false;
+    const n = f - 17;
+    waterBands(c, 22, 122);
+    const s = [34, 24, 20, 19, 17, 16, 15, 14, 13.5][n - 1];
+    ARR[n - 1].forEach(([ax, ay], k) => {
+      const x = ART.cx + ax * 22, y = ART.cy + ay * 40, flip = (k + Math.floor(ay * 2)) % 2 === 1;
+      c.save(); c.translate(x, y); if (flip) c.scale(-1, 1); c.imageSmoothingQuality = 'high'; c.drawImage(fish[k % 2], -s * 1.15, -s * .58, s * 2.3, s * 1.15); c.restore();
+    });
+    return true;
+  }
+  const im = artImg(HONOR_ART[f - 27]); if (!im) return false;
+  containImg(c, im, 28, top, 70, bot - top); return true;
+}
 
 // --------------- face art (unit space: 100 wide x 130 tall) ---------------
 const C = {
@@ -1120,13 +1196,16 @@ function seasonArt(c, k) {
 // Draw a whole face (art + index + suit shape + caption) in unit space.
 function drawFace(c, f, caption) {
   const m = META[f];
-  // marble veins
-  c.save(); c.strokeStyle = C.vein; c.lineWidth = 1.2;
-  c.beginPath(); c.moveTo(8, 118); c.bezierCurveTo(30, 96, 44, 120, 70, 92); c.bezierCurveTo(82, 80, 90, 86, 98, 70); c.stroke();
-  c.beginPath(); c.moveTo(60, 4); c.bezierCurveTo(54, 24, 80, 30, 74, 52); c.stroke();
-  c.restore();
+  const painted = paintFace(c, f, caption);
+  if (!painted) { // marble veins under the vector art
+    c.save(); c.strokeStyle = C.vein; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(8, 118); c.bezierCurveTo(30, 96, 44, 120, 70, 92); c.bezierCurveTo(82, 80, 90, 86, 98, 70); c.stroke();
+    c.beginPath(); c.moveTo(60, 4); c.bezierCurveTo(54, 24, 80, 30, 74, 52); c.stroke();
+    c.restore();
+  }
   const gy = caption ? 104 : 112;
-  if (f < 9) { const n = f + 1; const r = ARR_R[n - 1]; for (const [ax, ay] of ARR[n - 1]) drawPool(c, ART.cx + ax * 22, ART.cy + ay * 40, r, n <= 4); }
+  if (painted) { /* art drawn */ }
+  else if (f < 9) { const n = f + 1; const r = ARR_R[n - 1]; for (const [ax, ay] of ARR[n - 1]) drawPool(c, ART.cx + ax * 22, ART.cy + ay * 40, r, n <= 4); }
   else if (f < 18) { BUILD[f - 9](c, gy); ground(c, gy); }
   else if (f < 27) {
     const n = f - 17;
@@ -1141,15 +1220,16 @@ function drawFace(c, f, caption) {
   // index glyph with a marble halo so it reads over any art
   c.save();
   c.textBaseline = 'top'; c.textAlign = 'center';
-  c.font = '900 40px "Arial Black","Segoe UI Black",system-ui,sans-serif';
-  const ix = 15, iy = 4;
+  // A fine painted-on serif numeral, like the index on a designer set.
+  c.font = '700 38px "Palatino Linotype","Book Antiqua",Palatino,Georgia,serif';
+  const ix = 15, iy = 5, halo = '#FFFFFF';
   if (f === 33) { // White Stone: hollow frame glyph
-    c.lineWidth = 7; c.strokeStyle = C.marble; c.strokeRect(5.5, 7, 19, 27); c.lineWidth = 3.6; c.strokeStyle = m.color; c.strokeRect(5.5, 7, 19, 27);
+    c.lineWidth = 6; c.strokeStyle = halo; c.strokeRect(5.5, 7, 19, 27); c.lineWidth = 3.2; c.strokeStyle = m.color; c.strokeRect(5.5, 7, 19, 27);
   } else {
-    c.lineWidth = 7; c.strokeStyle = C.marble; c.lineJoin = 'round'; c.strokeText(m.idx, ix, iy);
+    c.lineWidth = 6; c.strokeStyle = halo; c.lineJoin = 'round'; c.strokeText(m.idx, ix, iy);
     c.fillStyle = m.color; c.fillText(m.idx, ix, iy);
   }
-  circ(c, 15, 50, 11); fillP(c, 'rgba(242,239,232,.9)');
+  circ(c, 15, 50, 10.5); fillP(c, 'rgba(255,255,255,.92)');
   suitShape(c, m.shape, 15, 50, 7.5, m.color);
   c.restore();
   if (caption && (f >= 9 && f < 18 || f >= 27)) { // counted suits need no caption
@@ -1158,6 +1238,8 @@ function drawFace(c, f, caption) {
   }
 }
 function drawBack(c) {
+  const im = artImg('back-' + tileSet());
+  if (im) { coverImg(c, im, 0, 0, 100, 130); rr(c, 5, 5, 90, 120, 8); strokeP(c, 'rgba(212,175,55,.9)', 2.2); return; }
   // Quapaw-inspired chevron mosaic (colors are guesses)
   const cols = [C.cobalt, C.gold, C.terra, C.green, C.cream];
   c.save(); rr(c, 4, 4, 92, 122, 8); c.clip();
@@ -1171,25 +1253,39 @@ function drawBack(c) {
 }
 
 // ===================== tile bitmaps =====================
-// A tile sprite = shadow + body (cream with a red-tile edge band) + face. Sprites are cached per pixel size.
+// A tile sprite = soft shadow + layered acrylic body + glossy face. Sprites are cached per pixel size.
 const SPR = { key: '', faces: [], back: null, veil: null, W: 0, H: 0, D: 0, dpr: 1 };
 function tileBody(c, W, H, D, dark) {
-  // shadow
-  c.fillStyle = dark ? 'rgba(0,0,0,.45)' : 'rgba(10,30,34,.35)';
-  rr(c, D * 1.6, D * 1.9, W, H, W * 0.09); c.fill();
-  // red band (deepest edge), cream body, face
-  rr(c, D, D, W, H, W * 0.09); fillP(c, dark ? '#7A5A12' : C.redD);
-  rr(c, D * 0.55, D * 0.55, W, H, W * 0.09); fillP(c, dark ? '#B8962F' : '#D9C7A0');
-  rr(c, 0, 0, W, H, W * 0.09);
-  const gr = c.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#FFFDF8'); gr.addColorStop(1, '#E9E4D9');
-  c.fillStyle = gr; c.fill();
-  c.lineWidth = Math.max(1, W * 0.02); c.strokeStyle = dark ? '#D4AF37' : 'rgba(120,100,70,.45)'; c.stroke();
+  const set = TILESETS[tileSet()], r = W * 0.09, bands = set.bands, n = bands.length;
+  const tf = c.getTransform(), px = Math.hypot(tf.a, tf.b); // canvas px per unit: shadow sizes are not transformed
+  // deepest layer, casting a soft shadow down-right onto whatever is below
+  c.save();
+  c.shadowColor = dark ? 'rgba(0,0,0,.6)' : 'rgba(18,44,44,.42)'; c.shadowBlur = D * 1.2 * px; c.shadowOffsetX = D * 0.35 * px; c.shadowOffsetY = D * 0.7 * px;
+  rr(c, D, D, W, H, r); fillP(c, bands[n - 1]);
+  c.restore();
+  // the layered side: stacked copies stepping toward the face show as stripes along the right and bottom
+  const steps = Math.max(n * 2, Math.ceil(D * 1.6));
+  for (let i = steps - 1; i >= 1; i--) { const t = i / steps; rr(c, D * t, D * t, W, H, r); fillP(c, bands[Math.min(n - 1, Math.floor(t * n))]); }
+  rr(c, D, D, W, H, r); strokeP(c, 'rgba(0,0,0,.12)', Math.max(0.6, W * 0.008));
+  // glossy white face with a bevelled rim
+  rr(c, 0, 0, W, H, r);
+  const g = c.createLinearGradient(0, 0, W * 0.4, H); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#F2F0EB');
+  c.fillStyle = g; c.fill();
+  c.save(); rr(c, 0, 0, W, H, r); c.clip();
+  const k = Math.max(0.8, W * 0.03);
+  rr(c, -k, -k, W, H, r); strokeP(c, 'rgba(70,80,75,.10)', k * 2.4);   // shade inside the bottom-right rim
+  rr(c, k, k, W, H, r); strokeP(c, 'rgba(255,255,255,.95)', k * 1.6); // light along the top-left rim
+  const gl = c.createRadialGradient(W * 0.22, H * 0.1, 0, W * 0.22, H * 0.1, W * 0.95);
+  gl.addColorStop(0, 'rgba(255,255,255,.55)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = gl; c.fillRect(0, 0, W, H);
+  c.restore();
+  rr(c, 0, 0, W, H, r); strokeP(c, set.rim, Math.max(0.8, W * 0.014));
 }
 function makeSprites(W, H, D, dpr, dark, captions) {
-  const key = [W, H, D, dpr, dark, captions].join('|');
+  const key = [W, H, D, dpr, dark, captions, tileSet()].join('|');
   if (SPR.key === key) return;
   SPR.key = key; SPR.W = W; SPR.H = H; SPR.D = D; SPR.dpr = dpr; SPR.faces = [];
-  const cw = Math.ceil((W + D * 1.6 + 2) * dpr), ch = Math.ceil((H + D * 1.9 + 2) * dpr);
+  const cw = Math.ceil((W + D * 3 + 2) * dpr), ch = Math.ceil((H + D * 3.4 + 2) * dpr);
   const capOK = captions && W >= 52;
   for (let f = 0; f <= E.FACES; f++) {
     const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
@@ -1465,13 +1561,13 @@ function layoutBoard() {
   if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) { canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr); }
   view.cssW = cssW; view.cssH = cssH; view.dpr = dpr;
   // fit: bounds scale linearly with W
-  const b1 = boundsFor(100, 130, 14);
+  const b1 = boundsFor(100, 130, 17);
   const pad = cssW < 520 ? 8 : 20;
   let W = Math.min((cssW - pad * 2) / (b1.x1 - b1.x0) * 100, (cssH - pad * 2) / (b1.y1 - b1.y0) * 100);
   W = Math.max(14, Math.min(W, 92));
   if (view.zoom) W = Math.min(W * 1.8, 110);
   W = Math.floor(W);
-  const H = Math.round(W * 1.3), D = Math.max(2, Math.round(W * 0.14));
+  const H = Math.round(W * 1.3), D = Math.max(2, Math.round(W * 0.17));
   view.W = W; view.H = H; view.D = D;
   const b = boundsFor(W, H, D);
   const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
@@ -1516,11 +1612,22 @@ function getSteamSprite() {
 
 let bgCache = null;
 function drawTable(c, w, h) {
-  const key = w + 'x' + h + (isDark() ? 'd' : 'l');
+  const key = w + 'x' + h + (isDark() ? 'd' : 'l') + tileSet();
   if (!bgCache || bgCache.key !== key) {
     const cv = document.createElement('canvas'); cv.width = Math.round(w * view.dpr); cv.height = Math.round(h * view.dpr);
     const b = cv.getContext('2d'); b.scale(view.dpr, view.dpr);
     const dark = isDark();
+    const im = artImg('table-' + tileSet());
+    if (im) {
+      coverImg(b, im, 0, 0, w, h);
+      if (tileSet() !== 'peacock') { b.fillStyle = 'rgba(246,244,236,.22)'; b.fillRect(0, 0, w, h); } // quiet the print so tiles lead
+      const v = b.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.3, w / 2, h * 0.45, Math.max(w, h) * 0.75);
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, dark ? 'rgba(0,0,0,.45)' : 'rgba(30,40,35,.22)');
+      b.fillStyle = v; b.fillRect(0, 0, w, h);
+      bgCache = { key, cv };
+      c.drawImage(bgCache.cv, 0, 0, w, h);
+      return;
+    }
     const g = b.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h / 2, Math.max(w, h) * 0.75);
     g.addColorStop(0, dark ? '#25213A' : '#25707D'); g.addColorStop(1, dark ? '#100E1A' : '#143F48');
     b.fillStyle = g; b.fillRect(0, 0, w, h);
@@ -1575,8 +1682,8 @@ function draw(t) {
     }
     c.drawImage(spr, sx, sy, spr.width / dpr, spr.height / dpr);
     const isFreeT = free(i);
-    if (veil && !isFreeT) { c.fillStyle = isDark() ? 'rgba(10,8,20,.48)' : 'rgba(18,34,38,.40)'; rr(c, sx, sy, W, H, W * 0.09); c.fill(); }
-    if (i === sel) { c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = isDark() ? '#4FC3FF' : '#D9A23A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.lineWidth = Math.max(1.5, W * 0.03); c.strokeStyle = '#1F2A24'; rr(c, sx + 2, sy + 2, W - 4, H - 4, W * 0.08); c.stroke(); }
+    if (veil && !isFreeT) { c.fillStyle = isDark() ? 'rgba(10,8,20,.46)' : 'rgba(40,52,48,.30)'; rr(c, sx, sy, W, H, W * 0.09); c.fill(); }
+    if (i === sel) { c.save(); c.shadowColor = isDark() ? 'rgba(79,195,255,.9)' : 'rgba(217,162,58,.95)'; c.shadowBlur = W * 0.25 * dpr; c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = isDark() ? '#4FC3FF' : '#D9A23A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.restore(); c.lineWidth = Math.max(1.5, W * 0.03); c.strokeStyle = '#1F2A24'; rr(c, sx + 2, sy + 2, W - 4, H - 4, W * 0.08); c.stroke(); }
     if (anim.hint && (anim.hint[0] === i || anim.hint[1] === i)) {
       const pulse = 0.55 + 0.45 * Math.sin(t / 140);
       c.save(); c.setLineDash([W * 0.16, W * 0.1]); c.lineWidth = Math.max(3, W * 0.09); c.strokeStyle = 'rgba(79,195,255,' + pulse.toFixed(2) + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke(); c.restore();
@@ -1700,6 +1807,26 @@ function drawTitleArt() {
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
   const dark = isDark();
+  const hero = artImg('title-hero');
+  if (hero) {
+    coverImg(c, hero, 0, 0, w, h);
+    if (dark) { c.fillStyle = 'rgba(20,18,31,.4)'; c.fillRect(0, 0, w, h); }
+  } else drawTitleBackdrop(c, w, h, dark);
+  // steam
+  const st = getSteamSprite();
+  for (let k = 0; k < 16; k++) { const x = (k * 97) % w, y = h * (0.35 + ((k * 53) % 40) / 100), r = 20 + (k * 13) % 30; c.globalAlpha = dark ? 0.18 : (hero ? 0.3 : 0.5); c.drawImage(st, x - r, y - r, r * 2, r * 2); }
+  c.globalAlpha = 1;
+  // a fan of tiles
+  const tw = Math.min(54, w / 9), th = tw * 1.3, faces = [12, 4, 31, 38, 27];
+  for (let k = 0; k < faces.length; k++) {
+    c.save(); c.translate(w / 2 + (k - 2) * tw * 0.78, h * 0.42); c.rotate((k - 2) * 0.12);
+    tileBody(c, tw, th, tw * 0.12, dark);
+    c.save(); rr(c, 0, 0, tw, th, tw * 0.09); c.clip(); c.scale(tw / 100, th / 130); drawFace(c, faces[k], false); c.restore();
+    c.restore();
+  }
+}
+// Vector fallback for the title painting: Hot Springs Mountain and the Row.
+function drawTitleBackdrop(c, w, h, dark) {
   const sky = c.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, dark ? '#14121F' : '#CFE3EA'); sky.addColorStop(1, dark ? '#2A2640' : '#F4F2EC');
   c.fillStyle = sky; c.fillRect(0, 0, w, h);
@@ -1720,18 +1847,6 @@ function drawTitleArt() {
     BUILD[k](c, 112); c.restore();
   }
   c.fillStyle = dark ? '#3A3550' : '#B5654A'; c.fillRect(0, gy - 3, w, 7);
-  // steam
-  const st = getSteamSprite();
-  for (let k = 0; k < 16; k++) { const x = (k * 97) % w, y = h * (0.35 + ((k * 53) % 40) / 100), r = 20 + (k * 13) % 30; c.globalAlpha = dark ? 0.18 : 0.5; c.drawImage(st, x - r, y - r, r * 2, r * 2); }
-  c.globalAlpha = 1;
-  // a fan of tiles
-  const tw = Math.min(54, w / 9), th = tw * 1.3, faces = [12, 4, 31, 38, 27];
-  for (let k = 0; k < faces.length; k++) {
-    c.save(); c.translate(w / 2 + (k - 2) * tw * 0.78, h * 0.42); c.rotate((k - 2) * 0.12);
-    tileBody(c, tw, th, tw * 0.12, dark);
-    c.save(); rr(c, 0, 0, tw, th, tw * 0.09); c.clip(); c.scale(tw / 100, th / 130); drawFace(c, faces[k], false); c.restore();
-    c.restore();
-  }
 }
 
 // ---------- layout cards ----------
@@ -1744,11 +1859,12 @@ function drawPreview(cv, layout) {
   const s = Math.min((w - 16) / (x1 + 1), (h - 16) / (y1 * 1.3 + 1));
   const ox = (w - x1 * s) / 2 + 2, oy = (h - y1 * s * 1.3) / 2 + 2;
   const order = pos.map((p, i) => i).sort((a, b) => pos[a][2] - pos[b][2] || pos[a][0] + pos[a][1] - pos[b][0] - pos[b][1]);
+  const band = TILESETS[tileSet()].bands[3];
   for (const i of order) {
     const [x, y, z] = pos[i]; const d = s * 0.25;
     const sx = ox + x * s - z * d, sy = oy + y * s * 1.3 - z * d;
-    c.fillStyle = '#7E2F1F'; c.fillRect(sx + d * 0.8, sy + d * 0.8, s * 2 - 1, s * 2.6 - 1);
-    const l = 92 - (zmax - z) * 7; c.fillStyle = 'hsl(42,30%,' + l + '%)'; c.fillRect(sx, sy, s * 2 - 1, s * 2.6 - 1);
+    c.fillStyle = band; c.fillRect(sx + d * 0.8, sy + d * 0.8, s * 2 - 1, s * 2.6 - 1);
+    const l = 97 - (zmax - z) * 6; c.fillStyle = 'hsl(45,25%,' + l + '%)'; c.fillRect(sx, sy, s * 2 - 1, s * 2.6 - 1);
   }
 }
 function buildCards() {
@@ -1777,8 +1893,8 @@ function buildGuide() {
     const grid = document.createElement('div'); grid.className = 'guide'; body.appendChild(grid);
     for (let f = a; f < b; f++) {
       const fig = document.createElement('figure');
-      const cv = document.createElement('canvas'); cv.width = Math.ceil((W + D * 2) * dpr); cv.height = Math.ceil((H + D * 2.2) * dpr);
-      cv.style.width = (W + D * 2) + 'px';
+      const cv = document.createElement('canvas'); cv.width = Math.ceil((W + D * 3) * dpr); cv.height = Math.ceil((H + D * 3.4) * dpr);
+      cv.style.width = (W + D * 3) + 'px';
       const c = cv.getContext('2d'); c.scale(dpr, dpr); tileBody(c, W, H, D, false);
       c.save(); rr(c, 0, 0, W, H, W * 0.09); c.clip(); c.scale(W / 100, H / 130); drawFace(c, f, false); c.restore();
       cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', META[f].name);
@@ -1802,7 +1918,9 @@ function buildStats() {
 // ---------- settings ----------
 function applyTheme() {
   document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+  loadArt(essentialArt());
   bgCache = null; SPR.key = '';
+  if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
   if (scene === 'title') drawTitleArt();
   if (G) { layoutBoard(); markDirty(); }
 }
@@ -1815,7 +1933,7 @@ function syncSettingsUI() {
 }
 function setSetting(k, v) {
   SETTINGS[k] = v; saveSettings(); syncSettingsUI();
-  if (k === 'theme') applyTheme();
+  if (k === 'theme' || k === 'tileset') applyTheme();
   if (k === 'captions') { SPR.key = ''; layoutBoard(); markDirty(); }
   if (k === 'sound' || k === 'volume') AUDIO.toggle();
   if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
@@ -2007,7 +2125,7 @@ window.__game = {
     });
   },
   setState(s) { closeAll(); loadState(s); showScene('game'); updateHud(); markDirty(); return true; },
-  isIdle() { const t = performance.now(); if (anim.frozen != null) return t >= toastBusyUntil; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < 520) && t >= toastBusyUntil; },
+  isIdle() { const t = performance.now(); if (artPending || artTick) return false; if (anim.frozen != null) return t >= toastBusyUntil; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < 520) && t >= toastBusyUntil; },
   scene(name) { return gotoScene(name); },
   newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
   pause() { pauseGame(); return true; },
@@ -2064,13 +2182,14 @@ window.__game = {
         anim.frozen = a[0] === 'now' ? performance.now() : last + a[0]; dirty = true; kick(); return true;
       }
       case 'contrast': {
-        const face = '#F2EFE8', out = [];
+        const face = '#F2F0EB', out = []; // darkest corner of the tile face gradient (tileBody)
         for (let f = 0; f < E.FACES; f++) out.push({ name: 'index ' + META[f].name, ratio: +contrast(META[f].color, face).toFixed(2) });
         const cs = getComputedStyle(document.documentElement); const v = (n) => cs.getPropertyValue(n).trim();
         for (const [fg, bg] of [['--color-text', '--color-bg'], ['--color-muted', '--color-bg'], ['--bar-text', '--bar'], ['--color-text', '--panel'], ['--color-muted', '--panel'], ['--color-on-primary', '--color-primary'], ['--color-on-accent', '--color-accent'], ['--on-pressed', '--pressed'], ['--btn-text', '--btn'], ['--color-primary', '--panel']]) out.push({ name: fg + ' on ' + bg, ratio: +contrast(v(fg), v(bg)).toFixed(2) });
         return out;
       }
       case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
+      case 'art': return { on: ART_ON, wanted: [...artWant], loaded: Object.keys(art), tileset: tileSet() };
     }
     throw new Error('unknown act ' + name);
   },

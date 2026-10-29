@@ -1,0 +1,224 @@
+{
+ "spring-one": {
+  "file": "spring-one.webp",
+  "w": 320,
+  "h": 320,
+  "bytes": 31704
+ },
+ "mtn-hotsprings": {
+  "file": "mtn-hotsprings.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 60478
+ },
+ "mtn-north": {
+  "file": "mtn-north.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 65712
+ },
+ "mtn-west": {
+  "file": "mtn-west.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 55576
+ },
+ "mtn-sugarloaf": {
+  "file": "mtn-sugarloaf.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 66888
+ },
+ "dragon-red": {
+  "file": "dragon-red.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 40432
+ },
+ "dragon-green": {
+  "file": "dragon-green.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 48376
+ },
+ "dragon-white": {
+  "file": "dragon-white.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 61908
+ },
+ "flower-magnolia": {
+  "file": "flower-magnolia.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 43724
+ },
+ "flower-dogwood": {
+  "file": "flower-dogwood.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 58218
+ },
+ "flower-redbud": {
+  "file": "flower-redbud.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 65868
+ },
+ "flower-sweetgum": {
+  "file": "flower-sweetgum.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 47318
+ },
+ "season-spring": {
+  "file": "season-spring.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 54378
+ },
+ "season-summer": {
+  "file": "season-summer.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 54620
+ },
+ "season-autumn": {
+  "file": "season-autumn.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 51784
+ },
+ "season-winter": {
+  "file": "season-winter.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 44282
+ },
+ "back-palm": {
+  "file": "back-palm.webp",
+  "w": 300,
+  "h": 390,
+  "bytes": 12710
+ },
+ "back-ribbon": {
+  "file": "back-ribbon.webp",
+  "w": 300,
+  "h": 390,
+  "bytes": 40510
+ },
+ "back-peacock": {
+  "file": "back-peacock.webp",
+  "w": 300,
+  "h": 390,
+  "bytes": 51610
+ },
+ "table-palm": {
+  "file": "table-palm.webp",
+  "w": 1600,
+  "h": 1000,
+  "bytes": 235940
+ },
+ "table-ribbon": {
+  "file": "table-ribbon.webp",
+  "w": 1600,
+  "h": 1000,
+  "bytes": 188692
+ },
+ "table-peacock": {
+  "file": "table-peacock.webp",
+  "w": 1600,
+  "h": 1000,
+  "bytes": 177856
+ },
+ "title-hero": {
+  "file": "title-hero.webp",
+  "w": 1600,
+  "h": 900,
+  "bytes": 285146
+ },
+ "pip-spring-a": {
+  "file": "pip-spring-a.webp",
+  "w": 160,
+  "h": 160,
+  "bytes": 13548
+ },
+ "pip-spring-b": {
+  "file": "pip-spring-b.webp",
+  "w": 160,
+  "h": 160,
+  "bytes": 11380
+ },
+ "pip-spring-c": {
+  "file": "pip-spring-c.webp",
+  "w": 160,
+  "h": 160,
+  "bytes": 13636
+ },
+ "fish-bass": {
+  "file": "fish-bass.webp",
+  "w": 320,
+  "h": 160,
+  "bytes": 22652
+ },
+ "fish-trout": {
+  "file": "fish-trout.webp",
+  "w": 320,
+  "h": 160,
+  "bytes": 19666
+ },
+ "bath-superior": {
+  "file": "bath-superior.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 49680
+ },
+ "bath-hale": {
+  "file": "bath-hale.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 51940
+ },
+ "bath-maurice": {
+  "file": "bath-maurice.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 54786
+ },
+ "bath-fordyce": {
+  "file": "bath-fordyce.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 57194
+ },
+ "bath-quapaw": {
+  "file": "bath-quapaw.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 22384
+ },
+ "bath-ozark": {
+  "file": "bath-ozark.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 46444
+ },
+ "bath-buckstaff": {
+  "file": "bath-buckstaff.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 50998
+ },
+ "bath-lamar": {
+  "file": "bath-lamar.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 46270
+ },
+ "bath-admin": {
+  "file": "bath-admin.webp",
+  "w": 320,
+  "h": 400,
+  "bytes": 47778
+ }
+}

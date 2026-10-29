@@ -87,9 +87,16 @@ Title ─┬─ Continue ───────────────┐
   table = thermal-water pool `#1F5F6B → #174A54`; dark UI and table = deco-neon midnight `#14121F` with gold
   `#D4AF37` and neon blue `#4FC3FF` accents; suits use thermal-water (Springs), gilded-spa (Bathhouses),
   lake-life (Lakes), ouachita-forest (Mountains).
-- **Tiles:** marble face `#F2EFE8` with faint veins; cream body and a red-tile edge band on the side faces;
-  rounded corners; soft drop shadow; layers offset up-left so stacks read as 3D.
-- **Index and shapes (colorblind-safe):** top-left index in heavy sans (1–9, H/N/W/S, R/G/blank frame, 1–4),
+- **Painted art (v2):** the set follows the boutique designer-acrylic sets in `Sample Images/`. Original
+  hand-painted motifs were generated with Codex image generation and packed to `assets/*.webp`
+  (`art-src/art.json`, `node shared/test-harness/art-pack.mjs games/mahjong`). They are composited into the
+  cached tile sprites, so frame cost is unchanged. Every face keeps its vector art as a fallback, used when an
+  image is missing or with `?art=0`.
+- **Tiles:** glossy white acrylic face with a bevelled rim and a soft highlight. Thick sides show layered colour
+  stripes, set by the **tile set**: Palm (mint/lime, bamboo back), Ribbon (coral/green, floral back) or
+  Peacock (teal/gold, peacock back, the default in Neon Night). Rounded corners; a soft cast shadow; layers
+  offset up-left so stacks read as 3D. The table is a painted cloth that matches the tile set.
+- **Index and shapes (colorblind-safe):** top-left index in a bold serif (1–9, H/N/W/S, R/G/blank frame, 1–4),
   and under it a suit shape: Springs **circle**, Bathhouses **square**, Lakes **diamond**, Mountains **triangle**,
   Dragons **hexagon**, Flowers **flower**, Seasons **four-point star**. Shapes differ in outline, not only color.
 - **Recipes** follow `research/visual-style-guide.md` (bathhouse silhouettes, Motif 2 chevron tile back,
@@ -120,7 +127,7 @@ All WebAudio synthesis, no files. Soft, woody, bathhouse-calm.
 
 ## 11. Performance budgets
 - 60 fps during animations on a mid-range laptop; zero work when idle.
-- `index.html` ≤ 2 MB (target < 250 KB). Interactive in ≤ 2 s (target < 300 ms after load).
+- `index.html` ≤ 2 MB; `assets/` ≤ 3.5 MB. Interactive in ≤ 2 s (target < 300 ms after load).
 - Deal generation < 50 ms per layout; hint < 50 ms typical.
 
 ## 12. Save / load
@@ -170,7 +177,7 @@ The game works fully without storage.
 33. AC33: A live region announces selections, matches, hints, stuck and win.
 
 **Performance and quality**
-34. AC34: No console errors and no external requests in any test.
+34. AC34: No console errors and no external requests in any test. (Same-origin `assets/` loads are allowed.)
 35. AC35: ≥ 55 fps measured during a match animation at desktop; deal generation < 50 ms.
 36. AC36: `index.html` ≤ 2 MB; `window.__game` appears in < 2 s.
 

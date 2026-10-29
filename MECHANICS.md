@@ -85,11 +85,19 @@ Settings and stats are separate objects (`SETTINGS`, `STATS`). `history` entries
 - **Layers, in order:** cached table background → tiles sorted by `z`, then `x + y`, then `x` (this painter's order
   makes each tile's right and bottom side faces hide correctly behind later neighbours) → hint/cursor/selection
   rings → particles (steam) → flying tiles.
-- **Tile look:** face rect `W × H` (H = 1.3 W); each layer is offset up-left by `d = 0.12 W` so side faces show on the
-  right and bottom (cream body, red-tile edge band). A soft shadow under each tile gives depth. Blocked tiles get
+- **Tile look:** face rect `W × H` (H = 1.3 W); each layer is offset up-left by `d = 0.17 W` so side faces show on the
+  right and bottom. The sides are layered acrylic stripes in the colours of the tile set (Palm, Ribbon or
+  Peacock; Auto picks Palm in light mode and Peacock in dark). The face is glossy white with a bevelled rim. A
+  blurred cast shadow under each tile gives depth. Blocked tiles get
   a dark veil when "Highlight free tiles" is on.
-- **Face cache:** each of the 42 faces (plus the tile back) is drawn once per tile size into an offscreen canvas
-  with vector code, then blitted with `drawImage`. The cache is rebuilt on resize or theme change.
+- **Face cache:** each of the 42 faces (plus the tile back) is drawn once per tile size into an offscreen canvas,
+  then blitted with `drawImage`. The cache is rebuilt on resize, theme or tile-set change, or when art arrives.
+- **Painted art:** the face motifs, tile backs, tables and title painting are `assets/*.webp` (see
+  `assets/manifest.json`), loaded with `new Image()` and `decode()` and composited into the face cache.
+  - Counted suits reuse their art: 3 spring medallions and 2 fish are repeated by the `ARR` layouts.
+  - The index numeral and suit shape stay vector, so the colorblind system is unchanged.
+  - With `?art=0`, or for any missing image, the face uses its vector art instead.
+  - `isIdle()` stays false while art is loading.
 - **Fit:** compute the layout's pixel bounds for a trial `W`, then scale to fit the board area; zoom (mobile)
   multiplies the scale by 1.8 and pans with drag, clamped to the board.
 
