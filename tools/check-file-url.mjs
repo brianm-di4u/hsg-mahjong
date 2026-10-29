@@ -1,14 +1,14 @@
 // Opens the game straight from disk (file://), the way a player double-clicking index.html would, and checks that
 // 3D tiles render with the painted faces and that nothing logs an error or leaves the machine.
 //
-//   node games/mahjong/tools/check-file-url.mjs [out.png]
+//   node tools/check-file-url.mjs [out.png]
 //
 // ?gl=1 forces 3D, because the harness Chromium only has SwiftShader (Tiles: Auto would pick flat tiles there).
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const GAME = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ROOT = path.resolve(GAME, '..', '..');
+const ROOT = path.resolve(GAME);
 const { chromium } = await import(pathToFileURL(path.join(ROOT, 'shared', 'test-harness', 'node_modules', 'playwright', 'index.mjs')).href);
 const out = process.argv[2];
 

@@ -1,6 +1,6 @@
 // Frame-rate check for the 3D board on the machine's real GPU (the test harness renders WebGL with SwiftShader).
 //
-//   node games/mahjong/tools/perf-gpu.mjs [--cpu 4]       (--cpu N throttles the CPU N times, like a slow phone)
+//   node tools/perf-gpu.mjs [--cpu 4]       (--cpu N throttles the CPU N times, like a slow phone)
 //
 // Serves the repo on a local port, opens the game in headless Chromium with GPU flags, and for each viewport
 // measures rAF frame times while the busiest scenes animate: the deal, a match, a shuffle, and a hint pulse.
@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = await import(pathToFileURL(path.join(ROOT, 'shared', 'test-harness', 'node_modules', 'playwright', 'index.mjs')).href);
 const cpu = +(process.argv[process.argv.indexOf('--cpu') + 1] || 1) || 1;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png' };
@@ -34,7 +34,7 @@ for (const [vp, opts] of Object.entries(VIEWPORTS)) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   if (cpu > 1) { const s = await ctx.newCDPSession(page); await s.send('Emulation.setCPUThrottlingRate', { rate: cpu }); }
   const t0 = Date.now();
-  await page.goto(`http://127.0.0.1:${port}/games/mahjong/index.html`);
+  await page.goto(`http://127.0.0.1:${port}/index.html`);
   await page.waitForFunction(() => window.__game);
   const load = Date.now() - t0;
   await page.waitForTimeout(1500); // a player looks at the title for a moment; the game warms the 3D renderer then

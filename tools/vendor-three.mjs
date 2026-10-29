@@ -2,7 +2,7 @@
 // so the game can load it with <script src> (ES-module imports of local files fail under file://).
 //
 //   npm pack three@0.169.0 && tar -xzf three-0.169.0.tgz        (in an empty scratch folder)
-//   node games/mahjong/tools/vendor-three.mjs <path to the extracted "package" folder>
+//   node tools/vendor-three.mjs <path to the extracted "package" folder>
 //
 // The only change to the code is the wrapper: the trailing `export{a as B,...}` becomes
 // `window.THREE={B:a,...}` inside a strict-mode function. See SAMPLES.md for the version record.

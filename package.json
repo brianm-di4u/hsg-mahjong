@@ -1,0 +1,11 @@
+{
+  "name": "hsg-mahjong",
+  "private": true,
+  "type": "module",
+  "description": "Bathhouse Mahjong: Mahjong solitaire with custom Hot Springs tiles",
+  "license": "MIT",
+  "scripts": {
+    "setup": "cd shared/test-harness && npm install && npx playwright install chromium",
+    "test": "node shared/test-harness/run.mjs ."
+  }
+}

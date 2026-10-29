@@ -4,7 +4,7 @@
 // and WebGL refuses to upload a tainted canvas as a texture. Images decoded from data: URIs don't taint.
 // Over http the game loads assets/*.webp as usual and never requests this file.
 //
-//   node games/mahjong/tools/build-art-data.mjs        (run after art-pack.mjs)
+//   node tools/build-art-data.mjs        (run after art-pack.mjs)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

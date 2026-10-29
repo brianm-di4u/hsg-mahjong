@@ -1,6 +1,6 @@
 // Extracts the pure engine block (<script id="engine">) from index.html and checks every layout in Node:
 // tile count, overlaps, support, and that seeded deals replay to an empty board. Run from the repo root:
-//   node games/mahjong/tools/check-layouts.mjs [deals-per-layout]
+//   node tools/check-layouts.mjs [deals-per-layout]
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
