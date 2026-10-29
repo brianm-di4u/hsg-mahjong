@@ -1,0 +1,2085 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bathhouse Mahjong · Hot Springs Games</title>
+<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, five local layouts, always-solvable deals.">
+<!--
+  Bathhouse Mahjong, part of Hot Springs Games (MIT License).
+  Single self-contained file: all art is drawn in code, all sound is WebAudio, all data is inlined.
+  Colors come from shared/design/tokens.css (every hex is an estimate, not an official color).
+  Facts come from research/ (see games/mahjong/research/town-content.md).
+-->
+<style>
+:root{
+  /* copied from shared/design/tokens.css: default light theme (gilded-spa based) */
+  --color-bg:#F2EFE8; --color-surface:#E6D7B5; --color-text:#1F2A24; --color-muted:#574A37;
+  --color-primary:#8E3622; --color-on-primary:#FFFFFF; --color-accent:#355E41; --color-on-accent:#FFFFFF;
+  --color-success:#2E6A3C; --color-danger:#9A2A1C; --color-highlight:#D9A23A; --color-border:#CDBF9F;
+  --font-serif-victorian:"Palatino Linotype","Book Antiqua",Palatino,Georgia,"Times New Roman",serif;
+  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-deco:"Century Gothic",Futura,"Avenir Next","Trebuchet MS","Gill Sans",sans-serif;
+  --space-2:4px; --space-3:8px; --space-4:12px; --space-5:16px; --space-6:24px;
+  --radius-sm:3px; --radius-md:6px; --radius-lg:12px; --radius-pill:999px;
+  /* derived for this game */
+  --table-a:#1F5F6B; --table-b:#174A54; /* thermal-water pool depth */
+  --bar:#E6D7B5; --bar-text:#1F2A24; --panel:#FBF8F1; --scrim:rgba(20,18,31,.55);
+  --btn:#FFFFFF; --btn-text:#1F2A24; --focus:#2B4C9B; --pressed:#355E41; --on-pressed:#FFFFFF;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  /* default dark theme (deco-neon based) */
+  --color-bg:#14121F; --color-surface:#1F1C2E; --color-text:#D8CFBD; --color-muted:#9A95A0;
+  --color-primary:#D4AF37; --color-on-primary:#14121F; --color-accent:#FF5A5A; --color-on-accent:#14121F;
+  --color-success:#5FD38A; --color-danger:#FF6B6B; --color-highlight:#4FC3FF; --color-border:#3A3550;
+  --table-a:#1F1C2E; --table-b:#14121F;
+  --bar:#1F1C2E; --bar-text:#D8CFBD; --panel:#1F1C2E; --scrim:rgba(0,0,0,.6);
+  --btn:#2A2640; --btn-text:#D8CFBD; --focus:#4FC3FF; --pressed:#D4AF37; --on-pressed:#14121F;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--color-bg);color:var(--color-text);font-family:var(--font-sans);font-size:16px}
+body{-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+.screen{position:absolute;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+
+/* ---------- buttons ---------- */
+.btn{min-height:44px;min-width:44px;padding:0 var(--space-5);border-radius:var(--radius-md);border:2px solid var(--color-border);
+  background:var(--btn);color:var(--btn-text);font-weight:600;font-size:1rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-3)}
+.btn:hover{border-color:var(--color-primary)}
+.btn.primary{background:var(--color-primary);color:var(--color-on-primary);border-color:var(--color-primary)}
+.btn.small{min-height:44px;padding:0 var(--space-4);font-size:.9rem}
+.btn[aria-pressed="true"]{background:var(--pressed);color:var(--on-pressed);border-color:var(--pressed)}
+.btn:disabled{opacity:.45;cursor:default}
+.iconbtn{min-width:44px;min-height:44px;border-radius:var(--radius-md);border:2px solid transparent;background:transparent;color:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
+.iconbtn:hover{border-color:var(--color-border)}
+svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- title ---------- */
+#s-title{align-items:center;justify-content:flex-start;overflow-y:auto;background:var(--color-bg)}
+#title-art{width:100%;max-width:900px;height:min(38vh,330px);display:block;flex:none}
+.title-block{text-align:center;padding:0 var(--space-5) var(--space-6);max-width:560px;width:100%;flex:1 0 auto;display:flex;flex-direction:column;justify-content:center}
+h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);margin:var(--space-3) 0 0;letter-spacing:.02em;color:var(--color-primary)}
+.subtitle{font-family:var(--font-serif-victorian);font-style:italic;color:var(--color-muted);margin:var(--space-2) 0 var(--space-5);font-size:1.1rem}
+.menu{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+.menu .wide{grid-column:1 / -1}
+.foot{margin-top:var(--space-5);font-size:.85rem;color:var(--color-muted)}
+
+/* ---------- layouts ---------- */
+#s-layouts{overflow-y:auto}
+.topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:1px solid var(--color-border);flex:none}
+.topbar h2{margin:0;font-family:var(--font-serif-victorian);font-size:1.3rem;flex:1}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-4);padding:var(--space-5);max-width:1100px;width:100%;margin:0 auto}
+.card{border:2px solid var(--color-border);border-radius:var(--radius-lg);background:var(--panel);padding:var(--space-4);text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:var(--space-3);min-height:44px}
+.card:hover,.card:focus-visible{border-color:var(--color-primary)}
+.card canvas{width:100%;height:130px;border-radius:var(--radius-md);background:linear-gradient(var(--table-a),var(--table-b))}
+.card b{font-family:var(--font-serif-victorian);font-size:1.15rem}
+.card .cap{font-size:.9rem;color:var(--color-muted)}
+.card .best{font-size:.85rem;color:var(--color-accent);font-weight:600}
+
+/* ---------- game ---------- */
+#s-game{background:var(--color-bg)}
+.hud{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:1px solid var(--color-border);flex:none;min-height:52px}
+.hud .name{flex:1;min-width:0;line-height:1.15}
+.hud .name b{display:block;font-family:var(--font-serif-victorian);font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud .name span{font-size:.8rem;color:var(--color-muted)}
+.stats{display:flex;gap:var(--space-4);font-variant-numeric:tabular-nums;font-weight:700;font-size:.95rem}
+.stats div{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.stats small{font-weight:500;font-size:.7rem;color:var(--color-muted);text-transform:uppercase;letter-spacing:.04em}
+#board-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:linear-gradient(var(--table-a),var(--table-b))}
+#board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:pointer}
+.status{flex:none;min-height:40px;display:flex;align-items:center;padding:var(--space-2) var(--space-4);background:var(--panel);border-top:1px solid var(--color-border);font-size:.92rem;line-height:1.25}
+.status span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.toolbar{flex:none;display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));background:var(--bar);border-top:1px solid var(--color-border)}
+.tool{flex:1;max-width:110px;min-height:52px;min-width:44px;border-radius:var(--radius-md);border:2px solid var(--color-border);background:var(--btn);color:var(--btn-text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.75rem;font-weight:600;padding:2px}
+.tool:hover{border-color:var(--color-primary)}
+.tool[aria-pressed="true"]{background:var(--pressed);color:var(--on-pressed);border-color:var(--pressed)}
+.tool:disabled{opacity:.45;cursor:default}
+.tool .badge{font-variant-numeric:tabular-nums}
+.toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-20px);opacity:0;pointer-events:none;background:var(--panel);color:var(--color-text);border:2px solid var(--color-highlight);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-5);font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center;font-size:.95rem}
+.toast.on{transform:translate(-50%,0);opacity:1}
+
+/* ---------- overlays ---------- */
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:var(--space-4);z-index:10}
+.overlay.on{display:flex}
+.panel{background:var(--panel);color:var(--color-text);border-radius:var(--radius-lg);border:2px solid var(--color-border);width:100%;max-width:600px;max-height:100%;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.panel header{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3) var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border)}
+.panel header h2{margin:0;flex:1;font-family:var(--font-serif-victorian);font-size:1.35rem;color:var(--color-primary)}
+.panel .body{padding:var(--space-4) var(--space-5);overflow-y:auto}
+.panel .actions{display:flex;flex-wrap:wrap;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-top:1px solid var(--color-border);justify-content:center}
+.panel p,.panel li{line-height:1.45}
+.panel h3{font-family:var(--font-serif-victorian);margin:var(--space-5) 0 var(--space-2);font-size:1.1rem}
+.kbd{display:inline-block;border:1px solid var(--color-border);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.85em;font-family:var(--font-sans);background:var(--color-bg)}
+.factcard{border-left:5px solid var(--color-highlight);background:var(--color-bg);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);margin-top:var(--space-4)}
+.factcard .q{font-weight:600}
+.factcard .src{font-size:.82rem;color:var(--color-muted);margin-top:var(--space-2)}
+.scoregrid{display:grid;grid-template-columns:1fr auto;gap:2px var(--space-5);font-variant-numeric:tabular-nums}
+.scoregrid .tot{font-weight:800;border-top:1px solid var(--color-border);padding-top:4px;font-size:1.1rem}
+table.st{width:100%;border-collapse:collapse;font-size:.92rem;font-variant-numeric:tabular-nums}
+table.st th,table.st td{padding:6px 4px;border-bottom:1px solid var(--color-border);text-align:right}
+table.st th:first-child,table.st td:first-child{text-align:left}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:var(--space-3) 0;border-bottom:1px solid var(--color-border);flex-wrap:wrap}
+.setrow label,.setrow .lbl{font-weight:600}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
+.guide{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:var(--space-3)}
+.guide figure{margin:0;text-align:center;font-size:.8rem;line-height:1.2}
+.guide canvas{width:62px;height:auto;display:block;margin:0 auto 4px}
+.big{font-size:2.2rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin:var(--space-2) 0}
+@media (max-width:520px){
+  .stats{gap:var(--space-3);font-size:.88rem}
+  .hud .name span{display:none}
+  .tool{font-size:.68rem}
+  .panel .body{padding:var(--space-3) var(--space-4)}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Title -->
+  <section class="screen on" id="s-title" aria-labelledby="t-h">
+    <canvas id="title-art" aria-hidden="true"></canvas>
+    <div class="title-block">
+      <h1 id="t-h">Bathhouse Mahjong</h1>
+      <p class="subtitle">Tile matching in the Valley of Vapors</p>
+      <div class="menu">
+        <button class="btn primary wide" id="b-continue" hidden>Continue game</button>
+        <button class="btn primary" id="b-play">Play</button>
+        <button class="btn primary" id="b-daily">Daily Puzzle</button>
+        <button class="btn" id="b-help">How to Play</button>
+        <button class="btn" id="b-tiles">Tile Guide</button>
+        <button class="btn" id="b-stats">Stats</button>
+        <button class="btn" id="b-settings">Settings</button>
+      </div>
+      <p class="foot">Every deal is built backwards from a solution, so every board can be cleared.</p>
+    </div>
+  </section>
+
+  <!-- Layout picker -->
+  <section class="screen" id="s-layouts" aria-labelledby="l-h">
+    <div class="topbar"><button class="iconbtn" data-back aria-label="Back to title"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2 id="l-h">Choose a layout</h2></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- Game -->
+  <section class="screen" id="s-game" aria-label="Game">
+    <div class="hud">
+      <button class="iconbtn" id="b-menu" aria-label="Menu"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="name"><b id="h-name">Classic Pyramid</b><span id="h-sub">Classic</span></div>
+      <div class="stats" aria-live="off">
+        <div id="h-timebox"><span id="h-time">0:00</span><small>Time</small></div>
+        <div><span id="h-score">0</span><small>Score</small></div>
+        <div><span id="h-left">144</span><small>Tiles</small></div>
+        <div><span id="h-pairs">0</span><small>Pairs</small></div>
+      </div>
+      <button class="iconbtn" id="b-pause" aria-label="Pause"><svg class="ic" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
+    </div>
+    <div id="board-wrap">
+      <canvas id="board" tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
+      <div class="toast" id="toast" role="status"></div>
+    </div>
+    <div class="status" id="status"><span id="status-text">Match pairs of free tiles.</span></div>
+    <div class="toolbar" role="toolbar" aria-label="Game tools">
+      <button class="tool" id="t-hint" title="Hint (H)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>Hint</button>
+      <button class="tool" id="t-shuffle" title="Shuffle (S)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.6 0 2.8-1.6 3.9-3.5M13.1 9.5C14.2 7.6 15.4 7 17 7h3M17 4l3 3-3 3M17 14l3 3-3 3"/></svg>Shuffle</button>
+      <button class="tool" id="t-undo" title="Undo (U)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Undo</button>
+      <button class="tool" id="t-redo" title="Redo (R)"><svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>Redo</button>
+      <button class="tool" id="t-free" title="Highlight free tiles (F)" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Free</button>
+      <button class="tool" id="t-zoom" title="Zoom (Z)" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5M11 8v6M8 11h6"/></svg>Zoom</button>
+    </div>
+  </section>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="o-pause" role="dialog" aria-modal="true" aria-labelledby="op-h"><div class="panel">
+  <header><h2 id="op-h">Paused</h2></header>
+  <div class="body"><p class="big" id="op-time">0:00</p><p style="text-align:center">The clock is stopped and the board is hidden.</p></div>
+  <div class="actions"><button class="btn primary" id="op-resume">Resume</button><button class="btn" id="op-new">New game</button><button class="btn" id="op-help">How to Play</button><button class="btn" id="op-settings">Settings</button><button class="btn" id="op-title">Title screen</button></div>
+</div></div>
+
+<div class="overlay" id="o-stuck" role="dialog" aria-modal="true" aria-labelledby="os-h"><div class="panel">
+  <header><h2 id="os-h">No more matches</h2></header>
+  <div class="body"><p id="os-text">There are no free pairs left. Shuffle the remaining tiles into a new solvable order (−50 points), undo your last moves, or start over.</p></div>
+  <div class="actions"><button class="btn primary" id="os-shuffle">Shuffle (−50)</button><button class="btn" id="os-undo">Undo</button><button class="btn" id="os-new">New game</button></div>
+</div></div>
+
+<div class="overlay" id="o-win" role="dialog" aria-modal="true" aria-labelledby="ow-h"><div class="panel">
+  <header><h2 id="ow-h">Board cleared!</h2></header>
+  <div class="body">
+    <p id="ow-sub" style="text-align:center;margin:0"></p>
+    <p class="big" id="ow-score">0</p>
+    <div class="scoregrid" id="ow-grid"></div>
+    <div class="factcard" id="ow-fact"><div class="q"></div><div class="a"></div><div class="src"></div></div>
+  </div>
+  <div class="actions"><button class="btn primary" id="ow-again">Play again</button><button class="btn" id="ow-layouts">Layouts</button><button class="btn" id="ow-title">Title</button></div>
+</div></div>
+
+<div class="overlay" id="o-help" role="dialog" aria-modal="true" aria-labelledby="oh-h"><div class="panel">
+  <header><h2 id="oh-h">How to Play</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body">
+    <p><b>Clear the board by removing matching pairs of free tiles.</b></p>
+    <ul>
+      <li>A tile is <b>free</b> when nothing sits on top of it, even partly, and it can slide out to the <b>left or the right</b>.</li>
+      <li>Select a free tile, then a matching free tile. Tiles match when they show the same suit and number, the same mountain or the same dragon.</li>
+      <li><b>Any Flower matches any Flower, and any Season matches any Season.</b></li>
+      <li>Stuck? <b>Shuffle</b> rearranges the remaining tiles into a new order that can still be solved.</li>
+      <li><b>Undo</b> and <b>Redo</b> are unlimited. <b>Hint</b> shows a pair that keeps the board winnable.</li>
+    </ul>
+    <h3>Reading the tiles</h3>
+    <p>Every tile has an index in the top-left corner and a shape under it, so you never need to rely on color:</p>
+    <ul>
+      <li>● circle: <b>Springs</b> 1–9 (count the steaming pools)</li>
+      <li>■ square: <b>Bathhouses</b> 1–9 (Bathhouse Row from north to south)</li>
+      <li>◆ diamond: <b>Lakes &amp; Fish</b> 1–9 (count the fish)</li>
+      <li>▲ triangle: <b>Mountains</b> H, N, W, S (Hot Springs, North, West, Sugarloaf)</li>
+      <li>⬢ hexagon: <b>Dragons</b> R Red Tile, G Green Tile, ▭ White Stone</li>
+      <li>✿ flower: <b>Flowers</b> 1–4 &nbsp; ✦ star: <b>Seasons</b> 1–4</li>
+    </ul>
+    <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
+    <h3>Scoring</h3>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. Hints cost 15, shuffles 50. Winning adds 500 plus 1 point per second under ten minutes.</p>
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> enlarges the board; drag to look around.</li>
+      <li><b>Keyboard:</b> <span class="kbd">←</span><span class="kbd">↑</span><span class="kbd">→</span><span class="kbd">↓</span> move, <span class="kbd">Enter</span> or <span class="kbd">Space</span> select, <span class="kbd">H</span> hint, <span class="kbd">S</span> shuffle, <span class="kbd">U</span> undo, <span class="kbd">R</span> redo, <span class="kbd">F</span> free-tile highlight, <span class="kbd">Z</span> zoom, <span class="kbd">P</span> pause, <span class="kbd">Esc</span> menu.</li>
+    </ul>
+    <p style="font-size:.85rem;color:var(--color-muted)">Tile backs are inspired by the Quapaw Bathhouse's chevron-tiled dome; the real tile colors are not documented, so these are guesses. Facts come from the Hot Springs Games research corpus.</p>
+  </div>
+</div></div>
+
+<div class="overlay" id="o-tiles" role="dialog" aria-modal="true" aria-labelledby="ot-h"><div class="panel" style="max-width:760px">
+  <header><h2 id="ot-h">Tile Guide</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body" id="ot-body"></div>
+</div></div>
+
+<div class="overlay" id="o-stats" role="dialog" aria-modal="true" aria-labelledby="ost-h"><div class="panel">
+  <header><h2 id="ost-h">Stats</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body" id="ost-body"></div>
+  <div class="actions"><button class="btn" id="ost-reset">Reset stats</button></div>
+</div></div>
+
+<div class="overlay" id="o-settings" role="dialog" aria-modal="true" aria-labelledby="ose-h"><div class="panel">
+  <header><h2 id="ose-h">Settings</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+  <div class="body" id="ose-body">
+    <div class="setrow"><span class="lbl" id="lb-sound">Sound</span><button class="btn small" id="se-sound" aria-labelledby="lb-sound" aria-pressed="true">On</button></div>
+    <div class="setrow"><label for="se-vol">Volume</label><input type="range" id="se-vol" min="0" max="100" step="5"></div>
+    <div class="setrow"><span class="lbl">Motion</span><div class="seg" role="group" aria-label="Motion" data-set="motion"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="full">Full</button><button class="btn small" data-v="reduced">Reduced</button></div></div>
+    <div class="setrow"><span class="lbl">Theme</span><div class="seg" role="group" aria-label="Theme" data-set="theme"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="light">Light</button><button class="btn small" data-v="dark">Neon Night</button></div></div>
+    <div class="setrow"><span class="lbl" id="lb-free">Highlight free tiles</span><button class="btn small" id="se-free" aria-labelledby="lb-free" aria-pressed="true">On</button></div>
+    <div class="setrow"><span class="lbl" id="lb-timer">Show timer</span><button class="btn small" id="se-timer" aria-labelledby="lb-timer" aria-pressed="true">On</button></div>
+    <div class="setrow"><span class="lbl" id="lb-cap">Names on tiles (when large)</span><button class="btn small" id="se-cap" aria-labelledby="lb-cap" aria-pressed="true">On</button></div>
+    <p id="se-storage" style="font-size:.85rem;color:var(--color-muted)"></p>
+  </div>
+</div></div>
+
+<div class="sr-only" aria-live="polite" id="live"></div>
+
+<script type="application/json" id="facts">[{"id":"hs-0057","q":"Whose life-size statue stands in the men's bath hall of the Fordyce Bathhouse?","a":"Hernando de Soto","e":"Despite the discredited legend, a de Soto statue stands under the Fordyce's stained-glass skylight.","s":"Encyclopedia of Arkansas: Bathhouse Row"},{"id":"hs-0058","q":"In what year did the first Arlington Hotel open in Hot Springs?","a":"1875","e":"The first Arlington, financed by Samuel Fordyce and partners, was the state's largest hotel.","s":"Arlington Hotel: History"},{"id":"hs-0059","q":"What was Hot Springs' Majestic Hotel originally called when built in 1882?","a":"The Avenue Hotel","e":"The Avenue Hotel was renamed the Majestic in 1888.","s":"Encyclopedia of Arkansas: Central Avenue Historic District"},{"id":"hs-0060","q":"What was Hot Springs' Central Avenue called before it was renamed in the late 1870s?","a":"Valley Street","e":"Valley Street was renamed Central Avenue in the late 1870s.","s":"Encyclopedia of Arkansas: Central Avenue Historic District"},{"id":"hs-0061","q":"Which is the oldest surviving bathhouse on Hot Springs' Bathhouse Row?","a":"The Hale","e":"The Hale dates to 1892–93; the others date from 1911–1923.","s":"Encyclopedia of Arkansas: Bathhouse Row"},{"id":"hs-0062","q":"Which Bathhouse Row bathhouse has offered baths continuously since 1912?","a":"The Buckstaff","e":"The Buckstaff was the only Row bathhouse still operating after 1985.","s":"Encyclopedia of Arkansas: Bathhouse Row"},{"id":"hs-0063","q":"Which 1904 Hot Springs bathhouse was the first built exclusively for African Americans?","a":"The Crystal Bathhouse","e":"It stood at 415 Malvern Ave. and burned in the 1913 fire.","s":"NPS: African Americans and the Hot Springs Baths"},{"id":"hs-0064","q":"What did the Fordyce Bathhouse cost to build in 1914–15, including fixtures?","a":"$212,749.55","e":"The Fordyce was the Row's most luxurious house.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0065","q":"Which fountain sits beneath the Fordyce Bathhouse's stained-glass skylight?","a":"The DeSoto Fountain","e":"Condi-Neal Glass of St. Louis installed the skylight's sea-themed glass in 1914–15.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0066","q":"What color are the tile medallions on the Superior Bathhouse facade?","a":"Green","e":"Concrete on the facade is painted to imitate ornamental tile.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0067","q":"What is the name of the Maurice Bathhouse den with an inglenook fireplace?","a":"The Roycroft (Dutch) Den","e":"The den has carved mascarons, or carved faces.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0068","q":"Which two older bathhouses stood on the site of the 1922 Quapaw Bathhouse?","a":"Horseshoe and Magnesia","e":"The Quapaw replaced both Victorian-era houses.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0069","q":"What color is the brick of the Buckstaff Bathhouse?","a":"Cream","e":"Cream brick with white stucco trim and brass \"Buckstaff Baths\" letters.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0070","q":"What bronze figures guard Bathhouse Row's 1890s main entrance?","a":"Two federal eagles","e":"Army engineer Robert Stevens designed the entrance and balustrade.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0071","q":"What was the steel observation tower that preceded today's Hot Springs Mountain Tower called?","a":"The Rix Tower","e":"The roughly 165-ft Rix Tower had an elevator and telescope.","s":"NPS: Hot Springs Mountain Tower"},{"id":"hs-0072","q":"About how many rooms did Hot Springs' Eastman Hotel (1890) have?","a":"About 500","e":"It was popular with baseball teams and taken over by the military in 1942.","s":"HMdb: Eastman Hotel marker"},{"id":"hs-0073","q":"In what year was the Ohio Club on Hot Springs' Central Avenue founded?","a":"1905","e":"It ran as a speakeasy in Prohibition and as a casino until 1967.","s":"Encyclopedia of Arkansas: Ohio Club"},{"id":"hs-0074","q":"In what year was Hot Springs' Southern Club built as a private club?","a":"1893","e":"Charles Dugan and Dan Stuart built it.","s":"Encyclopedia of Arkansas: Southern Club"},{"id":"hs-0075","q":"Which Bathhouse Row bathhouse has \"spring number 46\" in a glazed-tile basement room?","a":"The Fordyce","e":"The Quapaw and Hale basements hold other display springs.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0076","q":"How long did it take to build the current (third) Arlington Hotel after the 1923 fire?","a":"11 months and 3 days","e":"Begun Oct. 25, 1923, it was completed Nov. 28, 1924.","s":"Arlington Hotel: History"},{"id":"hs-0077","q":"Which bathhouse's 1923 opening completed Hot Springs' Bathhouse Row?","a":"The Lamar","e":"The Lamar opened in 1923 and stopped bathing in November 1985.","s":"NPS: History & Culture"},{"id":"hs-0078","q":"Why was Hot Springs' Quapaw Bathhouse given its name?","a":"Native artifacts turned up while digging its basement","e":"It was to be the Platt Bathhouse until the finds and a tufa cave inspired the new name.","s":"Encyclopedia of Arkansas: Bathhouse Row"},{"id":"hs-0079","q":"What inspired the Maurice Bathhouse's 1931 therapeutic pool?","a":"FDR's treatments at Warm Springs, Ga.","e":"The pool, staffed by a physical therapist, followed the Warm Springs model.","s":"Encyclopedia of Arkansas: Bathhouse Row"},{"id":"hs-0080","q":"In what architectural style was the Hale Bathhouse facade remodeled in 1939–40?","a":"Mission","e":"Thompson, Sanders & Ginocchio gave it a red-tile hipped roof and wrought-iron grilles.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0081","q":"What was the Maurice Bathhouse's 1931 therapeutic pool built for?","a":"Therapy for paralysis patients","e":"A registered physical therapist staffed the pool.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0082","q":"Which Bathhouse Row bathhouse is crowned by a large tiled dome?","a":"The Quapaw","e":"Its chevron-mosaic dome is topped by a small copper cupola.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0083","q":"What was Hot Springs' Quapaw Bathhouse originally going to be named?","a":"The Platt Bathhouse","e":"It was renamed after a tufa cave and Native artifacts were found.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0084","q":"Which fish decorates the parapets of Hot Springs' Quapaw Bathhouse?","a":"Sculpin","e":"Scalloped shells frame the sculpin, originally gold and now white.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0085","q":"Which Bathhouse Row bathhouse has twin towers with three-tiered setbacks?","a":"The Ozark","e":"The 1922 Spanish Colonial Revival design has a vague Art Deco look.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0086","q":"In what decade did construction begin on the Grand Promenade behind Bathhouse Row?","a":"The 1930s","e":"The brick path was completed in the late 1950s to early 1960s.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0087","q":"In what year was the NPS Administration Building on Bathhouse Row built?","a":"1936","e":"It faces the street because its predecessor kept being mistaken for a bathhouse.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0088","q":"What material did William Jacobs add to the Southern Club's front in 1927, helping hide the gambling?","a":"Dark Pittsburgh glass","e":"Capone reportedly played poker there at an elevated table.","s":"Encyclopedia of Arkansas: Southern Club"},{"id":"hs-0089","q":"Which was the first Bathhouse Row bathhouse to close, in 1962?","a":"The Fordyce","e":"The Fordyce closed June 29, 1962, and reopened as the visitor center in 1989.","s":"NPS: History & Culture"},{"id":"hs-0090","q":"What was built on the site of Hot Springs' demolished Eastman Hotel?","a":"The federal courthouse and post office","e":"The Federal Building at 100 Reserve St. went up in 1959–60.","s":"HMdb: Eastman Hotel marker"},{"id":"hs-0091","q":"In what year was the Noble Fountain moved to the Reserve Avenue end of the Grand Promenade?","a":"1957","e":"The Maurice Spring fountain dates from 1903 and the Administration Building fountain from 1936.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0092","q":"When was the jug fountain in front of the NPS Administration Building in Hot Springs installed?","a":"1966","e":"People fill containers with hot thermal water there.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0093","q":"Which Bathhouse Row building houses Hot Springs National Park's visitor center and museum?","a":"The Fordyce","e":"The Fordyce reopened as the visitor center on May 13, 1989.","s":"Encyclopedia of Arkansas: Hot Springs National Park"},{"id":"hs-0094","q":"How tall is the Hot Springs Mountain Tower?","a":"216 feet","e":"The steel lattice tower opened June 3, 1983, replacing a 165-ft tower.","s":"Wikipedia: Hot Springs Mountain Tower"},{"id":"hs-0095","q":"Which gated community near Hot Springs did John A. Cooper Sr. open in 1970?","a":"Hot Springs Village","e":"It opened June 1, 1970, on about 20,000 acres bought from Dierks Forests.","s":"Encyclopedia of Arkansas: Hot Springs Village"},{"id":"hs-0096","q":"In what year did the Fordyce Bathhouse reopen as Hot Springs National Park's visitor center?","a":"1989","e":"It reopened May 13, 1989, after closing in 1962.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0097","q":"In what month and year did the Lamar Bathhouse stop offering baths?","a":"November 1985","e":"After 1985 only the Buckstaff still operated on the Row.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0098","q":"In what year was Bathhouse Row designated a National Historic Landmark District?","a":"1987","e":"It was listed on the National Register in 1974 and became an NHL district May 28, 1987.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0099","q":"In what month and year did the current Hot Springs Mountain Tower open?","a":"June 1983","e":"Construction began in 1982; it opened June 3, 1983.","s":"Wikipedia: Hot Springs Mountain Tower"},{"id":"hs-0100","q":"On what date was Hot Springs' Bathhouse Row listed on the National Register of Historic Places?","a":"Nov. 13, 1974","e":"It became a National Historic Landmark District in 1987.","s":"NPS: History & Culture"},{"id":"hs-0102","q":"Which Bathhouse Row bathhouse now houses a brewery and distillery?","a":"The Superior","e":"Superior Bathhouse Brewery opened in the 1916 building in 2012.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0103","q":"When did Quapaw Baths & Spa open in the restored Quapaw Bathhouse?","a":"July 2008","e":"NPS restored the building in 2004.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0104","q":"What does the Ozark Bathhouse on Bathhouse Row house today?","a":"Hot Springs NP Cultural Center","e":"It reopened in 2014 as a cultural center showing artist-in-residence work.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0105","q":"Which Bathhouse Row building holds the official park store, the Bathhouse Row Emporium?","a":"The Lamar","e":"The Lamar also served as interim visitor center while the Fordyce was renovated.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0106","q":"What color was the brick of the Majestic Hotel section destroyed by fire in 2014?","a":"Yellow","e":"The rest of the condemned hotel was razed in late 2016.","s":"Encyclopedia of Arkansas: Majestic Hotel"},{"id":"hs-0107","q":"What museum now occupies Hot Springs' former Southern Club casino?","a":"Josephine Tussaud Wax Museum","e":"The club stood at 250 Central Avenue.","s":"HMdb: Southern Club marker"},{"id":"hs-0108","q":"Which 2006 wood-and-glass chapel stands in Garvan Woodland Gardens?","a":"Anthony Chapel","e":"Designed by Maurice Jennings and David McKee, it is modeled on Fay Jones's Thorncrown Chapel.","s":"Encyclopedia of Arkansas: Garvan Woodland Gardens"},{"id":"hs-0109","q":"How many historic bathhouses stand on Hot Springs' Bathhouse Row?","a":"Eight","e":"Superior, Hale, Maurice, Fordyce, Quapaw, Ozark, Buckstaff and Lamar line Central Avenue.","s":"Wikipedia: Bathhouse Row"},{"id":"hs-0110","q":"What is the street address of the Buckstaff Bathhouse?","a":"509 Central Avenue","e":"NPS lists the Buckstaff at 509 Central and the Quapaw at 413 Central.","s":"NPS: Soak in the Springs"},{"id":"hs-0111","q":"What is the street address of Hot Springs' Arlington Hotel?","a":"239 Central Avenue","e":"It stands at the \"Y\" of Central Avenue and Fountain Street.","s":"Wikipedia: Arlington Hotel"},{"id":"hs-0112","q":"How many Arlington Hotels have stood on the same Hot Springs site?","a":"Three","e":"They date from 1875, 1892–93 and 1924.","s":"Wikipedia: Arlington Hotel"},{"id":"hs-0113","q":"How many principal springs did the Dunbar–Hunter expedition count at Hot Springs in 1804?","a":"Four","e":"They counted four principal springs and two lesser ones.","s":"Encyclopedia of Arkansas: Hunter-Dunbar Expedition"},{"id":"hs-0114","q":"What average water temperature did the Dunbar–Hunter expedition record at the hot springs?","a":"About 148–150°F","e":"The party measured water averaging about 148–150°F; today's average is about 143°F.","s":"Encyclopedia of Arkansas: Hunter-Dunbar Expedition"},{"id":"hs-0115","q":"What did the Dunbar–Hunter party call the creek, now Gulpha Creek, where it camped in December 1804?","a":"Calfait Creek","e":"They camped at Calfait (Gulpha) Creek, at Ellis Landing, on Dec. 7, 1804.","s":"Encyclopedia of Arkansas: Hunter-Dunbar Expedition"},{"id":"hs-0116","q":"In what year did Bertram Boltwood find that the Hot Springs waters were radioactive?","a":"1904","e":"Boltwood detected radium emanation in 1904; dissolved radon is the main source.","s":"NPS 1920 brochure"},{"id":"hs-0117","q":"Which creek flows through a tunnel beneath Hot Springs' Bathhouse Row?","a":"Hot Springs Creek","e":"It was enclosed in an underground arch in 1882–83.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0118","q":"What was the Ouachita National Forest called when it was established in 1907?","a":"Arkansas National Forest","e":"It was renamed on April 29, 1926.","s":"Wikipedia: Ouachita National Forest"},{"id":"hs-0119","q":"In what decade was Hot Springs Creek enclosed in an underground arch beneath Central Avenue?","a":"The 1880s","e":"The arch was built in 1882–83 and designed for a 10-year flood.","s":"NPS: History & Culture"},{"id":"hs-0120","q":"In what decade was Hot Springs' Display Spring uncovered so visitors could see thermal water in its natural state?","a":"The 1930s","e":"It had been covered by a grate for decades.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0121","q":"Which dam formed Lake Hamilton, and when was it completed?","a":"Carpenter Dam, 1931","e":"Arkansas Power & Light built the concrete gravity dam; the lake formed in 1932.","s":"Wikipedia: Lake Hamilton"},{"id":"hs-0122","q":"About how many acres is Lake Hamilton?","a":"About 7,200","e":"Lake Catherine is about 1,940 acres; Lake Ouachita about 40,000.","s":"Wikipedia: Lake Hamilton"},{"id":"hs-0123","q":"Which dam forms Lake Catherine, and when was it built?","a":"Remmel Dam, 1924","e":"Both Remmel and Carpenter dams were listed on the National Register in 1992.","s":"Wikipedia: Lake Catherine"},{"id":"hs-0124","q":"What type of dam is Lake Catherine's Remmel Dam?","a":"Ambursen flat-slab buttress","e":"It was built in 1924 by Ford, Bacon & Davis with Ambursen Construction.","s":"Wikipedia: Lake Catherine"},{"id":"hs-0125","q":"Lake Winona, near Hot Springs, supplies drinking water to which city's region?","a":"Little Rock","e":"Central Arkansas Water owns the 1936–38 reservoir.","s":"Encyclopedia of Arkansas: Lake Winona"},{"id":"hs-0126","q":"Which dam creates Lake Ouachita near Hot Springs?","a":"Blakely Mountain Dam","e":"The Army Corps of Engineers built the 231-ft dam from 1948 to 1953.","s":"Wikipedia: Lake Ouachita"},{"id":"hs-0127","q":"About how many islands does Lake Ouachita have?","a":"About 200","e":"Numbered island markers help boaters navigate.","s":"Wikipedia: Lake Ouachita"},{"id":"hs-0128","q":"Which historic healing springs does Lake Ouachita State Park preserve?","a":"Three Sisters Springs","e":"The 360-acre park opened in 1955.","s":"Wikipedia: Lake Ouachita State Park"},{"id":"hs-0129","q":"In what year did quartz crystal become Arkansas's state mineral?","a":"1976","e":"Quartz formed in the Ouachitas after the Ouachita Orogeny.","s":"Arkansas.com: Mount Ida"},{"id":"hs-0130","q":"On which river is DeGray Lake, south of Hot Springs?","a":"The Caddo River","e":"The lake sits about 8 miles above the Ouachita confluence.","s":"Wikipedia: DeGray Lake"},{"id":"hs-0131","q":"DeGray Lake was the first Corps of Engineers lake able to do what?","a":"Pump water back for power","e":"A 400-acre lower lake re-regulates the pumped-back water.","s":"Wikipedia: DeGray Lake"},{"id":"hs-0132","q":"What is DeGray Lake's maximum depth?","a":"About 200 ft","e":"Its average depth is about 47 ft.","s":"Wikipedia: DeGray Lake"},{"id":"hs-0133","q":"What is the largest lake in Hot Springs Village?","a":"Lake Balboa","e":"Balboa covers about 944 acres.","s":"Sentinel-Record via PressReader (2018)"},{"id":"hs-0134","q":"What is the Arkansas state-record walleye, and where was it caught?","a":"22 lb 11 oz, Greers Ferry Lake","e":"Al Nelson caught it on March 12, 1982.","s":"AGFC: State records"},{"id":"hs-0135","q":"What is Arkansas's statewide daily limit for black bass, as fished on Hot Springs-area lakes?","a":"10, no more than 4 smallmouth","e":"Possession is capped at three times the daily limit.","s":"AGFC Regulation N1.01"},{"id":"hs-0136","q":"What is Arkansas's statewide daily crappie limit?","a":"30","e":"Lake-specific exceptions can apply.","s":"AGFC Regulation N1.01"},{"id":"hs-0137","q":"What is the Arkansas state-record striped bass?","a":"64 lb 8 oz","e":"It was caught in the Beaver Lake tailwater in 2000; Lake Ouachita stripers chase it.","s":"AGFC: State records"},{"id":"hs-0138","q":"Why must Lake Ouachita's striped bass be stocked every year?","a":"They don't reproduce naturally there","e":"A 2021 AGFC biologist said Ouachita walleye, by contrast, now reproduce on their own.","s":"USACE/FOLO meeting minutes (Nov 2021)"},{"id":"hs-0139","q":"What tree did AGFC and the Corps mostly use for new Lake Ouachita fish brush piles?","a":"Cedar","e":"The piles sit at 20–25 ft near the mid-lake islands.","s":"AGFC: Improving angling odds at Lake Ouachita"},{"id":"hs-0140","q":"What lure caught the 11-lb Lake Hamilton largemouth at a May 2024 club tournament?","a":"Texas-rigged Zoom Speed Craw","e":"The color was Green Pumpkin Magic.","s":"AGFC: Tourney anglers catch whopper bass in Lake Hamilton"},{"id":"hs-0141","q":"How many acres is Garvan Woodland Gardens on Lake Hamilton?","a":"210","e":"The University of Arkansas owns the garden.","s":"Wikipedia: Garvan Woodland Gardens"},{"id":"hs-0143","q":"What does the name of novaculite, the Ouachita whetstone rock, mean in Latin?","a":"Razor stone","e":"Novaculite takes its name from the Latin for \"razor stone.\"","s":"Encyclopedia of Arkansas: Novaculite"},{"id":"hs-0144","q":"What two industry grades are Garland County novaculite whetstones sold as?","a":"Washita and Arkansas","e":"\"Washita\" is duller and porous; \"Arkansas\" is finer-grained, waxy and denser.","s":"Encyclopedia of Arkansas: Novaculite"},{"id":"hs-0145","q":"About how old is most Hot Springs thermal water, per USGS tritium and carbon-14 dating?","a":"About 4,400 years","e":"Rain falls, sinks deep, heats and returns as spring water about 4,400 years later.","s":"USGS Professional Paper 1044-C (NPS History)"},{"id":"hs-0146","q":"Per the National Park Service, about how much water do the Hot Springs thermal springs produce per day?","a":"Over 700,000 gallons","e":"NPS says over 700,000 gallons; other sources give up to about 1 million.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0147","q":"What is the average temperature of Hot Springs' thermal spring water?","a":"About 143°F","e":"NPS calls them the hottest springs east of the Rocky Mountains.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0148","q":"How many thermal springs is Hot Springs National Park usually said to have?","a":"47","e":"Wikipedia's park article says 43 are presumed still flowing.","s":"Britannica: Hot Springs National Park"},{"id":"hs-0149","q":"Which two dating methods showed most Hot Springs thermal water is about 4,400 years old?","a":"Tritium and carbon-14","e":"USGS Professional Paper 1044-C found a small share of water under 20 years old.","s":"USGS Professional Paper 1044-C (NPS History)"},{"id":"hs-0150","q":"Outcrops of which two rock formations recharge the Hot Springs thermal springs?","a":"Bigfork Chert and Arkansas Novaculite","e":"Rain soaks into these outcrops and moves slowly to depth.","s":"USGS Professional Paper 1044-C (NPS History)"},{"id":"hs-0151","q":"What names do NPS geologists give the two thrust faults that bring Hot Springs' water to the surface?","a":"Alpha and beta","e":"The faults act like pipes carrying heated water up.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0152","q":"Which downtown Hot Springs streets does the \"alpha\" fault roughly follow?","a":"Central Avenue and Fountain Street","e":"The beta fault follows the top edge of Hot Springs Mountain.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0153","q":"About how hot does Hot Springs' rainwater get deep underground before it rises?","a":"About 160°F","e":"It heats through the geothermal gradient roughly a mile down.","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0154","q":"NPS calls the Hot Springs thermal springs the hottest east of what landmark?","a":"The Rocky Mountains","e":"The springs average about 143°F (62°C).","s":"NPS: Maurice Historic Display Spring"},{"id":"hs-0155","q":"What is the most abundant dissolved constituent in Hot Springs' thermal water?","a":"Bicarbonate","e":"Bicarbonate is about 130 ppm, ahead of silica and calcium.","s":"Wikipedia: Hot Springs National Park"},{"id":"hs-0156","q":"What is the white-to-tan rock deposited around Hot Springs' spring openings called?","a":"Tufa (travertine)","e":"Tufa forms as minerals precipitate from evaporating thermal water.","s":"Wikipedia: Hot Springs National Park"},{"id":"hs-0157","q":"Which two Hot Springs jug-filling fountains offer cold spring water rather than thermal water?","a":"Happy Hollow and Whittington","e":"Both cold springs are treated with ozone filtration.","s":"Wikipedia: Hot Springs National Park"},{"id":"hs-0158","q":"Which dissolved gas causes most of the slight radioactivity in Hot Springs' water?","a":"Radon","e":"Wikipedia compares bathing exposure to sitting in the sun for the same time.","s":"Wikipedia: Hot Springs National Park"},{"id":"hs-0159","q":"Into which lake does Hot Springs Creek empty after flowing under Bathhouse Row?","a":"Lake Hamilton","e":"The creek rises near Whittington Avenue and surfaces south of the Row.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0160","q":"What is the highest point in Hot Springs National Park?","a":"Music Mountain","e":"NPS gives 1,405 ft, at the west end of the Sunset Trail.","s":"NPS: Sunset Trail"},{"id":"hs-0161","q":"What is the longest trail in Hot Springs National Park?","a":"Sunset Trail","e":"The Sunset Trail runs about 10 miles one way.","s":"NPS: Sunset Trail"},{"id":"hs-0162","q":"What are the three sections of Hot Springs National Park's Sunset Trail?","a":"West Mountain, Sugarloaf, Stonebridge Road","e":"The sections are 2.8, 2.6 and 3.8 miles long.","s":"NPS: Sunset Trail"},{"id":"hs-0163","q":"How long is the Grand Promenade, the brick trail behind Bathhouse Row?","a":"About 0.5 mile","e":"It is a National Recreation Trail and the entry point from downtown.","s":"NPS: Hot Springs & North Mountain Trails"},{"id":"hs-0164","q":"What was Hot Springs National Park's Oertel Trail formerly called?","a":"Dead Chief Trail","e":"The 1.4-mile trail climbs from 670 to 863 ft.","s":"NPS: Hot Springs & North Mountain Trails"},{"id":"hs-0165","q":"Which Hot Springs National Park trail is the steepest listed, at a 21.1% grade?","a":"Short Cut Trail","e":"Short Cut is only 0.2 mile long.","s":"NPS: Hot Springs & North Mountain Trails"},{"id":"hs-0166","q":"What color blazes mark the Gulpha Gorge Trail in Hot Springs National Park?","a":"Pink","e":"It links the campground to the park's trail network.","s":"NPS: Hot Springs & North Mountain Trails"},{"id":"hs-0167","q":"Goat Rock overlook in Hot Springs National Park is on which mountain?","a":"North Mountain","e":"The Goat Rock Trail rises from 886 to 1,067 ft.","s":"NPS: Hot Springs & North Mountain Trails"},{"id":"hs-0168","q":"What is unusual about the direction of the Ouachita Mountains around Hot Springs?","a":"They run east–west","e":"Most U.S. ranges trend north–south.","s":"Wikipedia: Ouachita Mountains"},{"id":"hs-0169","q":"Which rock found around Hot Springs is used to make Arkansas whetstones?","a":"Novaculite","e":"Novaculite is a dense recrystallized chert of tiny quartz crystals.","s":"Arkansas Geological Survey: Novaculite"},{"id":"hs-0170","q":"Which oak grows naturally at only four sites in the world, all in the Ouachita Mountains?","a":"Maple-leaf oak","e":"It is one of several Ouachita endemic plants.","s":"Wikipedia: Ouachita Mountains"},{"id":"hs-0171","q":"In what city is the Ouachita National Forest headquartered?","a":"Hot Springs","e":"The forest covers about 1.78 million acres.","s":"Wikipedia: Ouachita National Forest"},{"id":"hs-0172","q":"How long is the Ouachita National Recreation Trail?","a":"223 miles","e":"It crosses the Ouachita National Forest, headquartered in Hot Springs.","s":"Wikipedia: Ouachita National Forest"},{"id":"hs-0173","q":"Which fish is stocked each winter in the tailwater below Carpenter Dam on Lake Catherine?","a":"Rainbow trout","e":"Stocking runs about mid-November through March.","s":"Wikipedia: Ouachita River"},{"id":"hs-0174","q":"Which Arkansas state fish hatchery sits on Lake Hamilton?","a":"Andrew Hulsey State Fish Hatchery","e":"Surplus Florida-strain bass from its ponds were stocked into the lake.","s":"AGFC: Tourney anglers catch whopper bass in Lake Hamilton"},{"id":"hs-0175","q":"Which wintering bird do eagle-watch tours on Lake Ouachita and DeGray Lake look for?","a":"Bald eagle","e":"DeGray tours run in late January with the Eagles Et Cetera festival.","s":"Arkansas State Parks: Eagle Watch Tours"},{"id":"hs-0176","q":"Which month is the wettest in Hot Springs on average?","a":"May","e":"May averages about 6.5 inches; August is the driest month.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0177","q":"What is Hot Springs' record high temperature?","a":"115°F","e":"It was reached in 1936 and again in 1986.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0178","q":"About how much snow does Hot Springs average per year?","a":"About 1.1 inches","e":"Most falls in January and February.","s":"Wikipedia: Hot Springs, Arkansas"},{"id":"hs-0179","q":"About how long is the Ouachita River, which is dammed into Lakes Ouachita, Hamilton and Catherine?","a":"About 605 miles","e":"It rises in Polk County and joins the Tensas in Louisiana.","s":"Wikipedia: Ouachita River"},{"id":"hs-0180","q":"Which igneous complex southeast of Hot Springs is famous for lodestone and rare minerals?","a":"Magnet Cove","e":"Its minerals include magnetite, rutile and perovskite.","s":"Wikipedia: Magnet Cove, Arkansas"},{"id":"hs-0181","q":"Which big cat once lived around Hot Springs but was wiped out after settlement?","a":"Cougar","e":"Plains bison, eastern elk and red wolves were also extirpated.","s":"Wikipedia: Hot Springs National Park"}]</script>
+
+<script id="engine">
+'use strict';
+// ===================== ENGINE: pure game logic, no DOM (also loaded by tools/check-layouts.mjs) =====================
+const ENGINE = (() => {
+  // mulberry32: public-domain PRNG by Tommy Ettinger
+  function makeRng(seed) {
+    let a = seed >>> 0;
+    const r = () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    r.int = (n) => Math.floor(r() * n);
+    return r;
+  }
+  // FNV-1a 32-bit
+  function hashStr(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function shuffleInPlace(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = rng.int(i + 1); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  }
+
+  // ---------- layouts: half-tile grid; a tile at (x, y, z) covers x..x+2, y..y+2 on layer z ----------
+  function L() {
+    const t = [];
+    const api = {
+      rect(z, x, y, w, h) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) t.push([x + 2 * i, y + 2 * j, z]); return api; },
+      row(z, x, y, w) { return api.rect(z, x, y, w, 1); },
+      one(z, x, y) { t.push([x, y, z]); return api; },
+      tiles: t,
+    };
+    return api;
+  }
+  const LAYOUTS = [
+    {
+      id: 'pyramid', name: 'Classic Pyramid', caption: 'The traditional stepped pyramid: four levels and one capstone.',
+      build() { return L().rect(0, 0, 0, 11, 7).rect(1, 2, 2, 9, 5).rect(2, 4, 4, 7, 3).one(3, 10, 6).tiles; },
+    },
+    {
+      id: 'tower', name: 'Mountain Tower', caption: 'Hot Springs Mountain Tower: 216 ft of lattice steel, opened June 3, 1983.',
+      build() {
+        const b = L();
+        b.row(0, 6, 0, 7).row(1, 8, 0, 5).row(2, 10, 0, 3).one(3, 12, 0);                       // observation deck
+        for (const [y, xs] of [[2, [10, 14]], [4, [9, 15]], [6, [8, 16]], [8, [7, 17]], [10, [6, 18]]]) {
+          for (const x of xs) b.one(0, x, y).one(1, x, y);                                       // lattice legs
+        }
+        b.one(0, 12, 4).one(1, 12, 4).one(0, 12, 8).one(1, 12, 8).one(2, 12, 8)                  // cross-braces
+          .one(0, 11, 6).one(0, 13, 6).one(1, 11, 6).one(1, 13, 6);
+        b.row(0, 4, 12, 9).row(0, 2, 14, 11).row(0, 0, 16, 13).row(0, 0, 18, 13);               // the mountain
+        b.row(1, 6, 12, 7).row(1, 4, 14, 9).row(1, 2, 16, 11).row(1, 2, 18, 11);
+        b.row(2, 8, 14, 5).row(2, 6, 16, 7);
+        b.row(3, 10, 15, 3);
+        return b.tiles;
+      },
+    },
+    {
+      id: 'arlington', name: 'Arlington Towers', caption: 'The Arlington (1924): Spanish Colonial Revival twin towers and 484 rooms at the head of Central Avenue.',
+      build() {
+        const b = L();
+        b.rect(0, 0, 8, 14, 3);                                                                  // main block
+        for (let x = 0; x <= 26; x += 2) if (x !== 12 && x !== 14) b.one(0, x, 14);              //   with an arched entry
+        b.rect(1, 2, 8, 12, 2);
+        for (const tx of [2, 20]) {                                                              // twin towers
+          b.rect(0, tx, 0, 3, 4).rect(1, tx, 0, 3, 4).rect(2, tx + 1, 1, 2, 3);
+          b.one(3, tx + 2, 2).one(3, tx + 2, 4).one(4, tx + 2, 3);
+        }
+        return b.tiles;
+      },
+    },
+    {
+      id: 'row', name: 'Bathhouse Row', caption: 'Eight bathhouses, Superior to Lamar, above the promenade. The Row was completed in 1923.',
+      build() {
+        const b = L();
+        b.row(0, 0, 12, 16).row(1, 1, 12, 15);                                                  // promenade: two brick courses
+        const [sup, hale, mau, ford, qua, oz, buck, lam] = [0, 4, 8, 12, 16, 20, 24, 28];       // north to south
+        for (const x of [sup, hale, mau, ford, qua, oz, buck, lam]) b.rect(0, x, 6, 2, 3);
+        b.row(0, sup, 4, 2).rect(1, sup, 6, 2, 3);                                              // Superior: flat parapet
+        b.rect(1, hale, 6, 2, 2).one(2, hale + 1, 7).one(0, hale + 1, 4).one(0, hale + 1, 2);   // Hale: hip roof, bell gable
+        b.row(0, mau, 4, 2).rect(1, mau, 4, 2, 2);                                              // Maurice: green tile cap
+        b.row(0, ford, 4, 2).rect(1, ford, 6, 2, 3);                                            // Fordyce: wide hip roof
+        b.row(0, qua, 4, 2).rect(1, qua, 4, 2, 2).one(2, qua + 1, 5).one(3, qua + 1, 5)         // Quapaw: tallest dome
+          .one(0, qua + 1, 2).one(1, qua + 1, 2);                                               //   and cupola
+        b.row(0, oz, 4, 2).rect(1, oz, 6, 2, 2);                                                // Ozark: twin towers
+        for (const tx of [oz - 1, oz + 3]) b.one(0, tx, 2).one(1, tx, 2).one(2, tx, 2);
+        b.row(0, buck, 4, 2).rect(1, buck, 6, 2, 3);                                            // Buckstaff: colonnade
+        b.rect(1, lam, 6, 2, 3);                                                                // Lamar: plain block
+        return b.tiles;
+      },
+    },
+    {
+      id: 'islands', name: 'Ouachita Islands', caption: 'Lake Ouachita has about 200 islands. Clear these one by one.',
+      build() {
+        const b = L();
+        b.rect(0, 0, 0, 5, 4).rect(1, 2, 2, 3, 2).one(2, 4, 3);                                 // big island
+        b.rect(0, 14, 0, 6, 2).row(1, 16, 0, 4).row(1, 16, 2, 4).row(2, 18, 1, 2);              // long island
+        b.row(0, 13, 5, 2).one(1, 14, 5);                                                       // islet
+        b.rect(0, 10, 8, 4, 4).rect(1, 11, 9, 3, 3).one(2, 13, 11);                             // central island
+        b.rect(0, 0, 12, 3, 3).rect(1, 1, 13, 2, 2).one(2, 2, 14);                              // south-west
+        b.rect(0, 20, 6, 4, 5).rect(1, 22, 8, 2, 4).one(2, 23, 10).one(1, 20, 6);               // east island
+        b.rect(0, 9, 18, 5, 2).row(1, 11, 18, 3).one(1, 9, 19).one(2, 13, 18);                  // south island
+        b.rect(0, 22, 18, 3, 2).one(1, 23, 19);                                                 // south-east
+        return b.tiles;
+      },
+    },
+  ];
+
+  function buildGeometry(pos) {
+    const n = pos.length;
+    const top = [], left = [], right = [], below = [];
+    for (let i = 0; i < n; i++) { top.push([]); left.push([]); right.push([]); below.push([]); }
+    for (let i = 0; i < n; i++) {
+      const [xi, yi, zi] = pos[i];
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const [xj, yj, zj] = pos[j];
+        const ox = Math.abs(xj - xi) < 2, oy = Math.abs(yj - yi) < 2;
+        if (zj === zi + 1 && ox && oy) top[i].push(j);
+        else if (zj === zi - 1 && ox && oy) below[i].push(j);
+        else if (zj === zi && oy && xj - xi === 2) right[i].push(j);
+        else if (zj === zi && oy && xj - xi === -2) left[i].push(j);
+      }
+    }
+    return { n, pos, top, left, right, below };
+  }
+
+  function validateLayout(pos) {
+    const errs = [];
+    const seen = new Set();
+    for (let i = 0; i < pos.length; i++) {
+      const k = pos[i].join(',');
+      if (seen.has(k)) errs.push('duplicate ' + k);
+      seen.add(k);
+      for (let j = i + 1; j < pos.length; j++) {
+        const a = pos[i], b = pos[j];
+        if (a[2] === b[2] && Math.abs(a[0] - b[0]) < 2 && Math.abs(a[1] - b[1]) < 2) errs.push('overlap ' + a + ' / ' + b);
+      }
+    }
+    if (pos.length % 2) errs.push('odd count ' + pos.length);
+    if (pos.length > 144) errs.push('more than 144 tiles: ' + pos.length);
+    const g = buildGeometry(pos);
+    for (let i = 0; i < pos.length; i++) if (pos[i][2] > 0 && g.below[i].length === 0) errs.push('floating ' + pos[i]);
+    return errs;
+  }
+
+  function isFree(g, present, i) {
+    if (!present[i]) return false;
+    const top = g.top[i];
+    for (let k = 0; k < top.length; k++) if (present[top[k]]) return false;
+    const l = g.left[i];
+    let blockedL = false;
+    for (let k = 0; k < l.length; k++) if (present[l[k]]) { blockedL = true; break; }
+    if (!blockedL) return true;
+    const r = g.right[i];
+    for (let k = 0; k < r.length; k++) if (present[r[k]]) return false;
+    return true;
+  }
+
+  // Faces: 0-8 Springs 1-9, 9-17 Bathhouses 1-9, 18-26 Lakes 1-9, 27-30 Mountains H N W S,
+  // 31-33 Dragons Red/Green/White, 34-37 Flowers, 38-41 Seasons.
+  const FACES = 42;
+  function matchKey(f) { return f < 34 ? f : f < 38 ? 34 : 38; }
+  function fullPairList() {
+    const pairs = [];
+    for (let k = 0; k < 34; k++) { pairs.push([k, k]); pairs.push([k, k]); }
+    pairs.push([34, 35], [36, 37], [38, 39], [40, 41]);
+    return pairs;
+  }
+
+  // Reverse construction (see MECHANICS.md §2): remove two geometrically free positions at a time.
+  function removalOrder(g, positions, rng, maxTries = 400) {
+    for (let attempt = 0; attempt < maxTries; attempt++) {
+      const present = new Array(g.n).fill(false);
+      for (const i of positions) present[i] = true;
+      let left = positions.length;
+      const order = [];
+      let ok = true;
+      while (left > 0) {
+        const free = [];
+        for (const i of positions) if (isFree(g, present, i)) free.push(i);
+        if (free.length < 2) { ok = false; break; }
+        const a = free[rng.int(free.length)];
+        let cands = free.filter((b) => b !== a && !g.left[a].includes(b) && !g.right[a].includes(b));
+        if (!cands.length || (attempt > maxTries / 2 && rng() < 0.3)) cands = free.filter((b) => b !== a);
+        const b = cands[rng.int(cands.length)];
+        present[a] = false; present[b] = false; left -= 2;
+        order.push([a, b]);
+      }
+      if (ok) return order;
+    }
+    return null;
+  }
+
+  function deal(g, rng) {
+    if (g.n % 2 || g.n > 144) return null;
+    const all = [];
+    for (let i = 0; i < g.n; i++) all.push(i);
+    const order = removalOrder(g, all, rng);
+    if (!order) return null;
+    // keep whole quads when a layout has fewer than 144 positions
+    const pairs = fullPairList();
+    const quads = [];
+    for (let k = 0; k < pairs.length; k += 2) quads.push([pairs[k], pairs[k + 1]]);
+    shuffleInPlace(quads, rng);
+    const chosen = [];
+    for (const q of quads) { if (chosen.length >= order.length) break; chosen.push(q[0].slice(), q[1].slice()); }
+    shuffleInPlace(chosen, rng);
+    const faces = new Array(g.n).fill(-1);
+    order.forEach(([a, b], k) => { const pr = chosen[k]; if (rng() < 0.5) pr.reverse(); faces[a] = pr[0]; faces[b] = pr[1]; });
+    return { faces, plan: order };
+  }
+
+  function availablePairs(g, present, faces) {
+    const byKey = new Map();
+    for (let i = 0; i < g.n; i++) if (isFree(g, present, i)) {
+      const k = matchKey(faces[i]);
+      let list = byKey.get(k);
+      if (!list) byKey.set(k, list = []);
+      list.push(i);
+    }
+    const out = [];
+    for (const list of byKey.values()) for (let a = 0; a < list.length; a++) for (let b = a + 1; b < list.length; b++) out.push([list[a], list[b]]);
+    return out;
+  }
+
+  // Does replaying `plan` from `present` clear the board?
+  function planValid(g, present0, faces, plan) {
+    if (!plan) return false;
+    const present = present0.slice();
+    let left = 0;
+    for (let i = 0; i < g.n; i++) if (present[i]) left++;
+    for (const [a, b] of plan) {
+      if (a === b || !present[a] || !present[b]) return false;
+      if (matchKey(faces[a]) !== matchKey(faces[b])) return false;
+      if (!isFree(g, present, a) || !isFree(g, present, b)) return false;
+      present[a] = present[b] = false; left -= 2;
+    }
+    return left === 0;
+  }
+
+  // After the player removes (a, b), try to keep the known solution (freeness is monotonic, so most repairs hold).
+  function repairPlan(g, presentAfter, faces, plan, a, b) {
+    if (!plan) return null;
+    const ia = plan.findIndex((p) => p[0] === a || p[1] === a);
+    const ib = plan.findIndex((p) => p[0] === b || p[1] === b);
+    if (ia < 0 || ib < 0) return null;
+    let np;
+    if (ia === ib) np = plan.filter((_, k) => k !== ia);
+    else {
+      const c = plan[ia][0] === a ? plan[ia][1] : plan[ia][0];
+      const d = plan[ib][0] === b ? plan[ib][1] : plan[ib][0];
+      const keep = Math.max(ia, ib);
+      np = [];
+      plan.forEach((p, k) => { if (k === keep) np.push([c, d]); else if (k !== ia && k !== ib) np.push(p); });
+    }
+    return planValid(g, presentAfter, faces, np) ? np : null;
+  }
+
+  // Bounded DFS solver with safe-move collapse and memo. Returns a winning list of pairs or null.
+  function solve(g, present0, faces, budget = 25000) {
+    const present = present0.slice();
+    let nodes = 0, remaining = 0;
+    const seen = new Set();
+    const path = [];
+    const kindCount = new Map();
+    for (let i = 0; i < g.n; i++) if (present[i]) { remaining++; const k = matchKey(faces[i]); kindCount.set(k, (kindCount.get(k) || 0) + 1); }
+    function key() { let s = ''; for (let i = 0; i < g.n; i += 15) { let v = 0; for (let j = 0; j < 15 && i + j < g.n; j++) if (present[i + j]) v |= 1 << j; s += String.fromCharCode(v + 256); } return s; }
+    function take(a, b) { present[a] = present[b] = false; remaining -= 2; const k = matchKey(faces[a]); kindCount.set(k, kindCount.get(k) - 2); path.push([a, b]); }
+    function untake() { const [a, b] = path.pop(); present[a] = present[b] = true; remaining += 2; const k = matchKey(faces[a]); kindCount.set(k, kindCount.get(k) + 2); }
+    function weight(i) { let s = g.pos[i][2] * 3; for (const j of g.below[i]) if (present[j]) s += 2; for (const j of g.left[i]) if (present[j]) s++; for (const j of g.right[i]) if (present[j]) s++; return s; }
+    function rec() {
+      const mark = path.length;
+      for (;;) {
+        const free = new Map();
+        for (let i = 0; i < g.n; i++) if (isFree(g, present, i)) { const k = matchKey(faces[i]); if (!free.has(k)) free.set(k, []); free.get(k).push(i); }
+        let did = false;
+        for (const [k, list] of free) if (list.length === kindCount.get(k) && list.length % 2 === 0) { for (let x = 0; x < list.length; x += 2) take(list[x], list[x + 1]); did = true; }
+        if (!did) break;
+      }
+      if (remaining === 0) return true;
+      const undo = () => { while (path.length > mark) untake(); return false; };
+      if (++nodes > budget) return undo();
+      const k = key();
+      if (seen.has(k)) return undo();
+      seen.add(k);
+      const pairs = availablePairs(g, present, faces);
+      if (!pairs.length) return undo();
+      pairs.sort((p, q) => (weight(q[0]) + weight(q[1])) - (weight(p[0]) + weight(p[1])));
+      for (const [a, b] of pairs) {
+        take(a, b);
+        if (rec()) return true;
+        untake();
+        if (nodes > budget) break;
+      }
+      return undo();
+    }
+    return rec() ? path.slice() : null;
+  }
+
+  // Rearrange the remaining faces into a solvable order on the remaining positions. Returns {faces, plan} or null.
+  function reshuffle(g, present, faces, rng) {
+    const positions = [];
+    for (let i = 0; i < g.n; i++) if (present[i]) positions.push(i);
+    const order = removalOrder(g, positions, rng, 300);
+    if (!order) return null;
+    const buckets = new Map();
+    for (const i of positions) { const k = matchKey(faces[i]); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(faces[i]); }
+    const pairs = [];
+    for (const list of buckets.values()) for (let a = 0; a + 1 < list.length; a += 2) pairs.push([list[a], list[a + 1]]);
+    shuffleInPlace(pairs, rng);
+    const nf = faces.slice();
+    order.forEach(([a, b], k) => { nf[a] = pairs[k][0]; nf[b] = pairs[k][1]; });
+    return { faces: nf, plan: order };
+  }
+
+  return { makeRng, hashStr, shuffleInPlace, LAYOUTS, buildGeometry, validateLayout, isFree, FACES, matchKey, fullPairList, removalOrder, deal, availablePairs, planValid, repairPlan, solve, reshuffle };
+})();
+</script>
+
+<script id="app-script">
+'use strict';
+(() => {
+const E = ENGINE;
+const $ = (id) => document.getElementById(id);
+const TEST = !!window.__TEST__;
+
+// ===================== tile names and facts (research/town-content.md) =====================
+const SUITS = [
+  { name: 'Springs', short: 'Springs', color: '#17595F', dark: '#17595F' },
+  { name: 'Bathhouses', short: 'Bathhouse', color: '#8E3622' },
+  { name: 'Lakes & Fish', short: 'Lakes', color: '#1E4E79' },
+];
+const SPRING_FACTS = [
+  'The springs average about 143°F.',
+  'The Display Spring behind the Maurice is one of the few open-air springs.',
+  'Most of the water fell as rain about 4,400 years ago.',
+  'Dunbar and Hunter (1804–05) counted four principal springs and two lesser ones.',
+  'The springs flow over 700,000 gallons a day (the NPS figure; other sources say more).',
+  'By 1901 all the springs were walled and covered.',
+  'Tufa forms when thermal water evaporates and leaves carbonate behind.',
+  'A blue-green alga, Phormidium treleasei, grows where spring water meets light and air.',
+  'The park is centered on 47 thermal springs (one source says 43 still flow).',
+];
+const BATHHOUSES = [
+  ['Superior', 'Superior Bathhouse (1916)', 'Northernmost on the Row; today a brewery that brews with thermal water.'],
+  ['Hale', 'Hale Bathhouse (1892)', 'The oldest surviving bathhouse, with a red hip roof and a Spanish bell gable.'],
+  ['Maurice', 'Maurice Bathhouse (1912)', 'Its visible roof sections are covered in green tile.'],
+  ['Fordyce', 'Fordyce Bathhouse (1915)', 'Cost $212,749.55 with fixtures; now the park visitor center.'],
+  ['Quapaw', 'Quapaw Bathhouse (1922)', 'Its chevron-tiled dome is the tallest on the Row.'],
+  ['Ozark', 'Ozark Bathhouse (1922)', 'Twin towers with three-tiered setbacks flank the entrance.'],
+  ['Buckstaff', 'Buckstaff Bathhouse (1912)', 'Seven bays of engaged columns; still operating as a bathhouse.'],
+  ['Lamar', 'Lamar Bathhouse (1923)', 'The southernmost; its completion in 1923 finished the Row.'],
+  ['Admin.', 'Administration Building (1936)', 'It faces the street because its predecessor kept being mistaken for a bathhouse.'],
+];
+const LAKE_FACTS = [
+  'Lake Ouachita has about 200 islands.',
+  'Lake Hamilton (7,200 acres) formed in 1932 behind Carpenter Dam.',
+  "Lake Catherine's Remmel Dam was built in 1924.",
+  'Bald eagles winter at DeGray Lake.',
+  'The three Ouachita River lakes form a chain: Ouachita, Hamilton, Catherine.',
+  'Striped bass are stocked in Lake Ouachita every year.',
+  'Rainbow trout are stocked below Carpenter Dam, about November to March.',
+  'Hot Springs Creek runs under Bathhouse Row and empties into Lake Hamilton.',
+  'Blakely Mountain Dam (built 1948–1953) created Lake Ouachita.',
+];
+const HONORS = [
+  ['H', 'Hot Springs Mountain', 'The springs emerge at its base; the 216-ft tower on top opened June 3, 1983.'],
+  ['N', 'North Mountain', 'Home of the Goat Rock overlook trail.'],
+  ['W', 'West Mountain', "Music Mountain, the park's highest point, is in the West Mountain section."],
+  ['S', 'Sugarloaf Mountain', 'It holds about 90 acres of old-growth forest.'],
+  ['R', 'Red Tile', 'Red clay tile roofs top most of Bathhouse Row.'],
+  ['G', 'Green Tile', "The Maurice's visible roof sections are green tile."],
+  ['', 'White Stone', 'Novaculite forms the ridges on both sides of the valley; it was graded as "Arkansas" and "Washita" whetstones.'],
+  ['1', 'Magnolia', 'The Magnolia Promenade was laid out in the 1890s with double rows of magnolias.'],
+  ['2', 'Dogwood', 'Two North Mountain trails are named Upper and Lower Dogwood.'],
+  ['3', 'Redbud', 'A spring bloom of the Ouachita hills.'],
+  ['4', 'Sweetgum', 'A star-shaped leaf that turns orange in fall.'],
+  ['1', 'Spring', 'Garvan Woodland Gardens shows 150,000+ Dutch tulips (2017 figure).'],
+  ['2', 'Summer', 'Lake days on Lake Hamilton, 7,200 acres.'],
+  ['3', 'Autumn', "Oak and hickory cover the park's northern slopes, pine the southern."],
+  ['4', 'Winter', 'Garvan Holiday Lights: about 4 million bulbs in 2014, later 4.5–5 million.'],
+];
+// index glyph, index color, suit shape, group label
+function faceMeta(f) {
+  if (f < 27) {
+    const s = Math.floor(f / 9), n = f % 9 + 1;
+    const shape = ['circle', 'square', 'diamond'][s];
+    let name, fact, cap;
+    if (s === 0) { name = 'Springs ' + n; fact = SPRING_FACTS[n - 1]; cap = n + ' spring' + (n > 1 ? 's' : ''); }
+    else if (s === 1) { name = 'Bathhouse ' + n + ': ' + BATHHOUSES[n - 1][1]; fact = BATHHOUSES[n - 1][2]; cap = BATHHOUSES[n - 1][0]; }
+    else { name = 'Lakes ' + n; fact = LAKE_FACTS[n - 1]; cap = n + ' fish'; }
+    return { idx: String(n), color: SUITS[s].color, shape, name, fact, cap, group: SUITS[s].name };
+  }
+  const h = HONORS[f - 27];
+  if (f < 31) return { idx: h[0], color: '#2F4A2C', shape: 'triangle', name: 'Mountain: ' + h[1], fact: h[2], cap: h[1].replace(' Mountain', ''), group: 'Mountains' };
+  if (f < 34) return { idx: h[0], color: ['#8E3622', '#2E6A3C', '#3A3A36'][f - 31], shape: 'hexagon', name: 'Dragon: ' + h[1], fact: h[2], cap: h[1], group: 'Dragons' };
+  if (f < 38) return { idx: h[0], color: '#8A2F63', shape: 'flower', name: 'Flower: ' + h[1], fact: h[2] + ' Any Flower matches any Flower.', cap: h[1], group: 'Flowers' };
+  return { idx: h[0], color: '#6B4A12', shape: 'star', name: 'Season: ' + h[1], fact: h[2] + ' Any Season matches any Season.', cap: h[1], group: 'Seasons' };
+}
+const META = [];
+for (let f = 0; f < E.FACES; f++) META.push(faceMeta(f));
+
+let FACTS = [];
+try { FACTS = JSON.parse($('facts').textContent || '[]'); } catch (e) { FACTS = []; }
+
+// ===================== storage =====================
+const store = {
+  ok: (() => { try { const k = '__bhm_t'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; } catch (e) { return false; } })(),
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
+};
+const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true };
+const SETTINGS = Object.assign({}, DEFAULT_SETTINGS, store.get('bhm.settings.v1', {}));
+function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
+function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
+let STATS = Object.assign(freshStats(), store.get('bhm.stats.v1', {}));
+function saveStats() { store.set('bhm.stats.v1', STATS); }
+function layoutStats(id) { return STATS.layouts[id] || (STATS.layouts[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
+
+const mqReduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
+function reduced() { return SETTINGS.motion === 'reduced' || (SETTINGS.motion === 'auto' && mqReduce.matches); }
+function isDark() { return SETTINGS.theme === 'dark' || (SETTINGS.theme === 'auto' && mqDark.matches); }
+
+// ===================== audio (WebAudio synthesis, starts after the first gesture) =====================
+const AUDIO = (() => {
+  let ac = null, master = null, noiseBuf = null;
+  function ensure() {
+    if (!SETTINGS.sound) return null;
+    if (!ac) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      try { ac = new C(); } catch (e) { return null; }
+      master = ac.createGain(); master.connect(ac.destination);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 1.5, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ac.state === 'suspended') ac.resume();
+    master.gain.value = (SETTINGS.volume / 100) * 0.5;
+    return ac;
+  }
+  function tone(freq, t0, dur, type = 'sine', vol = 0.3, slide = 0) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(freq * slide, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function noise(t0, dur, freq, q, vol, type = 'bandpass', attack = 0.004) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    s.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + attack); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t0, Math.random()); s.stop(t0 + dur + 0.02);
+  }
+  const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+  const api = {
+    unlock() { ensure(); },
+    click() { if (!ensure()) return; const t = ac.currentTime; noise(t, 0.05, 2400, 3, 0.5); tone(1800, t, 0.05, 'sine', 0.12); },
+    match(combo) {
+      if (!ensure()) return; const t = ac.currentTime;
+      noise(t, 0.06, 1900, 4, 0.55); noise(t + 0.07, 0.06, 1600, 4, 0.5);
+      noise(t + 0.1, 0.7, 5200, 0.7, 0.18, 'highpass', 0.12); // steam hiss
+      tone(PENTA[Math.min(combo, PENTA.length - 1)], t + 0.08, 0.35, 'triangle', 0.16);
+    },
+    thud() { if (!ensure()) return; const t = ac.currentTime; tone(140, t, 0.16, 'sine', 0.35, 0.6); noise(t, 0.08, 400, 1, 0.2, 'lowpass'); },
+    chime() { if (!ensure()) return; const t = ac.currentTime; tone(880, t, 0.4, 'sine', 0.18); tone(1318.5, t + 0.12, 0.5, 'sine', 0.14); },
+    rattle() { if (!ensure()) return; const t = ac.currentTime; for (let i = 0; i < 10; i++) noise(t + i * 0.035 + Math.random() * 0.02, 0.04, 1500 + Math.random() * 1500, 3, 0.35); },
+    win() {
+      if (!ensure()) return; const t = ac.currentTime;
+      [0, 2, 4, 5, 6].forEach((k, i) => tone(PENTA[k] / 2, t + i * 0.13, 0.9, 'triangle', 0.16));
+      noise(t + 0.2, 1.8, 4800, 0.6, 0.16, 'highpass', 0.4);
+    },
+    toggle() { if (ac && master) master.gain.value = SETTINGS.sound ? (SETTINGS.volume / 100) * 0.5 : 0; },
+  };
+  return api;
+})();
+
+// ===================== drawing helpers =====================
+function rr(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r); c.lineTo(x + w, y + h - r);
+  c.quadraticCurveTo(x + w, y + h, x + w - r, y + h); c.lineTo(x + r, y + h); c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath();
+}
+function poly(c, pts) { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); }
+function circ(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); }
+function fillP(c, col) { c.fillStyle = col; c.fill(); }
+function strokeP(c, col, w) { c.strokeStyle = col; c.lineWidth = w; c.stroke(); }
+
+function suitShape(c, shape, x, y, s, col) {
+  c.fillStyle = col; c.strokeStyle = col;
+  switch (shape) {
+    case 'circle': circ(c, x, y, s); c.fill(); break;
+    case 'square': c.fillRect(x - s * 0.9, y - s * 0.9, s * 1.8, s * 1.8); break;
+    case 'diamond': poly(c, [x, y - s * 1.2, x + s, y, x, y + s * 1.2, x - s, y]); c.fill(); break;
+    case 'triangle': poly(c, [x, y - s * 1.1, x + s * 1.15, y + s * 0.85, x - s * 1.15, y + s * 0.85]); c.fill(); break;
+    case 'hexagon': { const p = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; p.push(x + Math.cos(a) * s * 1.05, y + Math.sin(a) * s * 1.05); } poly(c, p); c.fill(); break; }
+    case 'flower': for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * Math.PI * 2 / 5; circ(c, x + Math.cos(a) * s * 0.6, y + Math.sin(a) * s * 0.6, s * 0.48); c.fill(); } break;
+    case 'star': { const p = []; for (let k = 0; k < 8; k++) { const a = -Math.PI / 2 + k * Math.PI / 4, r = k % 2 ? s * 0.42 : s * 1.2; p.push(x + Math.cos(a) * r, y + Math.sin(a) * r); } poly(c, p); c.fill(); break; }
+  }
+}
+
+// Classic dot arrangements (unit offsets), shared by Springs and Lakes & Fish.
+const ARR = [
+  [[0, 0]],
+  [[0, -0.55], [0, 0.55]],
+  [[-0.62, -0.66], [0, 0], [0.62, 0.66]],
+  [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]],
+  [[-0.6, -0.62], [0.6, -0.62], [0, 0], [-0.6, 0.62], [0.6, 0.62]],
+  [[-0.5, -0.68], [0.5, -0.68], [-0.5, 0], [0.5, 0], [-0.5, 0.68], [0.5, 0.68]],
+  [[-0.66, -0.86], [0, -0.66], [0.66, -0.46], [-0.5, 0.16], [0.5, 0.16], [-0.5, 0.78], [0.5, 0.78]],
+  [[-0.5, -0.81], [0.5, -0.81], [-0.5, -0.27], [0.5, -0.27], [-0.5, 0.27], [0.5, 0.27], [-0.5, 0.81], [0.5, 0.81]],
+  [[-0.66, -0.7], [0, -0.7], [0.66, -0.7], [-0.66, 0], [0, 0], [0.66, 0], [-0.66, 0.7], [0, 0.7], [0.66, 0.7]],
+];
+const ARR_R = [24, 16, 13, 13, 11.5, 10.5, 9.5, 8.6, 9.2];
+
+// --------------- face art (unit space: 100 wide x 130 tall) ---------------
+const C = {
+  marble: '#F2EFE8', vein: 'rgba(120,112,100,.16)', pool: '#1F5F6B', algae: '#2A9D8F', emerald: '#2F8F5B', tufa: '#9A968C', rim: '#C8C3B6',
+  cream: '#E6D7B5', stucco: '#F3EFE6', red: '#A9432C', redD: '#7E2F1F', green: '#4E7D5B', copper: '#B87333', verd: '#5E9C8C', brass: '#C9A23F',
+  iron: '#1F2A24', brick: '#B5654A', loz: '#B89A6A', terra: '#C46A3E', cobalt: '#2B4C9B', gold: '#D9A23A', lake: '#1E4E79', lakeL: '#5C8DB8',
+  bass: '#4F6B35', belly: '#E6DDB0', pine: '#2F4A2C', pineD: '#1F3324', oak: '#5C7A3A', nova: '#EDEAE2', rose: '#C99A92', sky: '#CFE3EA',
+};
+const ART = { x0: 30, x1: 96, cx: 62, cy: 70 };
+
+function drawPool(c, x, y, r, steam) {
+  c.save();
+  c.beginPath(); c.ellipse(x, y, r, r * 0.78, 0, 0, Math.PI * 2); fillP(c, C.rim);
+  c.beginPath(); c.ellipse(x, y, r * 0.86, r * 0.66, 0, 0, Math.PI * 2); fillP(c, C.tufa);
+  c.beginPath(); c.ellipse(x, y + r * 0.03, r * 0.7, r * 0.52, 0, 0, Math.PI * 2); fillP(c, C.emerald);
+  c.beginPath(); c.ellipse(x, y + r * 0.05, r * 0.52, r * 0.38, 0, 0, Math.PI * 2); fillP(c, C.algae);
+  c.beginPath(); c.ellipse(x, y + r * 0.07, r * 0.3, r * 0.2, 0, 0, Math.PI * 2); fillP(c, C.pool);
+  c.beginPath(); c.ellipse(x - r * 0.18, y - r * 0.05, r * 0.16, r * 0.07, -0.3, 0, Math.PI * 2); fillP(c, 'rgba(255,255,255,.55)');
+  if (steam) {
+    c.lineCap = 'round';
+    c.strokeStyle = 'rgba(110,120,125,.55)'; c.lineWidth = Math.max(1.4, r * 0.13);
+    for (const dx of [-0.35, 0.3]) {
+      c.beginPath(); c.moveTo(x + dx * r, y - r * 0.45);
+      c.bezierCurveTo(x + dx * r - r * 0.35, y - r * 0.85, x + dx * r + r * 0.35, y - r * 1.05, x + dx * r, y - r * 1.4); c.stroke();
+    }
+  }
+  c.restore();
+}
+function drawFish(c, x, y, s, flip) {
+  c.save(); c.translate(x, y); if (flip) c.scale(-1, 1);
+  // tail
+  poly(c, [s * 0.62, 0, s * 1.08, -s * 0.42, s * 0.98, 0, s * 1.08, s * 0.42]); fillP(c, C.bass);
+  // body
+  c.beginPath(); c.ellipse(0, 0, s * 0.72, s * 0.36, 0, 0, Math.PI * 2); fillP(c, C.bass);
+  c.beginPath(); c.ellipse(-s * 0.05, s * 0.14, s * 0.6, s * 0.18, 0, 0, Math.PI); fillP(c, C.belly);
+  // dorsal fin
+  poly(c, [-s * 0.25, -s * 0.3, s * 0.05, -s * 0.58, s * 0.35, -s * 0.28]); fillP(c, C.pineD);
+  // lateral stripe and eye
+  c.beginPath(); c.moveTo(-s * 0.45, 0); c.lineTo(s * 0.6, 0); strokeP(c, 'rgba(31,51,36,.7)', s * 0.09);
+  circ(c, -s * 0.46, -s * 0.07, s * 0.08); fillP(c, '#FFFFFF'); circ(c, -s * 0.47, -s * 0.07, s * 0.045); fillP(c, '#111');
+  c.restore();
+}
+function waterBands(c, y0, y1) {
+  c.save(); c.strokeStyle = 'rgba(30,78,121,.22)'; c.lineWidth = 2; c.lineCap = 'round';
+  for (let y = y0; y < y1; y += 13) { c.beginPath(); for (let x = ART.x0 - 2; x <= ART.x1; x += 2) { const yy = y + Math.sin(x * 0.18 + y) * 2; if (x === ART.x0 - 2) c.moveTo(x, yy); else c.lineTo(x, yy); } c.stroke(); }
+  c.restore();
+}
+function roofStrip(c, x, y, w, h, col, colD) {
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.fillStyle = colD; c.fillRect(x, y, w, h);
+  const r = 4.2;
+  for (let row = 0, yy = y + h - 1; yy > y - r; yy -= r * 1.2, row++) for (let xx = x + (row % 2 ? r : 0); xx < x + w + r; xx += r * 2) {
+    c.beginPath(); c.arc(xx, yy, r, Math.PI, 0); c.closePath(); fillP(c, row % 2 ? col : col);
+    c.beginPath(); c.arc(xx, yy, r * 0.7, Math.PI * 1.1, Math.PI * 1.5); strokeP(c, 'rgba(255,255,255,.35)', 0.9);
+  }
+  c.restore();
+}
+function windows(c, x, y, w, h, cols, rows, col, arch) {
+  const gw = w / cols, gh = h / rows;
+  c.fillStyle = col;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const wx = x + i * gw + gw * 0.25, wy = y + j * gh + gh * 0.2, ww = gw * 0.5, wh = gh * 0.6;
+    if (arch) { c.beginPath(); c.moveTo(wx, wy + wh); c.lineTo(wx, wy + ww / 2); c.arc(wx + ww / 2, wy + ww / 2, ww / 2, Math.PI, 0); c.lineTo(wx + ww, wy + wh); c.closePath(); c.fill(); }
+    else c.fillRect(wx, wy, ww, wh);
+  }
+}
+function ground(c, y) { c.fillStyle = 'rgba(90,76,56,.35)'; c.fillRect(ART.x0 - 4, y, ART.x1 - ART.x0 + 6, 2.5); }
+
+// The nine Row buildings. Each draws inside x 30..96 with its ground line at y = gy.
+const BUILD = [
+  function superior(c, gy) { // flat parapet, brick pilasters, green paterae frieze
+    const x = 30, w = 66, top = gy - 52;
+    c.fillStyle = C.cream; c.fillRect(x, top, w, 52);
+    c.fillStyle = C.brick; for (let i = 0; i < 7; i++) c.fillRect(x + 1 + i * 10.4, top + 8, 3.6, 44);
+    c.fillStyle = C.green; for (let i = 0; i < 6; i++) { circ(c, x + 8.4 + i * 10.4, top + 14, 3); c.fill(); }
+    c.fillStyle = C.iron; c.fillRect(x - 1, top - 3, w + 2, 4);
+    windows(c, x + 4, top + 22, w - 8, 26, 6, 2, '#3D5A66');
+    c.fillStyle = C.green; c.fillRect(x + 22, top - 11, 22, 6); // neon sign band
+  },
+  function hale(c, gy) { // stucco block, big red hip roof, double-curved parapet with bell opening
+    const x = 32, w = 62, top = gy - 40;
+    c.fillStyle = C.stucco; c.fillRect(x, top, w, 40); strokeP(c, 'rgba(0,0,0,.12)', 1); c.strokeRect(x, top, w, 40);
+    poly(c, [x - 3, top, x + 10, top - 20, x + w - 10, top - 20, x + w + 3, top]); fillP(c, C.red);
+    c.fillStyle = C.redD; for (let i = 1; i < 4; i++) c.fillRect(x + 2 + i * 1.2, top - i * 5, w - 4 - i * 2.4, 1.2);
+    const cx = x + w / 2;
+    c.beginPath(); c.moveTo(cx - 16, top); c.bezierCurveTo(cx - 16, top - 22, cx - 6, top - 16, cx - 6, top - 30); c.lineTo(cx + 6, top - 30);
+    c.bezierCurveTo(cx + 6, top - 16, cx + 16, top - 22, cx + 16, top); c.closePath(); fillP(c, C.stucco); strokeP(c, 'rgba(0,0,0,.18)', 1);
+    c.beginPath(); c.moveTo(cx - 3.5, top - 14); c.lineTo(cx - 3.5, top - 21); c.arc(cx, top - 21, 3.5, Math.PI, 0); c.lineTo(cx + 3.5, top - 14); fillP(c, C.iron);
+    c.fillStyle = '#5A4C38'; c.fillRect(cx - 5, top + 20, 10, 20);
+    c.strokeStyle = C.iron; c.lineWidth = 1.4; for (const gx of [x + 9, x + w - 19]) { c.strokeRect(gx, top + 14, 10, 14); c.beginPath(); c.moveTo(gx + 5, top + 14); c.lineTo(gx + 5, top + 28); c.stroke(); }
+  },
+  function maurice(c, gy) { // white stucco, green tile cap, colored insets, arched sun parlor
+    const x = 30, w = 66, top = gy - 50;
+    c.fillStyle = C.stucco; c.fillRect(x, top, w, 50); strokeP(c, 'rgba(0,0,0,.12)', 1); c.strokeRect(x, top, w, 50);
+    roofStrip(c, x - 2, top - 12, w + 4, 12, C.green, '#355E41');
+    const ins = [C.cobalt, C.gold, C.terra, C.cobalt, C.gold];
+    for (let i = 0; i < 5; i++) { c.fillStyle = ins[i]; c.fillRect(x + 6 + i * 12.5, top + 5, 6, 6); }
+    windows(c, x + 2, top + 16, w - 4, 32, 5, 1, '#3D5A66', true);
+  },
+  function fordyce(c, gy) { // cream body, lozenge brick upper stories, low red hip roof, arched copper marquee
+    const x = 30, w = 66, top = gy - 52;
+    c.fillStyle = C.cream; c.fillRect(x, top, w, 52);
+    c.save(); c.beginPath(); c.rect(x, top, w, 26); c.clip(); c.strokeStyle = C.loz; c.lineWidth = 1.3;
+    for (let k = -4; k < 12; k++) { c.beginPath(); c.moveTo(x + k * 8, top); c.lineTo(x + k * 8 + 26, top + 26); c.stroke(); c.beginPath(); c.moveTo(x + k * 8 + 26, top); c.lineTo(x + k * 8, top + 26); c.stroke(); }
+    c.restore();
+    poly(c, [x - 3, top, x + 14, top - 13, x + w - 14, top - 13, x + w + 3, top]); fillP(c, C.red);
+    c.fillStyle = '#CFC6B2'; c.fillRect(x, gy - 6, w, 6);
+    windows(c, x + 4, top + 27, w - 8, 16, 6, 1, '#3D5A66');
+    c.beginPath(); c.moveTo(x + 18, gy - 6); c.lineTo(x + 18, gy - 14); c.quadraticCurveTo(x + 33, gy - 26, x + 48, gy - 14); c.lineTo(x + 48, gy - 6); c.closePath(); fillP(c, C.copper); strokeP(c, C.verd, 2);
+  },
+  function quapaw(c, gy) { // long block, central chevron-mosaic dome, copper cupola, end finials
+    const x = 28, w = 70, top = gy - 30;
+    c.fillStyle = C.stucco; c.fillRect(x, top, w, 30); strokeP(c, 'rgba(0,0,0,.12)', 1); c.strokeRect(x, top, w, 30);
+    roofStrip(c, x - 1, top - 5, 22, 5, C.red, C.redD); roofStrip(c, x + w - 21, top - 5, 22, 5, C.red, C.redD);
+    const cx = x + w / 2, r = 22;
+    c.save(); c.beginPath(); c.ellipse(cx, top, r, r * 1.25, 0, Math.PI, 0); c.closePath(); c.clip();
+    const cols = [C.cobalt, C.gold, C.terra, C.green, C.cream];
+    for (let k = 0; k < 9; k++) {
+      c.beginPath(); const y = top - r * 1.3 + k * 4.4;
+      for (let xx = cx - r - 4, i = 0; xx <= cx + r + 4; xx += 4.4, i++) { const yy = y + (i % 2 ? 3 : 0); if (i === 0) c.moveTo(xx, yy); else c.lineTo(xx, yy); }
+      c.lineTo(cx + r + 4, top + 2); c.lineTo(cx - r - 4, top + 2); c.closePath(); fillP(c, cols[k % 5]);
+    }
+    c.restore();
+    c.fillStyle = C.copper; c.fillRect(cx - 3.5, top - r * 1.25 - 7, 7, 8);
+    c.beginPath(); c.moveTo(cx, top - r * 1.25 - 13); c.lineTo(cx, top - r * 1.25 - 7); strokeP(c, C.copper, 1.6);
+    for (const fx of [x + 3, x + w - 3]) { c.fillStyle = C.terra; c.fillRect(fx - 2, top - 12, 4, 7); circ(c, fx, top - 13, 2.5); c.fill(); }
+    windows(c, x + 2, top + 6, w - 4, 20, 7, 1, '#3D5A66', true);
+  },
+  function ozark(c, gy) { // low block between twin three-tiered towers, red pyramid caps with finials
+    const x = 30, w = 66;
+    c.fillStyle = C.stucco; c.fillRect(x + 12, gy - 28, w - 24, 28); strokeP(c, 'rgba(0,0,0,.12)', 1); c.strokeRect(x + 12, gy - 28, w - 24, 28);
+    windows(c, x + 14, gy - 25, w - 28, 22, 3, 1, '#3D5A66', true);
+    for (const tx of [x, x + w - 18]) {
+      const tiers = [[0, 18, 28], [1.4, 15.2, 16], [2.8, 12.4, 13]];
+      let y = gy;
+      for (const [dx, tw, th] of tiers) { y -= th; c.fillStyle = C.stucco; c.fillRect(tx + dx, y, tw, th); c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = 1; c.strokeRect(tx + dx, y, tw, th); }
+      poly(c, [tx + 1.8, y, tx + 9, y - 12, tx + 16.2, y]); fillP(c, C.red);
+      c.beginPath(); c.moveTo(tx + 9, y - 12); c.lineTo(tx + 9, y - 17); strokeP(c, C.iron, 1.4);
+      c.fillStyle = '#3D5A66'; c.fillRect(tx + 6, gy - 50, 6, 8); c.fillRect(tx + 6, gy - 22, 6, 10);
+    }
+  },
+  function buckstaff(c, gy) { // cream block, six engaged columns (seven bays), white cornice with paterae, urns
+    const x = 30, w = 66, top = gy - 48;
+    c.fillStyle = C.cream; c.fillRect(x, top, w, 48);
+    c.fillStyle = C.stucco; c.fillRect(x - 2, top - 2, w + 4, 11); c.fillRect(x - 2, gy - 6, w + 4, 6);
+    c.fillStyle = C.loz; for (let i = 0; i < 9; i++) { circ(c, x + 4 + i * 7.25, top + 3.5, 2.2); c.fill(); }
+    c.fillStyle = C.brass; c.fillRect(x + 16, top + 11, w - 32, 4);
+    c.fillStyle = '#FFFFFF'; for (let i = 1; i < 7; i++) c.fillRect(x + i * (w / 7) - 1.8, top + 16, 3.6, 26);
+    windows(c, x, top + 18, w, 22, 7, 1, '#3D5A66');
+    for (const ux of [x + 2, x + w - 2]) { c.beginPath(); c.ellipse(ux, top - 6, 3, 4, 0, 0, Math.PI * 2); fillP(c, C.stucco); strokeP(c, C.loz, 1); }
+  },
+  function lamar(c, gy) { // plain two-story stucco box, tile-capped parapet
+    const x = 32, w = 62, top = gy - 46;
+    c.fillStyle = C.stucco; c.fillRect(x, top, w, 46); strokeP(c, 'rgba(0,0,0,.14)', 1); c.strokeRect(x, top, w, 46);
+    roofStrip(c, x - 2, top - 5, w + 4, 5, C.red, C.redD);
+    windows(c, x + 2, top + 4, w - 4, 38, 5, 2, '#3D5A66');
+    c.fillStyle = '#5A4C38'; c.fillRect(x + w / 2 - 5, gy - 14, 10, 14);
+  },
+  function admin(c, gy) { // stucco block, red hip roof, broken arched pediment, iron balcony, fountain basin
+    const x = 34, w = 58, top = gy - 40;
+    c.fillStyle = C.stucco; c.fillRect(x, top, w, 40); strokeP(c, 'rgba(0,0,0,.12)', 1); c.strokeRect(x, top, w, 40);
+    poly(c, [x - 4, top, x + 12, top - 16, x + w - 12, top - 16, x + w + 4, top]); fillP(c, C.red);
+    const cx = x + w / 2;
+    c.beginPath(); c.arc(cx, top + 13, 9, Math.PI * 1.08, Math.PI * 1.42); strokeP(c, C.iron, 2);
+    c.beginPath(); c.arc(cx, top + 13, 9, Math.PI * 1.58, Math.PI * 1.92); strokeP(c, C.iron, 2);
+    c.fillStyle = '#3D5A66'; c.fillRect(cx - 4, top + 8, 8, 12);
+    c.strokeStyle = C.iron; c.lineWidth = 1.3; c.strokeRect(cx - 9, top + 20, 18, 5);
+    for (let i = 0; i < 5; i++) { c.beginPath(); c.moveTo(cx - 8 + i * 4, top + 20); c.lineTo(cx - 8 + i * 4, top + 25); c.stroke(); }
+    windows(c, x + 2, top + 6, 18, 28, 1, 2, '#3D5A66'); windows(c, x + w - 20, top + 6, 18, 28, 1, 2, '#3D5A66');
+    c.beginPath(); c.ellipse(cx, gy + 4, 14, 3.5, 0, 0, Math.PI * 2); fillP(c, C.rim);
+    c.beginPath(); c.ellipse(cx, gy + 3, 10, 2.2, 0, 0, Math.PI * 2); fillP(c, C.algae);
+  },
+];
+
+function mountainArt(c, k) {
+  const x0 = ART.x0, x1 = ART.x1, gy = 112;
+  c.save(); rr(c, x0 - 2, 22, x1 - x0 + 4, gy - 20, 6); c.clip();
+  const sky = c.createLinearGradient(0, 22, 0, gy); sky.addColorStop(0, k === 2 ? '#F2D6A8' : C.sky); sky.addColorStop(1, '#F4F2EC');
+  c.fillStyle = sky; c.fillRect(x0 - 2, 22, x1 - x0 + 4, gy - 20);
+  if (k === 2) { circ(c, x1 - 14, 48, 8); fillP(c, '#E9A23B'); } // West: setting sun
+  const ridges = [
+    [[x0 - 4, gy], [x0 + 4, 74], [x0 + 18, 60], [x0 + 33, 52], [x0 + 48, 58], [x0 + 60, 70], [x1 + 4, 80], [x1 + 4, gy]],   // H: broad
+    [[x0 - 4, gy], [x0 + 10, 84], [x0 + 26, 56], [x0 + 33, 34], [x0 + 40, 54], [x0 + 52, 72], [x1 + 4, 88], [x1 + 4, gy]],   // N: tall peak
+    [[x0 - 4, gy], [x0 + 6, 68], [x0 + 18, 62], [x0 + 28, 70], [x0 + 40, 58], [x0 + 52, 66], [x1 + 4, 62], [x1 + 4, gy]],     // W: long ridge
+    null,                                                                                                                      // S: loaf
+  ];
+  // far ridge
+  c.beginPath(); c.moveTo(x0 - 4, gy); c.lineTo(x0 - 4, 82); c.quadraticCurveTo(x0 + 30, 70, x1 + 4, 84); c.lineTo(x1 + 4, gy); c.closePath(); fillP(c, C.oak);
+  c.beginPath();
+  if (ridges[k]) { const r = ridges[k]; c.moveTo(r[0][0], r[0][1]); for (let i = 1; i < r.length; i++) c.lineTo(r[i][0], r[i][1]); }
+  else { c.moveTo(x0 - 4, gy); c.lineTo(x0 + 2, 80); c.bezierCurveTo(x0 + 8, 40, x1 - 8, 40, x1 - 2, 80); c.lineTo(x1 + 4, gy); }
+  c.closePath(); fillP(c, C.pine);
+  // novaculite-white ridgeline
+  c.beginPath();
+  if (ridges[k]) { const r = ridges[k]; for (let i = 1; i < r.length - 1; i++) { if (i === 1) c.moveTo(r[i][0], r[i][1]); else c.lineTo(r[i][0], r[i][1]); } }
+  else { c.moveTo(x0 + 2, 80); c.bezierCurveTo(x0 + 8, 40, x1 - 8, 40, x1 - 2, 80); }
+  c.lineJoin = 'round'; strokeP(c, C.nova, 3.2);
+  // pines
+  c.fillStyle = C.pineD;
+  for (let i = 0; i < 7; i++) { const px = x0 + 5 + i * 9.5, py = gy - 4 - (i % 2) * 6; poly(c, [px, py - 12, px + 4, py, px - 4, py]); c.fill(); }
+  if (k === 0) { // tower on top
+    const tx = x0 + 33, ty = 52;
+    c.strokeStyle = '#6E6A60'; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(tx - 4, ty); c.lineTo(tx - 1.5, ty - 22); c.moveTo(tx + 4, ty); c.lineTo(tx + 1.5, ty - 22);
+    for (let j = 0; j < 4; j++) { c.moveTo(tx - 4 + j * 0.6, ty - j * 5.5); c.lineTo(tx + 3.4 - j * 0.6, ty - (j + 1) * 5.5); } c.stroke();
+    c.fillStyle = '#6E6A60'; c.fillRect(tx - 5, ty - 28, 10, 6);
+  }
+  if (k === 1) { c.fillStyle = C.rim; poly(c, [x0 + 40, 56, x0 + 50, 56, x0 + 47, 61, x0 + 39, 60]); c.fill(); } // Goat Rock ledge
+  c.restore();
+}
+
+function dragonArt(c, k) {
+  const x0 = ART.x0, x1 = ART.x1;
+  if (k === 0) { // Red Tile: barrel-tile roof
+    c.save(); rr(c, x0, 24, x1 - x0, 88, 6); c.clip(); roofStrip(c, x0, 24, x1 - x0, 88, C.red, C.redD); c.restore();
+    rr(c, x0, 24, x1 - x0, 88, 6); strokeP(c, C.redD, 2);
+  } else if (k === 1) { // Green Tile: Maurice green with a colored inset
+    const s = 16.5;
+    for (let j = 0; j < 5; j++) for (let i = 0; i < 4; i++) {
+      const x = x0 + i * s, y = 26 + j * s;
+      c.fillStyle = (i + j) % 2 ? C.green : '#3F6B4C'; c.fillRect(x + 0.6, y + 0.6, s - 1.2, s - 1.2);
+    }
+    c.fillStyle = C.gold; c.fillRect(x0 + s + 3, 26 + s * 2 + 3, s * 2 - 6, s - 6);
+    c.fillStyle = C.cobalt; c.fillRect(x0 + s + 8, 26 + s * 2 + 5.5, s * 2 - 16, s - 11);
+    c.strokeStyle = '#2E5238'; c.lineWidth = 2; c.strokeRect(x0, 26, s * 4, s * 5);
+  } else { // White Stone: novaculite whetstone in a frame (the traditional blank dragon frame)
+    rr(c, x0 + 2, 26, x1 - x0 - 4, 84, 6); strokeP(c, C.cobalt, 3.2);
+    rr(c, x0 + 7, 31, x1 - x0 - 14, 74, 4); strokeP(c, C.cobalt, 1.4);
+    c.save(); c.translate((x0 + x1) / 2, 68); c.rotate(-0.5);
+    rr(c, -11, -30, 22, 60, 7); fillP(c, '#E3DED3'); strokeP(c, '#8F8A80', 1.4);
+    rr(c, -8, -27, 16, 54, 5); fillP(c, C.nova);
+    c.beginPath(); c.moveTo(-6, -15); c.bezierCurveTo(0, -5, -4, 6, 5, 18); strokeP(c, C.rose, 1.6);
+    c.beginPath(); c.moveTo(-3, -24); c.lineTo(-3, 22); strokeP(c, 'rgba(255,255,255,.9)', 1.6);
+    c.restore();
+  }
+}
+
+function flowerArt(c, k) {
+  const cx = ART.cx, cy = 68;
+  c.save();
+  if (k === 0) { // magnolia
+    for (const [lx, ly, a] of [[-14, 26, -0.6], [16, 24, 0.7]]) { c.save(); c.translate(cx + lx, cy + ly); c.rotate(a); c.beginPath(); c.ellipse(0, 0, 9, 22, 0, 0, Math.PI * 2); fillP(c, '#2F4F2F'); c.beginPath(); c.moveTo(0, -20); c.lineTo(0, 20); strokeP(c, '#5C7A3A', 1); c.restore(); }
+    for (let i = 0; i < 6; i++) { c.save(); c.translate(cx, cy - 4); c.rotate(i * Math.PI / 3); c.beginPath(); c.ellipse(0, -15, 9.5, 16, 0, 0, Math.PI * 2); fillP(c, '#FFFDF6'); strokeP(c, '#C9C1AE', 1.3); c.restore(); }
+    c.beginPath(); c.ellipse(cx, cy - 4, 5, 8, 0, 0, Math.PI * 2); fillP(c, '#C9A23F');
+  } else if (k === 1) { // dogwood: four notched bracts
+    for (let i = 0; i < 4; i++) {
+      c.save(); c.translate(cx, cy); c.rotate(i * Math.PI / 2 + Math.PI / 4);
+      c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(-16, -6, -14, -30, -3, -31); c.lineTo(0, -27); c.lineTo(3, -31); c.bezierCurveTo(14, -30, 16, -6, 0, 0); fillP(c, '#FFFDF6'); strokeP(c, '#B5A98F', 1.3);
+      c.beginPath(); c.moveTo(-3, -31); c.lineTo(0, -27); c.lineTo(3, -31); strokeP(c, '#8A2F63', 1.6);
+      c.restore();
+    }
+    c.fillStyle = '#5C7A3A'; for (let i = 0; i < 7; i++) { circ(c, cx + Math.cos(i) * 3.2 * (i % 2 + 0.5), cy + Math.sin(i * 2) * 3.2, 2); c.fill(); }
+  } else if (k === 2) { // redbud: dark twig with magenta bud clusters
+    c.lineCap = 'round';
+    c.beginPath(); c.moveTo(ART.x0 + 2, 106); c.bezierCurveTo(50, 90, 60, 60, 90, 30); strokeP(c, '#4A3A2C', 4);
+    c.beginPath(); c.moveTo(58, 74); c.quadraticCurveTo(76, 76, 88, 66); strokeP(c, '#4A3A2C', 2.6);
+    c.beginPath(); c.moveTo(68, 52); c.quadraticCurveTo(56, 42, 50, 30); strokeP(c, '#4A3A2C', 2.4);
+    const buds = [[40, 98], [46, 92], [52, 86], [57, 78], [63, 70], [70, 60], [77, 50], [84, 40], [72, 74], [80, 72], [86, 67], [60, 46], [55, 38], [51, 31]];
+    for (const [bx, by] of buds) for (let j = 0; j < 3; j++) { circ(c, bx + (j - 1) * 3.4, by - 3 + (j % 2) * 4, 3.1); fillP(c, j === 1 ? '#B5568F' : '#C978A8'); }
+  } else { // sweetgum: five-lobed star leaf and a spiky gumball
+    c.save(); c.translate(cx, cy - 4);
+    c.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 11 : 30; const px = Math.cos(a) * r, py = Math.sin(a) * r; if (i === 0) c.moveTo(px, py); else c.lineTo(px, py); }
+    c.closePath(); fillP(c, '#C8501F'); strokeP(c, '#8E3622', 1.4);
+    c.strokeStyle = '#E9A23B'; c.lineWidth = 1.2; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(a) * 26, Math.sin(a) * 26); c.stroke(); }
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(4, 34); strokeP(c, '#6B4A12', 2);
+    c.restore();
+    circ(c, cx + 20, cy + 34, 7); fillP(c, '#6B4A12');
+    c.strokeStyle = '#6B4A12'; c.lineWidth = 1.4; for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5; c.beginPath(); c.moveTo(cx + 20 + Math.cos(a) * 6, cy + 34 + Math.sin(a) * 6); c.lineTo(cx + 20 + Math.cos(a) * 10, cy + 34 + Math.sin(a) * 10); c.stroke(); }
+  }
+  c.restore();
+}
+
+function seasonArt(c, k) {
+  const x0 = ART.x0, x1 = ART.x1;
+  c.save(); rr(c, x0 - 2, 24, x1 - x0 + 4, 90, 6); c.clip();
+  if (k === 0) { // spring: tulip beds
+    c.fillStyle = '#EAF2E0'; c.fillRect(x0 - 2, 24, 80, 90);
+    c.fillStyle = '#5C7A3A'; c.fillRect(x0 - 2, 96, 80, 20);
+    const cols = ['#C8452B', '#D9A23A', '#B5568F'];
+    for (let i = 0; i < 3; i++) {
+      const tx = x0 + 13 + i * 20, ty = 56 + (i % 2) * 10;
+      c.beginPath(); c.moveTo(tx, ty + 12); c.lineTo(tx, 100); strokeP(c, '#355E41', 2.6);
+      c.save(); c.translate(tx + 5, 86); c.rotate(0.5); c.beginPath(); c.ellipse(0, 0, 3.5, 12, 0, 0, Math.PI * 2); fillP(c, '#4E7D5B'); c.restore();
+      c.beginPath(); c.moveTo(tx - 8, ty); c.lineTo(tx - 8, ty + 8); c.quadraticCurveTo(tx - 8, ty + 15, tx, ty + 15); c.quadraticCurveTo(tx + 8, ty + 15, tx + 8, ty + 8); c.lineTo(tx + 8, ty);
+      c.lineTo(tx + 4, ty + 5); c.lineTo(tx, ty - 1); c.lineTo(tx - 4, ty + 5); c.closePath(); fillP(c, cols[i]);
+    }
+  } else if (k === 1) { // summer: sun over the lake with a pontoon
+    c.fillStyle = '#BFE3F2'; c.fillRect(x0 - 2, 24, 80, 60);
+    circ(c, x1 - 18, 44, 10); fillP(c, '#E9A23B');
+    c.strokeStyle = '#E9A23B'; c.lineWidth = 2; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.beginPath(); c.moveTo(x1 - 18 + Math.cos(a) * 13, 44 + Math.sin(a) * 13); c.lineTo(x1 - 18 + Math.cos(a) * 17, 44 + Math.sin(a) * 17); c.stroke(); }
+    c.beginPath(); c.moveTo(x0 - 2, 76); c.quadraticCurveTo(x0 + 20, 62, x0 + 44, 76); fillP(c, C.pine);
+    c.fillStyle = C.lake; c.fillRect(x0 - 2, 76, 80, 40);
+    c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 1.5; for (let y = 84; y < 112; y += 8) { c.beginPath(); c.moveTo(x0 + 2, y); c.lineTo(x0 + 22, y); c.moveTo(x0 + 36, y + 4); c.lineTo(x1 - 4, y + 4); c.stroke(); }
+    const bx = x0 + 22, by = 88; // pontoon boat
+    c.fillStyle = '#F6F3EC'; rr(c, bx, by + 6, 34, 5, 2.5); c.fill(); c.fillRect(bx + 3, by, 28, 6);
+    c.fillStyle = '#C8452B'; c.fillRect(bx + 4, by - 8, 26, 3); c.fillStyle = '#6E6A60'; c.fillRect(bx + 5, by - 5, 1.5, 5); c.fillRect(bx + 27.5, by - 5, 1.5, 5);
+  } else if (k === 2) { // autumn: oak-hickory slopes and pines
+    c.fillStyle = '#F4E3C4'; c.fillRect(x0 - 2, 24, 80, 90);
+    c.beginPath(); c.moveTo(x0 - 2, 116); c.lineTo(x0 - 2, 70); c.quadraticCurveTo(x0 + 34, 34, x1 + 2, 66); c.lineTo(x1 + 2, 116); fillP(c, '#B5654A');
+    const leaf = ['#C8501F', '#D9A23A', '#A9432C', '#E9A23B'];
+    for (let i = 0; i < 14; i++) { const tx = x0 + 4 + (i * 37) % 64, ty = 60 + ((i * 23) % 44); circ(c, tx, ty, 7); fillP(c, leaf[i % 4]); }
+    c.fillStyle = C.pineD; for (let i = 0; i < 4; i++) { const px = x0 + 10 + i * 17, py = 112; poly(c, [px, py - 20, px + 6, py, px - 6, py]); c.fill(); }
+  } else { // winter: steam rising off a spring in the snow, with lights on the trees
+    c.fillStyle = '#DCE4EA'; c.fillRect(x0 - 2, 24, 80, 90);
+    c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(x0 - 2, 116); c.lineTo(x0 - 2, 90); c.quadraticCurveTo(x0 + 34, 80, x1 + 2, 92); c.lineTo(x1 + 2, 116); c.fill();
+    drawPool(c, x0 + 36, 100, 16, false);
+    c.strokeStyle = 'rgba(120,130,135,.6)'; c.lineCap = 'round'; c.lineWidth = 3;
+    for (const dx of [-8, 2, 11]) { c.beginPath(); c.moveTo(x0 + 36 + dx, 92); c.bezierCurveTo(x0 + 28 + dx, 76, x0 + 46 + dx, 64, x0 + 36 + dx, 44); c.stroke(); }
+    for (const tx of [x0 + 8, x1 - 10]) { c.fillStyle = C.pineD; poly(c, [tx, 54, tx + 9, 88, tx - 9, 88]); c.fill(); const lc = ['#D9A23A', '#C8452B', '#4FC3FF', '#5FD38A']; for (let j = 0; j < 6; j++) { circ(c, tx - 5 + (j % 3) * 5, 64 + Math.floor(j / 2) * 7, 1.6); fillP(c, lc[j % 4]); } }
+  }
+  c.restore();
+}
+
+// Draw a whole face (art + index + suit shape + caption) in unit space.
+function drawFace(c, f, caption) {
+  const m = META[f];
+  // marble veins
+  c.save(); c.strokeStyle = C.vein; c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(8, 118); c.bezierCurveTo(30, 96, 44, 120, 70, 92); c.bezierCurveTo(82, 80, 90, 86, 98, 70); c.stroke();
+  c.beginPath(); c.moveTo(60, 4); c.bezierCurveTo(54, 24, 80, 30, 74, 52); c.stroke();
+  c.restore();
+  const gy = caption ? 104 : 112;
+  if (f < 9) { const n = f + 1; const r = ARR_R[n - 1]; for (const [ax, ay] of ARR[n - 1]) drawPool(c, ART.cx + ax * 22, ART.cy + ay * 40, r, n <= 4); }
+  else if (f < 18) { BUILD[f - 9](c, gy); ground(c, gy); }
+  else if (f < 27) {
+    const n = f - 17;
+    waterBands(c, 22, 122);
+    const s = [34, 24, 20, 19, 17, 16, 15, 14, 13.5][n - 1];
+    ARR[n - 1].forEach(([ax, ay], k) => drawFish(c, ART.cx + ax * 22, ART.cy + ay * 40, s, (k + Math.floor(ay * 2)) % 2 === 1));
+  }
+  else if (f < 31) mountainArt(c, f - 27);
+  else if (f < 34) dragonArt(c, f - 31);
+  else if (f < 38) flowerArt(c, f - 34);
+  else seasonArt(c, f - 38);
+  // index glyph with a marble halo so it reads over any art
+  c.save();
+  c.textBaseline = 'top'; c.textAlign = 'center';
+  c.font = '900 40px "Arial Black","Segoe UI Black",system-ui,sans-serif';
+  const ix = 15, iy = 4;
+  if (f === 33) { // White Stone: hollow frame glyph
+    c.lineWidth = 7; c.strokeStyle = C.marble; c.strokeRect(5.5, 7, 19, 27); c.lineWidth = 3.6; c.strokeStyle = m.color; c.strokeRect(5.5, 7, 19, 27);
+  } else {
+    c.lineWidth = 7; c.strokeStyle = C.marble; c.lineJoin = 'round'; c.strokeText(m.idx, ix, iy);
+    c.fillStyle = m.color; c.fillText(m.idx, ix, iy);
+  }
+  circ(c, 15, 50, 11); fillP(c, 'rgba(242,239,232,.9)');
+  suitShape(c, m.shape, 15, 50, 7.5, m.color);
+  c.restore();
+  if (caption && (f >= 9 && f < 18 || f >= 27)) { // counted suits need no caption
+    c.save(); c.font = '700 14px system-ui,"Segoe UI",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    c.fillStyle = m.color; c.fillText(m.cap.toUpperCase(), 52, 124, 92); c.restore();
+  }
+}
+function drawBack(c) {
+  // Quapaw-inspired chevron mosaic (colors are guesses)
+  const cols = [C.cobalt, C.gold, C.terra, C.green, C.cream];
+  c.save(); rr(c, 4, 4, 92, 122, 8); c.clip();
+  for (let k = 0; k < 18; k++) {
+    c.beginPath(); const y = -10 + k * 8;
+    for (let x = -4, i = 0; x <= 104; x += 8, i++) { const yy = y + (i % 2 ? 6 : 0); if (i === 0) c.moveTo(x, yy); else c.lineTo(x, yy); }
+    c.lineTo(104, 140); c.lineTo(-4, 140); c.closePath(); fillP(c, cols[k % 5]);
+  }
+  c.restore();
+  rr(c, 4, 4, 92, 122, 8); strokeP(c, C.marble, 3);
+}
+
+// ===================== tile bitmaps =====================
+// A tile sprite = shadow + body (cream with a red-tile edge band) + face. Sprites are cached per pixel size.
+const SPR = { key: '', faces: [], back: null, veil: null, W: 0, H: 0, D: 0, dpr: 1 };
+function tileBody(c, W, H, D, dark) {
+  // shadow
+  c.fillStyle = dark ? 'rgba(0,0,0,.45)' : 'rgba(10,30,34,.35)';
+  rr(c, D * 1.6, D * 1.9, W, H, W * 0.09); c.fill();
+  // red band (deepest edge), cream body, face
+  rr(c, D, D, W, H, W * 0.09); fillP(c, dark ? '#7A5A12' : C.redD);
+  rr(c, D * 0.55, D * 0.55, W, H, W * 0.09); fillP(c, dark ? '#B8962F' : '#D9C7A0');
+  rr(c, 0, 0, W, H, W * 0.09);
+  const gr = c.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#FFFDF8'); gr.addColorStop(1, '#E9E4D9');
+  c.fillStyle = gr; c.fill();
+  c.lineWidth = Math.max(1, W * 0.02); c.strokeStyle = dark ? '#D4AF37' : 'rgba(120,100,70,.45)'; c.stroke();
+}
+function makeSprites(W, H, D, dpr, dark, captions) {
+  const key = [W, H, D, dpr, dark, captions].join('|');
+  if (SPR.key === key) return;
+  SPR.key = key; SPR.W = W; SPR.H = H; SPR.D = D; SPR.dpr = dpr; SPR.faces = [];
+  const cw = Math.ceil((W + D * 1.6 + 2) * dpr), ch = Math.ceil((H + D * 1.9 + 2) * dpr);
+  const capOK = captions && W >= 52;
+  for (let f = 0; f <= E.FACES; f++) {
+    const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    const c = cv.getContext('2d'); c.scale(dpr, dpr);
+    tileBody(c, W, H, D, dark);
+    c.save(); rr(c, 0, 0, W, H, W * 0.09); c.clip(); c.scale(W / 100, H / 130);
+    if (f === E.FACES) drawBack(c); else drawFace(c, f, capOK);
+    c.restore();
+    if (f === E.FACES) SPR.back = cv; else SPR.faces.push(cv);
+  }
+}
+
+// ===================== game state =====================
+let G = null;            // geometry of the current layout
+let S = null;            // the serializable game state (MECHANICS §3)
+let LAYOUT = E.LAYOUTS[0];
+let nextSeed = null;
+const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
+const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0 };
+let scene = 'title';
+let hoverTile = -1;
+let lastTick = 0;
+let zoomTipShown = false;
+
+function layoutById(id) { return E.LAYOUTS.find((l) => l.id === id) || E.LAYOUTS[0]; }
+function todayStr(d = new Date()) { const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function dailyInfo(date) {
+  const seed = E.hashStr('BHM-' + date);
+  const days = Math.floor(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86400000);
+  return { seed, layout: E.LAYOUTS[((days % E.LAYOUTS.length) + E.LAYOUTS.length) % E.LAYOUTS.length] };
+}
+function fmtTime(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function tilesLeft() { let n = 0; for (let i = 0; i < G.n; i++) if (S.present[i]) n++; return n; }
+function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E3779B1)) >>> 0); }
+
+function newGame(opts = {}) {
+  // a game abandoned after at least one match breaks the win streak
+  if (S && S.status === 'playing' && S.history.some((h) => h.t === 'm')) { STATS.streak = 0; }
+  let layout, seed, daily = null;
+  if (opts.daily) {
+    daily = opts.date || todayStr();
+    const d = dailyInfo(daily); layout = d.layout; seed = d.seed;
+  } else {
+    layout = layoutById(opts.layout || (S && S.layoutId) || 'pyramid');
+    seed = opts.seed != null ? opts.seed >>> 0 : nextSeed != null ? nextSeed >>> 0 : (Math.random() * 4294967296) >>> 0;
+    nextSeed = null;
+  }
+  LAYOUT = layout;
+  G = E.buildGeometry(layout.build());
+  const d = E.deal(G, E.makeRng(seed));
+  S = {
+    v: 1, layoutId: layout.id, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
+    history: [], redo: [], selected: -1, cursor: -1, score: 0, combo: 0, lastMatchMs: -1e9,
+    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: false,
+  };
+  STATS.played++; layoutStats(layout.id).played++; S.statsCounted = true; saveStats();
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null;
+  showScene('game');
+  layoutBoard(); markDirty(); updateHud(); saveGame();
+  // small tiles on a portrait phone: point at Zoom and landscape
+  setStatus(layout.caption);
+  if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
+  return { layoutId: layout.id, seed, tiles: G.n };
+}
+
+function loadState(s) {
+  LAYOUT = layoutById(s.layoutId);
+  G = E.buildGeometry(LAYOUT.build());
+  S = Object.assign({ redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9 }, JSON.parse(JSON.stringify(s)));
+  if (S.faces.length !== G.n) throw new Error('state does not match layout');
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null;
+}
+
+function saveGame() {
+  if (!S) return;
+  if (S.status === 'won') { store.del('bhm.game.v1'); return; }
+  // plans inside history are dropped to keep saves small; undo then re-plans with the solver
+  const hist = S.history.map((h) => (h.t === 'm' ? { t: 'm', a: h.a, b: h.b, before: Object.assign({}, h.before, { plan: null }) } : Object.assign({}, h, { plan: null })));
+  store.set('bhm.game.v1', Object.assign({}, S, { history: hist, redo: [] }));
+}
+
+// ---------- rules glue ----------
+function free(i) { return E.isFree(G, S.present, i); }
+function pairsAvailable() { return E.availablePairs(G, S.present, S.faces); }
+
+function selectTile(i) {
+  if (!S || S.status !== 'playing') return { selected: S ? S.selected : -1, removed: false };
+  AUDIO.unlock();
+  if (!S.present[i]) return { selected: S.selected, removed: false };
+  if (!free(i)) {
+    anim.shake = { i, start: now() }; AUDIO.thud();
+    setStatus('Blocked: ' + META[S.faces[i]].name + '. A tile is on top of it, or on both its sides.');
+    announce('Blocked tile');
+    markDirty(); return { selected: S.selected, removed: false, blocked: true };
+  }
+  if (S.selected === i) { S.selected = -1; setStatus('Selection cleared.'); markDirty(); return { selected: -1, removed: false }; }
+  if (S.selected >= 0 && E.matchKey(S.faces[S.selected]) === E.matchKey(S.faces[i])) {
+    const a = S.selected; doMatch(a, i); return { selected: -1, removed: true };
+  }
+  S.selected = i; AUDIO.click();
+  const m = META[S.faces[i]];
+  setStatus(m.name + ': ' + m.fact);
+  announce('Selected ' + m.name);
+  markDirty();
+  return { selected: i, removed: false };
+}
+
+function doMatch(a, b) {
+  if (a === b || !S.present[a] || !S.present[b] || !free(a) || !free(b) || E.matchKey(S.faces[a]) !== E.matchKey(S.faces[b])) return false;
+  const before = { score: S.score, combo: S.combo, lastMatchMs: S.lastMatchMs, rowDone: S.rowDone, plan: S.plan };
+  S.present[a] = S.present[b] = false;
+  S.selected = -1; anim.hint = null;
+  // combo
+  const t = S.elapsedMs;
+  S.combo = t - S.lastMatchMs <= 4000 ? S.combo + 1 : 0;
+  S.lastMatchMs = t;
+  let pts = 10 + Math.min(25, 5 * S.combo);
+  // Bathhouse Row bonus
+  let rowNow = false;
+  if (!S.rowDone) { let any = false; for (let i = 0; i < G.n; i++) if (S.present[i] && S.faces[i] >= 9 && S.faces[i] < 18) { any = true; break; } if (!any) { S.rowDone = true; rowNow = true; pts += 100; } }
+  S.score += pts;
+  S.plan = E.repairPlan(G, S.present, S.faces, S.plan, a, b);
+  S.history.push({ t: 'm', a, b, before });
+  S.redo = [];
+  AUDIO.match(S.combo);
+  spawnMatchFx(a, b);
+  const m = META[S.faces[a]];
+  setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')');
+  announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
+  if (rowNow) toast('Bathhouse Row complete! The Lamar finished the Row in 1923. +100');
+  afterMove();
+  return true;
+}
+
+function afterMove() {
+  if (!S.plan && tilesLeft() > 0) schedulePlanSearch();
+  if (tilesLeft() === 0) { win(); }
+  else if (!pairsAvailable().length) { S.status = 'stuck'; setTimeout(() => { if (S.status === 'stuck') openOverlay('o-stuck'); }, reduced() ? 50 : 650); announce('No more matches. Shuffle or undo.'); }
+  updateHud(); saveGame(); markDirty();
+}
+
+let planTimer = 0;
+function schedulePlanSearch() {
+  clearTimeout(planTimer);
+  planTimer = setTimeout(() => { if (S && !S.plan && S.status === 'playing') { S.plan = E.solve(G, S.present, S.faces, 6000); } }, 30);
+}
+
+function hint() {
+  if (!S || S.status !== 'playing') return null;
+  AUDIO.unlock();
+  if (!S.plan) S.plan = E.solve(G, S.present, S.faces, 20000);
+  let pr = null;
+  if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
+  if (!pr) { const p = pairsAvailable(); pr = p[0] || null; }
+  if (!pr) { setStatus('No free pairs: try Shuffle.'); return null; }
+  S.hints++; S.score = Math.max(0, S.score - 15);
+  anim.hint = pr; anim.hintUntil = now() + 3200;
+  if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
+  S.selected = -1;
+  AUDIO.chime();
+  const m = META[S.faces[pr[0]]];
+  setStatus('Hint: match the two highlighted ' + m.name.split(':')[0] + ' tiles (−15).');
+  announce('Hint: ' + m.name + ' pair highlighted');
+  updateHud(); saveGame(); kick();
+  return pr;
+}
+
+function shuffle(force) {
+  if (!S || (S.status !== 'playing' && S.status !== 'stuck')) return null;
+  AUDIO.unlock();
+  const res = E.reshuffle(G, S.present, S.faces, rngFor(S.shuffles + S.history.length * 7));
+  if (!res) { setStatus('These tiles cannot be rearranged into a solvable order. Undo instead.'); $('os-text').textContent = 'The remaining tiles cannot be rearranged into a solvable order. Undo a few moves or start a new game.'; $('os-shuffle').disabled = true; return null; }
+  S.history.push({ t: 's', faces: S.faces, plan: S.plan, before: { score: S.score, status: S.status } });
+  S.redo = [];
+  S.faces = res.faces; S.plan = res.plan; S.selected = -1; anim.hint = null;
+  S.shuffles++; if (!force) S.score = Math.max(0, S.score - 50);
+  S.status = 'playing';
+  closeOverlay('o-stuck');
+  anim.shuffleAt = reduced() ? 0 : now();
+  AUDIO.rattle();
+  setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared (−50).');
+  announce('Tiles shuffled');
+  afterMove(); kick();
+  return true;
+}
+
+function undo() {
+  if (!S || !S.history.length || S.status === 'won') return false;
+  const h = S.history.pop();
+  if (h.t === 'm') { S.present[h.a] = S.present[h.b] = true; S.score = h.before.score; S.combo = h.before.combo; S.lastMatchMs = h.before.lastMatchMs; S.rowDone = h.before.rowDone; S.plan = h.before.plan; }
+  else { const cur = S.faces; S.faces = h.faces; h.faces = cur; const cp = S.plan; S.plan = h.plan; h.plan = cp; S.score = h.before.score; }
+  S.redo.push(h); S.undos++; S.selected = -1; anim.hint = null;
+  S.status = 'playing'; closeOverlay('o-stuck'); $('os-shuffle').disabled = false;
+  AUDIO.click();
+  setStatus('Undone. ' + tilesLeft() + ' tiles on the board.');
+  announce('Undo');
+  afterMove();
+  return true;
+}
+function redo() {
+  if (!S || !S.redo.length || S.status !== 'playing') return false;
+  const h = S.redo.pop();
+  const keep = S.redo;
+  if (h.t === 'm') { S.selected = -1; doMatch(h.a, h.b); }
+  else {
+    S.history.push({ t: 's', faces: S.faces, plan: S.plan, before: { score: S.score, status: S.status } });
+    S.faces = h.faces; S.plan = h.plan; S.shuffles++; S.score = Math.max(0, S.score - 50); afterMove();
+  }
+  S.redo = keep;
+  updateHud(); saveGame();
+  setStatus('Redone.');
+  return true;
+}
+
+function win() {
+  S.status = 'won';
+  const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
+  const base = S.score;
+  S.score += 500 + timeBonus;
+  STATS.won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
+  const ls = layoutStats(S.layoutId); ls.won++;
+  const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
+  if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score);
+  if (S.daily) {
+    const dd = STATS.daily;
+    if (!dd.done[S.daily]) {
+      const prev = dd.last ? new Date(dd.last + 'T12:00:00') : null, cur = new Date(S.daily + 'T12:00:00');
+      dd.streak = prev && Math.round((cur - prev) / 86400000) === 1 ? dd.streak + 1 : 1;
+      dd.best = Math.max(dd.best, dd.streak); dd.last = S.daily;
+    }
+    dd.done[S.daily] = Math.min(dd.done[S.daily] || Infinity, S.elapsedMs);
+  }
+  saveStats(); store.del('bhm.game.v1');
+  AUDIO.win();
+  spawnWinFx();
+  // fact
+  const fact = FACTS.length ? FACTS[rngFor(999).int(FACTS.length)] : null;
+  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + ' in ' + fmtTime(S.elapsedMs) + (newBest ? ' · new best time!' : '');
+  $('ow-score').textContent = S.score.toLocaleString('en-US');
+  const rows = [['Pairs, combos and penalties', base], ['Clear bonus', 500], ['Time bonus (under 10:00)', timeBonus]];
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  $('ow-grid').innerHTML = rows.map(([k, v]) => '<span>' + k + '</span><span>' + v + '</span>').join('') + '<span class="tot">Total</span><span class="tot">' + S.score + '</span>'
+    + '<span style="grid-column:1/-1;font-size:.85rem;color:var(--color-muted)">' + plural(S.hints, 'hint') + ' · ' + plural(S.shuffles, 'shuffle') + ' · ' + plural(S.undos, 'undo') + '</span>';
+  const fc = $('ow-fact');
+  if (fact) { fc.hidden = false; fc.querySelector('.q').textContent = 'Did you know? ' + fact.q; fc.querySelector('.a').textContent = fact.a + '. ' + fact.e; fc.querySelector('.src').textContent = 'Source: ' + fact.s; }
+  else fc.hidden = true;
+  announce('Board cleared! Score ' + S.score);
+  setTimeout(() => { if (S.status === 'won') openOverlay('o-win'); }, reduced() ? 60 : 900);
+}
+
+// ===================== layout and rendering =====================
+const canvas = $('board');
+const ctx = canvas.getContext('2d');
+let dirty = true, raf = 0;
+function now() { return anim.frozen != null ? anim.frozen : performance.now(); }
+function markDirty() { dirty = true; kick(); }
+function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+
+function boundsFor(W, H, D) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y, z] of G.pos) {
+    const sx = x * W / 2 - z * D, sy = y * H / 2 - z * D;
+    x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx + W + D * 1.6); y1 = Math.max(y1, sy + H + D * 1.9);
+  }
+  return { x0, y0, x1, y1 };
+}
+function layoutBoard() {
+  if (!G) return;
+  const wrap = $('board-wrap');
+  const cssW = wrap.clientWidth, cssH = wrap.clientHeight;
+  if (!cssW || !cssH) return;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) { canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr); }
+  view.cssW = cssW; view.cssH = cssH; view.dpr = dpr;
+  // fit: bounds scale linearly with W
+  const b1 = boundsFor(100, 130, 14);
+  const pad = cssW < 520 ? 8 : 20;
+  let W = Math.min((cssW - pad * 2) / (b1.x1 - b1.x0) * 100, (cssH - pad * 2) / (b1.y1 - b1.y0) * 100);
+  W = Math.max(14, Math.min(W, 92));
+  if (view.zoom) W = Math.min(W * 1.8, 110);
+  W = Math.floor(W);
+  const H = Math.round(W * 1.3), D = Math.max(2, Math.round(W * 0.14));
+  view.W = W; view.H = H; view.D = D;
+  const b = boundsFor(W, H, D);
+  const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+  if (view.zoom) {
+    const maxX = Math.max(0, (bw - cssW) / 2 + pad), maxY = Math.max(0, (bh - cssH) / 2 + pad);
+    view.panX = Math.max(-maxX, Math.min(maxX, view.panX)); view.panY = Math.max(-maxY, Math.min(maxY, view.panY));
+  } else { view.panX = 0; view.panY = 0; }
+  view.ox = Math.round((cssW - bw) / 2 - b.x0 + view.panX); view.oy = Math.round((cssH - bh) / 2 - b.y0 + view.panY);
+  makeSprites(W, H, D, dpr, isDark(), SETTINGS.captions);
+  // draw order: z, then x + y, then x
+  view.order = G.pos.map((p, i) => i).sort((a, b2) => { const p = G.pos[a], q = G.pos[b2]; return p[2] - q[2] || (p[0] + p[1]) - (q[0] + q[1]) || p[0] - q[0]; });
+  view.scr = G.pos.map(([x, y, z]) => [view.ox + x * W / 2 - z * D, view.oy + y * H / 2 - z * D]);
+  dirty = true;
+}
+
+function spawnMatchFx(a, b) {
+  const t = now();
+  if (reduced()) { anim.list.push({ type: 'fade', tiles: [a, b], start: t, dur: 160 }); return; }
+  const [ax, ay] = view.scr[a], [bx, by] = view.scr[b];
+  const mx = (ax + bx) / 2, my = (ay + by) / 2 - view.H * 0.6;
+  anim.list.push({ type: 'fly', tiles: [a, b], start: t, dur: 480, to: [mx, my] });
+  for (const i of [a, b]) {
+    const [sx, sy] = view.scr[i];
+    for (let k = 0; k < 9; k++) anim.particles.push({ x: sx + view.W * (0.2 + Math.random() * 0.6), y: sy + view.H * (0.3 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 0.05 * view.W, vy: -(0.06 + Math.random() * 0.06) * view.H, r0: view.W * (0.18 + Math.random() * 0.15), start: t + k * 22, dur: 900 + Math.random() * 400 });
+  }
+  for (let k = 0; k < 10; k++) anim.particles.push({ x: mx + view.W / 2 + (Math.random() - 0.5) * view.W, y: my + view.H / 2, vx: (Math.random() - 0.5) * 0.08 * view.W, vy: -(0.08 + Math.random() * 0.08) * view.H, r0: view.W * (0.2 + Math.random() * 0.2), start: t + 300 + k * 18, dur: 1000 + Math.random() * 400 });
+}
+function spawnWinFx() {
+  if (reduced()) return;
+  const t = now();
+  for (let k = 0; k < 70; k++) anim.particles.push({ x: Math.random() * view.cssW, y: view.cssH * (0.55 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 30, vy: -(80 + Math.random() * 140), r0: 18 + Math.random() * 36, start: t + Math.random() * 600, dur: 1400 + Math.random() * 700, unit: true });
+}
+
+let steamSprite = null;
+function getSteamSprite() {
+  if (steamSprite) return steamSprite;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const c = cv.getContext('2d'); const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,.85)'); g.addColorStop(0.5, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g; c.fillRect(0, 0, 64, 64); steamSprite = cv; return cv;
+}
+
+let bgCache = null;
+function drawTable(c, w, h) {
+  const key = w + 'x' + h + (isDark() ? 'd' : 'l');
+  if (!bgCache || bgCache.key !== key) {
+    const cv = document.createElement('canvas'); cv.width = Math.round(w * view.dpr); cv.height = Math.round(h * view.dpr);
+    const b = cv.getContext('2d'); b.scale(view.dpr, view.dpr);
+    const dark = isDark();
+    const g = b.createRadialGradient(w / 2, h * 0.4, 10, w / 2, h / 2, Math.max(w, h) * 0.75);
+    g.addColorStop(0, dark ? '#25213A' : '#25707D'); g.addColorStop(1, dark ? '#100E1A' : '#143F48');
+    b.fillStyle = g; b.fillRect(0, 0, w, h);
+    // faint tufa-terrace scallops along the bottom
+    b.globalAlpha = dark ? 0.08 : 0.1; b.fillStyle = dark ? '#4FC3FF' : '#C8C3B6';
+    for (let row = 0; row < 3; row++) for (let x = -20 + row * 18; x < w + 40; x += 36) { b.beginPath(); b.ellipse(x, h - row * 22, 26, 14, 0, Math.PI, 0); b.fill(); }
+    b.globalAlpha = 1;
+    bgCache = { key, cv };
+  }
+  c.drawImage(bgCache.cv, 0, 0, w, h);
+}
+
+function frame() {
+  raf = 0;
+  const t = now();
+  // advance timer
+  const pt = performance.now();
+  if (lastTick && S && scene === 'game' && S.status === 'playing' && !paused && !document.hidden && !anyOverlay()) S.elapsedMs += Math.min(1000, pt - lastTick);
+  lastTick = pt;
+  anim.list = anim.list.filter((a) => t - a.start < a.dur);
+  anim.particles = anim.particles.filter((p) => t - p.start < p.dur);
+  const animating = anim.list.length || anim.particles.length || (anim.hint && t < anim.hintUntil) || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < 520);
+  if (anim.hint && t >= anim.hintUntil && anim.frozen == null) { anim.hint = null; dirty = true; }
+  if (dirty || animating) draw(t);
+  dirty = false;
+  if (animating && anim.frozen == null) kick();
+}
+
+function draw(t) {
+  if (!G || scene !== 'game') return;
+  const c = ctx, dpr = view.dpr || 1;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawTable(c, view.cssW, view.cssH);
+  if (paused) { c.fillStyle = 'rgba(255,255,255,.8)'; c.font = '600 18px system-ui'; c.textAlign = 'center'; c.fillText('Paused', view.cssW / 2, view.cssH / 2); return; }
+  const { W, H, D } = view;
+  const flying = new Set();
+  for (const a of anim.list) for (const i of a.tiles) flying.add(i);
+  const veil = SETTINGS.highlightFree;
+  const shuf = anim.shuffleAt && t - anim.shuffleAt < 520 ? (t - anim.shuffleAt) / 520 : -1;
+  const sel = S.selected;
+  for (const i of view.order) {
+    if (!S.present[i] || flying.has(i)) continue;
+    let [sx, sy] = view.scr[i];
+    if (i === sel) { sx -= D * 0.5; sy -= D * 0.8; }
+    if (anim.shake && anim.shake.i === i && t - anim.shake.start < 260) sx += Math.sin((t - anim.shake.start) / 18) * W * 0.06 * (1 - (t - anim.shake.start) / 260);
+    let spr = SPR.faces[S.faces[i]];
+    if (shuf >= 0) {
+      const sxScale = Math.abs(Math.cos(shuf * Math.PI));
+      if (shuf < 0.5) spr = SPR.back;
+      c.save(); c.translate(sx + W / 2, 0); c.scale(Math.max(0.05, sxScale), 1); c.drawImage(spr, -W / 2, sy, spr.width / dpr, spr.height / dpr); c.restore();
+      continue;
+    }
+    c.drawImage(spr, sx, sy, spr.width / dpr, spr.height / dpr);
+    const isFreeT = free(i);
+    if (veil && !isFreeT) { c.fillStyle = isDark() ? 'rgba(10,8,20,.48)' : 'rgba(18,34,38,.40)'; rr(c, sx, sy, W, H, W * 0.09); c.fill(); }
+    if (i === sel) { c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = isDark() ? '#4FC3FF' : '#D9A23A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.lineWidth = Math.max(1.5, W * 0.03); c.strokeStyle = '#1F2A24'; rr(c, sx + 2, sy + 2, W - 4, H - 4, W * 0.08); c.stroke(); }
+    if (anim.hint && (anim.hint[0] === i || anim.hint[1] === i)) {
+      const pulse = 0.55 + 0.45 * Math.sin(t / 140);
+      c.save(); c.setLineDash([W * 0.16, W * 0.1]); c.lineWidth = Math.max(3, W * 0.09); c.strokeStyle = 'rgba(79,195,255,' + pulse.toFixed(2) + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke(); c.restore();
+    }
+    if (i === S.cursor && kbActive) { // keyboard cursor: solid double ring (the hint ring is dashed)
+      c.save(); c.lineWidth = Math.max(5, W * 0.11); c.strokeStyle = '#14121F'; rr(c, sx - 4, sy - 4, W + 8, H + 8, W * 0.13); c.stroke();
+      c.lineWidth = Math.max(2.5, W * 0.05); c.strokeStyle = '#FFFFFF'; c.stroke(); c.restore();
+    }
+  }
+  // flying / fading tiles
+  for (const a of anim.list) {
+    const k = Math.min(1, (t - a.start) / a.dur);
+    for (const i of a.tiles) {
+      const spr = SPR.faces[S.faces[i]]; const [sx, sy] = view.scr[i];
+      c.save(); c.globalAlpha = 1 - k;
+      if (a.type === 'fly') {
+        const e = k * k * (3 - 2 * k);
+        const x = sx + (a.to[0] - sx) * e, y = sy + (a.to[1] - sy) * e - Math.sin(k * Math.PI) * H * 0.3, s = 1 - 0.35 * e;
+        c.translate(x + W / 2, y + H / 2); c.scale(s, s); c.drawImage(spr, -W / 2, -H / 2, spr.width / dpr, spr.height / dpr);
+      } else c.drawImage(spr, sx, sy, spr.width / dpr, spr.height / dpr);
+      c.restore();
+    }
+  }
+  // steam
+  const st = getSteamSprite();
+  for (const p of anim.particles) {
+    const k = (t - p.start) / p.dur; if (k < 0) continue;
+    const sec = (t - p.start) / 1000;
+    const x = p.x + p.vx * sec * (p.unit ? 1 : 10), y = p.y + p.vy * sec * (p.unit ? 1 : 10) + Math.sin(sec * 4 + p.x) * 3;
+    const r = p.r0 * (1 + k * 1.6);
+    c.globalAlpha = Math.max(0, (k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85) * 0.85);
+    c.drawImage(st, x - r, y - r, r * 2, r * 2);
+  }
+  c.globalAlpha = 1;
+}
+
+function tileAt(px, py) {
+  if (!G) return -1;
+  const { W, H, D } = view;
+  for (let k = view.order.length - 1; k >= 0; k--) {
+    const i = view.order[k];
+    if (!S.present[i]) continue;
+    const [sx, sy] = view.scr[i];
+    if (px >= sx && px <= sx + W + D * 0.5 && py >= sy && py <= sy + H + D * 0.5) return i;
+  }
+  return -1;
+}
+
+// ===================== HUD, status, toasts, live region =====================
+function updateHud() {
+  if (!S) return;
+  $('h-name').textContent = LAYOUT.name;
+  $('h-sub').textContent = S.daily ? 'Daily Puzzle · ' + S.daily : 'Classic · seed ' + S.seed;
+  $('h-time').textContent = fmtTime(S.elapsedMs);
+  $('h-timebox').hidden = !SETTINGS.showTimer;
+  $('h-score').textContent = S.score;
+  $('h-left').textContent = tilesLeft();
+  $('h-pairs').textContent = pairsAvailable().length;
+  $('t-undo').disabled = !S.history.length || S.status === 'won';
+  $('t-redo').disabled = !S.redo.length || S.status !== 'playing';
+  $('t-free').setAttribute('aria-pressed', String(SETTINGS.highlightFree));
+  $('t-zoom').setAttribute('aria-pressed', String(view.zoom));
+}
+setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(); $('h-time').textContent = fmtTime(S.elapsedMs); if (Math.floor(S.elapsedMs / 5000) !== Math.floor((S.elapsedMs - 250) / 5000)) saveGame(); } }, 250);
+function setStatus(txt) { $('status-text').textContent = txt; }
+let toastTimer = 0, toastBusyUntil = 0;
+function toast(txt) {
+  const el = $('toast'); el.textContent = txt; el.classList.add('on');
+  toastBusyUntil = performance.now() + (reduced() ? 0 : 300);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.classList.remove('on'); toastBusyUntil = performance.now() + (reduced() ? 0 : 300); }, TEST ? 2500 : 3800);
+}
+let liveTimer = 0;
+function announce(txt) { const el = $('live'); el.textContent = ''; clearTimeout(liveTimer); liveTimer = setTimeout(() => { el.textContent = txt; }, 30); }
+
+// ===================== scenes and overlays =====================
+let paused = false;
+function showScene(name) {
+  scene = name;
+  for (const el of document.querySelectorAll('.screen')) el.classList.toggle('on', el.id === 's-' + name);
+  if (name === 'title') { drawTitleArt(); $('b-continue').hidden = !(store.get('bhm.game.v1', null) || (S && (S.status === 'playing' || S.status === 'stuck'))); }
+  if (name === 'layouts') buildCards();
+  if (name === 'game') { requestAnimationFrame(() => { layoutBoard(); markDirty(); }); }
+}
+function anyOverlay() { return !!document.querySelector('.overlay.on'); }
+let overlayReturn = null;
+function openOverlay(id) {
+  const el = $(id);
+  if (id === 'o-stats') buildStats();
+  if (id === 'o-tiles') buildGuide();
+  if (id === 'o-settings') syncSettingsUI();
+  if (id === 'o-pause') $('op-time').textContent = S ? fmtTime(S.elapsedMs) : '0:00';
+  overlayReturn = overlayReturn || document.activeElement;
+  el.classList.add('on');
+  const f = el.querySelector('.actions .btn, button');
+  if (f) f.focus({ preventScroll: true });
+}
+function closeOverlay(id) {
+  const el = $(id); if (!el.classList.contains('on')) return;
+  el.classList.remove('on');
+  if (id === 'o-pause') { paused = false; markDirty(); }
+  if (!anyOverlay()) { const r = overlayReturn; overlayReturn = null; if (r && r.focus && document.body.contains(r)) r.focus({ preventScroll: true }); else if (scene === 'game') canvas.focus({ preventScroll: true }); }
+}
+function closeAll() { for (const el of document.querySelectorAll('.overlay.on')) closeOverlay(el.id); }
+function pauseGame() { if (scene !== 'game' || !S || S.status !== 'playing') return; paused = true; markDirty(); openOverlay('o-pause'); }
+function resumeGame() { closeOverlay('o-pause'); paused = false; lastTick = performance.now(); markDirty(); }
+
+function gotoScene(name) {
+  closeAll();
+  if (['help', 'tiles', 'stats', 'settings'].includes(name)) { openOverlay('o-' + name); return name; }
+  if (name === 'pause') { if (!S) newGame({}); showScene('game'); pauseGame(); return name; }
+  if (name === 'win' || name === 'stuck') { if (!S) newGame({}); showScene('game'); openOverlay('o-' + name); return name; }
+  if (name === 'game' && !S) { newGame({}); return name; }
+  showScene(name);
+  return name;
+}
+
+// ---------- title art: Bathhouse Row skyline with steam ----------
+function drawTitleArt() {
+  const cv = $('title-art');
+  const w = cv.clientWidth || 600, h = cv.clientHeight || 260, dpr = Math.min(3, window.devicePixelRatio || 1);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const dark = isDark();
+  const sky = c.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, dark ? '#14121F' : '#CFE3EA'); sky.addColorStop(1, dark ? '#2A2640' : '#F4F2EC');
+  c.fillStyle = sky; c.fillRect(0, 0, w, h);
+  // Hot Springs Mountain behind, with the tower
+  c.fillStyle = dark ? '#1F3324' : '#5C7A3A';
+  c.beginPath(); c.moveTo(0, h * 0.7); c.quadraticCurveTo(w * 0.25, h * 0.2, w * 0.55, h * 0.3); c.quadraticCurveTo(w * 0.8, h * 0.38, w, h * 0.55); c.lineTo(w, h); c.lineTo(0, h); c.fill();
+  c.strokeStyle = dark ? '#3A5A3E' : '#EDEAE2'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(0, h * 0.7); c.quadraticCurveTo(w * 0.25, h * 0.2, w * 0.55, h * 0.3); c.quadraticCurveTo(w * 0.8, h * 0.38, w, h * 0.55); c.stroke();
+  const tx = w * 0.38, ty = h * 0.27;
+  c.strokeStyle = dark ? '#4FC3FF' : '#6E6A60'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(tx - 7, ty); c.lineTo(tx - 2.5, ty - h * 0.16); c.moveTo(tx + 7, ty); c.lineTo(tx + 2.5, ty - h * 0.16);
+  for (let j = 0; j < 5; j++) { const yy = ty - j * h * 0.032; c.moveTo(tx - 7 + j * 0.9, yy); c.lineTo(tx + 6 - j * 0.9, yy - h * 0.032); } c.stroke();
+  c.fillStyle = dark ? '#4FC3FF' : '#6E6A60'; c.fillRect(tx - 9, ty - h * 0.16 - 9, 18, 9);
+  // the Row (reusing the tile building art), north to south
+  const n = 8, bw = Math.min(110, w / (n + 0.6)), bh = bw * 1.3, gy = h - 4;
+  const x0 = (w - bw * n) / 2;
+  for (let k = 0; k < n; k++) {
+    c.save(); c.translate(x0 + k * bw - bw * 0.3, gy - bh); c.scale(bw / 70, bh / 130 * 1.05);
+    if (dark) c.filter = 'brightness(0.75)';
+    BUILD[k](c, 112); c.restore();
+  }
+  c.fillStyle = dark ? '#3A3550' : '#B5654A'; c.fillRect(0, gy - 3, w, 7);
+  // steam
+  const st = getSteamSprite();
+  for (let k = 0; k < 16; k++) { const x = (k * 97) % w, y = h * (0.35 + ((k * 53) % 40) / 100), r = 20 + (k * 13) % 30; c.globalAlpha = dark ? 0.18 : 0.5; c.drawImage(st, x - r, y - r, r * 2, r * 2); }
+  c.globalAlpha = 1;
+  // a fan of tiles
+  const tw = Math.min(54, w / 9), th = tw * 1.3, faces = [12, 4, 31, 38, 27];
+  for (let k = 0; k < faces.length; k++) {
+    c.save(); c.translate(w / 2 + (k - 2) * tw * 0.78, h * 0.42); c.rotate((k - 2) * 0.12);
+    tileBody(c, tw, th, tw * 0.12, dark);
+    c.save(); rr(c, 0, 0, tw, th, tw * 0.09); c.clip(); c.scale(tw / 100, th / 130); drawFace(c, faces[k], false); c.restore();
+    c.restore();
+  }
+}
+
+// ---------- layout cards ----------
+function drawPreview(cv, layout) {
+  const pos = layout.build();
+  const w = cv.clientWidth || 240, h = cv.clientHeight || 130, dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let x1 = 0, y1 = 0, zmax = 0; for (const [x, y, z] of pos) { x1 = Math.max(x1, x + 2); y1 = Math.max(y1, y + 2); zmax = Math.max(zmax, z); }
+  const s = Math.min((w - 16) / (x1 + 1), (h - 16) / (y1 * 1.3 + 1));
+  const ox = (w - x1 * s) / 2 + 2, oy = (h - y1 * s * 1.3) / 2 + 2;
+  const order = pos.map((p, i) => i).sort((a, b) => pos[a][2] - pos[b][2] || pos[a][0] + pos[a][1] - pos[b][0] - pos[b][1]);
+  for (const i of order) {
+    const [x, y, z] = pos[i]; const d = s * 0.25;
+    const sx = ox + x * s - z * d, sy = oy + y * s * 1.3 - z * d;
+    c.fillStyle = '#7E2F1F'; c.fillRect(sx + d * 0.8, sy + d * 0.8, s * 2 - 1, s * 2.6 - 1);
+    const l = 92 - (zmax - z) * 7; c.fillStyle = 'hsl(42,30%,' + l + '%)'; c.fillRect(sx, sy, s * 2 - 1, s * 2.6 - 1);
+  }
+}
+function buildCards() {
+  const box = $('cards'); box.innerHTML = '';
+  for (const l of E.LAYOUTS) {
+    const ls = STATS.layouts[l.id];
+    const b = document.createElement('button'); b.className = 'card'; b.dataset.layout = l.id;
+    b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="cap"></span><span class="best"></span>';
+    b.querySelector('b').textContent = l.name; b.querySelector('.cap').textContent = l.caption;
+    b.querySelector('.best').textContent = ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : '144 tiles';
+    b.addEventListener('click', () => { AUDIO.unlock(); newGame({ layout: l.id }); });
+    box.appendChild(b);
+    requestAnimationFrame(() => drawPreview(b.querySelector('canvas'), l));
+  }
+}
+
+// ---------- tile guide ----------
+let guideBuilt = false;
+function buildGuide() {
+  if (guideBuilt) return; guideBuilt = true;
+  const body = $('ot-body');
+  const groups = [['Springs ● (count the pools)', 0, 9], ['Bathhouses ■ (north to south on the Row)', 9, 18], ['Lakes & Fish ◆ (count the fish)', 18, 27], ['Mountains ▲ (the old "winds")', 27, 31], ['Dragons ⬢', 31, 34], ['Flowers ✿ (any Flower matches any Flower)', 34, 38], ['Seasons ✦ (any Season matches any Season)', 38, 42]];
+  const W = 62, H = 81, D = 7, dpr = Math.min(3, window.devicePixelRatio || 1);
+  for (const [title, a, b] of groups) {
+    const h = document.createElement('h3'); h.textContent = title; body.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'guide'; body.appendChild(grid);
+    for (let f = a; f < b; f++) {
+      const fig = document.createElement('figure');
+      const cv = document.createElement('canvas'); cv.width = Math.ceil((W + D * 2) * dpr); cv.height = Math.ceil((H + D * 2.2) * dpr);
+      cv.style.width = (W + D * 2) + 'px';
+      const c = cv.getContext('2d'); c.scale(dpr, dpr); tileBody(c, W, H, D, false);
+      c.save(); rr(c, 0, 0, W, H, W * 0.09); c.clip(); c.scale(W / 100, H / 130); drawFace(c, f, false); c.restore();
+      cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', META[f].name);
+      const cap = document.createElement('figcaption'); cap.textContent = META[f].name.replace(/^(Bathhouse \d+: |Mountain: |Dragon: |Flower: |Season: )/, '');
+      fig.appendChild(cv); fig.appendChild(cap); grid.appendChild(fig);
+    }
+  }
+}
+
+// ---------- stats ----------
+function buildStats() {
+  const d = STATS.daily;
+  let html = '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Win rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span></div>';
+  html += '<h3>By layout</h3><table class="st"><thead><tr><th>Layout</th><th>Played</th><th>Won</th><th>Best time</th><th>Best score</th></tr></thead><tbody>';
+  for (const l of E.LAYOUTS) { const s = STATS.layouts[l.id] || {}; html += '<tr><td>' + l.name + '</td><td>' + (s.played || 0) + '</td><td>' + (s.won || 0) + '</td><td>' + (s.bestMs != null ? fmtTime(s.bestMs) : '—') + '</td><td>' + (s.bestScore || '—') + '</td></tr>'; }
+  html += '</tbody></table>';
+  if (!store.ok) html += '<p style="color:var(--color-muted)">Storage is unavailable in this browser, so stats last only for this visit.</p>';
+  $('ost-body').innerHTML = html;
+}
+
+// ---------- settings ----------
+function applyTheme() {
+  document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+  bgCache = null; SPR.key = '';
+  if (scene === 'title') drawTitleArt();
+  if (G) { layoutBoard(); markDirty(); }
+}
+function syncSettingsUI() {
+  const onoff = (id, v) => { const b = $(id); b.setAttribute('aria-pressed', String(v)); b.textContent = v ? 'On' : 'Off'; };
+  onoff('se-sound', SETTINGS.sound); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions);
+  $('se-vol').value = SETTINGS.volume;
+  for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.setAttribute('aria-pressed', String(SETTINGS[g.dataset.set] === b.dataset.v));
+  $('se-storage').textContent = store.ok ? 'Settings, stats and your current game are saved in this browser.' : "Storage is unavailable, so settings and stats won't be saved.";
+}
+function setSetting(k, v) {
+  SETTINGS[k] = v; saveSettings(); syncSettingsUI();
+  if (k === 'theme') applyTheme();
+  if (k === 'captions') { SPR.key = ''; layoutBoard(); markDirty(); }
+  if (k === 'sound' || k === 'volume') AUDIO.toggle();
+  if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
+}
+
+// ===================== input =====================
+let kbActive = false;
+const ptr = { id: null, x: 0, y: 0, panX: 0, panY: 0, moved: false };
+function localXY(e) { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+canvas.addEventListener('pointerdown', (e) => {
+  if (scene !== 'game') return;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or already-released pointer */ }
+  ptr.id = e.pointerId; [ptr.x, ptr.y] = localXY(e); ptr.panX = view.panX; ptr.panY = view.panY; ptr.moved = false;
+});
+canvas.addEventListener('pointermove', (e) => {
+  const [x, y] = localXY(e);
+  if (ptr.id === e.pointerId) {
+    const dx = x - ptr.x, dy = y - ptr.y;
+    if (view.zoom && (ptr.moved || Math.hypot(dx, dy) > 8)) { ptr.moved = true; view.panX = ptr.panX + dx; view.panY = ptr.panY + dy; layoutBoard(); markDirty(); }
+    return;
+  }
+  if (e.pointerType === 'mouse' && S && S.status === 'playing') {
+    const i = tileAt(x, y);
+    if (i !== hoverTile) { hoverTile = i; if (i >= 0 && S.selected < 0) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
+  }
+});
+canvas.addEventListener('pointerup', (e) => {
+  if (ptr.id !== e.pointerId) return;
+  ptr.id = null;
+  if (ptr.moved) return;
+  kbActive = false;
+  const [x, y] = localXY(e);
+  const i = tileAt(x, y);
+  if (i >= 0) { S.cursor = i; selectTile(i); }
+  else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
+});
+canvas.addEventListener('pointercancel', () => { ptr.id = null; });
+
+function exposed(i) { if (!S.present[i]) return false; for (const j of G.top[i]) if (S.present[j]) return false; return true; }
+function moveCursor(dir) {
+  if (!S) return;
+  const cands = []; for (let i = 0; i < G.n; i++) if (exposed(i)) cands.push(i);
+  if (!cands.length) return;
+  const center = (i) => [view.scr[i][0] + view.W / 2, view.scr[i][1] + view.H / 2];
+  let cur = S.cursor;
+  if (cur < 0 || !exposed(cur)) {
+    const mid = [view.cssW / 2, view.cssH / 2];
+    cur = cands.reduce((best, i) => { const [x, y] = center(i); const d = Math.hypot(x - mid[0], y - mid[1]); return d < best.d ? { i, d } : best; }, { i: cands[0], d: 1e9 }).i;
+    S.cursor = cur; markDirty(); announceCursor(); return;
+  }
+  const [cx, cy] = center(cur);
+  const v = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[dir];
+  let best = -1, bestScore = 1e9;
+  for (const i of cands) {
+    if (i === cur) continue;
+    const [x, y] = center(i); const dx = x - cx, dy = y - cy;
+    const along = dx * v[0] + dy * v[1]; if (along <= 2) continue;
+    const across = Math.abs(dx * v[1] - dy * v[0]);
+    const sc = along + across * 2.2;
+    if (sc < bestScore) { bestScore = sc; best = i; }
+  }
+  if (best >= 0) { S.cursor = best; markDirty(); announceCursor(); }
+}
+function announceCursor() { const i = S.cursor; if (i < 0) return; const m = META[S.faces[i]]; const fr = free(i); setStatus(m.name + (fr ? '' : ' (blocked)') + ': ' + m.fact); announce(m.name + (fr ? ', free' : ', blocked')); }
+
+function handleKey(key, ev) {
+  const ctrl = ev && (ev.ctrlKey || ev.metaKey);
+  const k = key.length === 1 ? key.toLowerCase() : key;
+  if (anyOverlay()) {
+    if (k === 'Escape') { const top = [...document.querySelectorAll('.overlay.on')].pop(); if (top.id === 'o-pause') resumeGame(); else if (top.id !== 'o-win' && top.id !== 'o-stuck') closeOverlay(top.id); return true; }
+    return false;
+  }
+  if (scene === 'layouts' && k === 'Escape') { showScene('title'); return true; }
+  if (scene !== 'game' || !S) return false;
+  if (k === 'Escape' || k === 'p') { pauseGame(); return true; }
+  if (k === '?') { openOverlay('o-help'); return true; }
+  if (ctrl && k === 'z') { undo(); return true; }
+  if (ctrl && k === 'y') { redo(); return true; }
+  if (ctrl) return false;
+  switch (k) {
+    case 'ArrowLeft': kbActive = true; moveCursor('left'); return true;
+    case 'ArrowRight': kbActive = true; moveCursor('right'); return true;
+    case 'ArrowUp': kbActive = true; moveCursor('up'); return true;
+    case 'ArrowDown': kbActive = true; moveCursor('down'); return true;
+    case 'Enter': case ' ': kbActive = true; if (S.cursor < 0 || !S.present[S.cursor]) moveCursor('right'); else selectTile(S.cursor); return true;
+    case 'h': hint(); return true;
+    case 's': shuffle(); return true;
+    case 'u': undo(); return true;
+    case 'r': redo(); return true;
+    case 'f': setSetting('highlightFree', !SETTINGS.highlightFree); return true;
+    case 'z': setZoom(!view.zoom); return true;
+    case 'n': newGame({ layout: S.layoutId }); return true;
+  }
+  return false;
+}
+document.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT') && e.key !== 'Escape') return;
+  const onButton = e.target && e.target.tagName === 'BUTTON' && (e.key === 'Enter' || e.key === ' ');
+  if (onButton) return;
+  if (handleKey(e.key, e)) e.preventDefault();
+});
+function panTo(ids) {
+  let cx = 0, cy = 0;
+  for (const i of ids) { cx += view.scr[i][0] - view.panX + view.W / 2; cy += view.scr[i][1] - view.panY + view.H / 2; }
+  cx /= ids.length; cy /= ids.length;
+  view.panX = view.cssW / 2 - cx; view.panY = view.cssH / 2 - cy;
+  layoutBoard(); markDirty();
+}
+function setZoom(on) {
+  if (!G) return view.zoom;
+  view.zoom = !!on;
+  if (on && S && (S.selected >= 0 || S.cursor >= 0)) {
+    // center the zoom on the selection or cursor
+    const i = S.selected >= 0 ? S.selected : S.cursor; const [sx, sy] = view.scr[i];
+    const k = 1.8; view.panX = -(sx + view.W / 2 - view.cssW / 2) * k; view.panY = -(sy + view.H / 2 - view.cssH / 2) * k;
+  } else { view.panX = 0; view.panY = 0; }
+  layoutBoard(); updateHud(); markDirty(); return view.zoom;
+}
+
+// ---------- buttons ----------
+const on = (id, fn) => $(id).addEventListener('click', (e) => { AUDIO.unlock(); fn(e); });
+on('b-play', () => showScene('layouts'));
+on('b-daily', () => newGame({ daily: true }));
+function resumeLoaded() {
+  showScene('game'); updateHud();
+  if (S.status !== 'won' && !pairsAvailable().length) { S.status = 'stuck'; openOverlay('o-stuck'); }
+}
+on('b-continue', () => {
+  if (S && (S.status === 'playing' || S.status === 'stuck')) { resumeLoaded(); return; }
+  const s = store.get('bhm.game.v1', null);
+  if (s) { try { loadState(s); resumeLoaded(); setStatus('Welcome back. ' + LAYOUT.caption); } catch (e) { store.del('bhm.game.v1'); newGame({}); } }
+});
+on('b-help', () => openOverlay('o-help'));
+on('b-tiles', () => openOverlay('o-tiles'));
+on('b-stats', () => openOverlay('o-stats'));
+on('b-settings', () => openOverlay('o-settings'));
+on('b-menu', () => pauseGame());
+on('b-pause', () => pauseGame());
+on('t-hint', () => hint());
+on('t-shuffle', () => shuffle());
+on('t-undo', () => undo());
+on('t-redo', () => redo());
+on('t-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
+on('t-zoom', () => setZoom(!view.zoom));
+on('op-resume', () => resumeGame());
+on('op-new', () => { closeAll(); paused = false; newGame({ layout: S.layoutId }); });
+on('op-help', () => openOverlay('o-help'));
+on('op-settings', () => openOverlay('o-settings'));
+on('op-title', () => { closeAll(); paused = false; saveGame(); showScene('title'); });
+on('os-shuffle', () => shuffle());
+on('os-undo', () => { closeOverlay('o-stuck'); undo(); });
+on('os-new', () => { closeOverlay('o-stuck'); newGame({ layout: S.layoutId }); });
+on('ow-again', () => { closeOverlay('o-win'); newGame({ layout: S.layoutId }); });
+on('ow-layouts', () => { closeOverlay('o-win'); showScene('layouts'); });
+on('ow-title', () => { closeOverlay('o-win'); showScene('title'); });
+on('oh-tiles', () => { closeOverlay('o-help'); openOverlay('o-tiles'); });
+on('ost-reset', () => { if (TEST || confirm('Reset all stats?')) { STATS = freshStats(); saveStats(); buildStats(); } });
+on('se-sound', () => setSetting('sound', !SETTINGS.sound));
+on('se-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
+on('se-timer', () => setSetting('showTimer', !SETTINGS.showTimer));
+on('se-cap', () => setSetting('captions', !SETTINGS.captions));
+$('se-vol').addEventListener('input', (e) => setSetting('volume', +e.target.value));
+for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.addEventListener('click', () => setSetting(g.dataset.set, b.dataset.v));
+for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('click', () => closeOverlay(b.closest('.overlay').id));
+for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('click', () => showScene('title'));
+for (const o of document.querySelectorAll('.overlay')) o.addEventListener('click', (e) => { if (e.target === o && !['o-win', 'o-stuck', 'o-pause'].includes(o.id)) closeOverlay(o.id); });
+
+window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
+document.addEventListener('visibilitychange', () => { lastTick = performance.now(); if (document.hidden) saveGame(); });
+const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
+if (mqDark.addEventListener) mqDark.addEventListener('change', onScheme);
+
+// ===================== test hooks (window.__game, see DEV-PLAN.md) =====================
+function contrast(a, b) {
+  const lum = (h) => { const n = parseInt(h.slice(1), 16); const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2]; };
+  const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+window.__game = {
+  seed(n) { nextSeed = n >>> 0; return nextSeed; },
+  getState() {
+    const base = { scene, overlay: (document.querySelector('.overlay.on') || {}).id || null, settings: Object.assign({}, SETTINGS), theme: document.documentElement.dataset.theme, reduced: reduced(), zoom: view.zoom, tileW: view.W, statsPlayed: STATS.played, statsWon: STATS.won, storage: store.ok, status: $('status-text').textContent, live: $('live').textContent };
+    if (!S) return base;
+    return Object.assign(base, {
+      layoutId: S.layoutId, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
+      freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
+      selected: S.selected, cursor: S.cursor, score: S.score, combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
+      gameStatus: S.status, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
+      tiles: G.pos.map(([x, y, z], i) => ({ i, x, y, z, f: S.faces[i], key: E.matchKey(S.faces[i]), present: S.present[i], free: free(i) })),
+    });
+  },
+  setState(s) { closeAll(); loadState(s); showScene('game'); updateHud(); markDirty(); return true; },
+  isIdle() { const t = performance.now(); if (anim.frozen != null) return t >= toastBusyUntil; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < 520) && t >= toastBusyUntil; },
+  scene(name) { return gotoScene(name); },
+  newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
+  pause() { pauseGame(); return true; },
+  resume() { resumeGame(); return true; },
+  act(name, ...a) {
+    switch (name) {
+      case 'click': return selectTile(a[0]);
+      case 'match': return doMatch(a[0], a[1]);
+      case 'hint': return hint();
+      case 'shuffle': return shuffle();
+      case 'undo': return undo();
+      case 'redo': return redo();
+      case 'solveStep': {
+        if (!S.plan) S.plan = E.solve(G, S.present, S.faces, 40000);
+        const pr = S.plan && S.plan.find(([x, y]) => free(x) && free(y));
+        if (!pr) return null; doMatch(pr[0], pr[1]); return pr;
+      }
+      case 'solveTo': { let guard = 200; while (tilesLeft() > a[0] && guard-- > 0) { if (!window.__game.act('solveStep')) break; } anim.list.length = 0; anim.particles.length = 0; markDirty(); return tilesLeft(); }
+      case 'key': return handleKey(a[0], a[1] || {});
+      case 'stuck': {
+        // test helper: arrange the remaining faces so that no free pair exists, if possible
+        const pos = []; for (let i = 0; i < G.n; i++) if (S.present[i]) pos.push(i);
+        const fr = pos.filter((i) => free(i)), rest = pos.filter((i) => !free(i));
+        const faces = pos.map((i) => S.faces[i]);
+        const byKey = new Map(); for (const f of faces) { const k = E.matchKey(f); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(f); }
+        const keys = [...byKey.keys()];
+        if (fr.length > keys.length) return false;
+        const nf = S.faces.slice(); const pool = [];
+        fr.forEach((i, k) => { nf[i] = byKey.get(keys[k]).pop(); });
+        for (const k of keys) pool.push(...byKey.get(k));
+        rest.forEach((i, k) => { nf[i] = pool[k]; });
+        S.faces = nf; S.plan = null; S.selected = -1; anim.hint = null;
+        afterMove(); return S.status === 'stuck';
+      }
+      case 'verifyDeals': {
+        const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); const t0 = performance.now(); let ok = 0; let maxMs = 0;
+        for (let s = 1; s <= a[1]; s++) { const t1 = performance.now(); const d = E.deal(g, E.makeRng(s * 7919)); maxMs = Math.max(maxMs, performance.now() - t1); if (d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan)) ok++; }
+        return { ok, total: a[1], ms: Math.round(performance.now() - t0), maxMs: +maxMs.toFixed(1), errors: E.validateLayout(l.build()) };
+      }
+      case 'solverCheck': {
+        const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); let solved = 0;
+        for (let s = 1; s <= a[1]; s++) { const d = E.deal(g, E.makeRng(s * 104729)); if (E.solve(g, new Array(g.n).fill(true), d.faces, 25000)) solved++; }
+        return { solved, total: a[1] };
+      }
+      case 'composition': {
+        const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); const d = E.deal(g, E.makeRng(a[1] >>> 0));
+        const counts = new Array(E.FACES).fill(0); for (const f of d.faces) counts[f]++; return counts;
+      }
+      case 'tileCenter': { const r = canvas.getBoundingClientRect(); const [sx, sy] = view.scr[a[0]]; return { x: r.left + sx + view.W / 2, y: r.top + sy + view.H / 2 }; }
+      case 'zoom': return setZoom(a[0]);
+      case 'animAt': { // freeze the animation clock (for mid-animation screenshots); null resumes
+        if (a[0] == null) { anim.frozen = null; kick(); return true; }
+        const last = anim.list.length ? Math.max(...anim.list.map((x) => x.start)) : performance.now();
+        anim.frozen = a[0] === 'now' ? performance.now() : last + a[0]; dirty = true; kick(); return true;
+      }
+      case 'contrast': {
+        const face = '#F2EFE8', out = [];
+        for (let f = 0; f < E.FACES; f++) out.push({ name: 'index ' + META[f].name, ratio: +contrast(META[f].color, face).toFixed(2) });
+        const cs = getComputedStyle(document.documentElement); const v = (n) => cs.getPropertyValue(n).trim();
+        for (const [fg, bg] of [['--color-text', '--color-bg'], ['--color-muted', '--color-bg'], ['--bar-text', '--bar'], ['--color-text', '--panel'], ['--color-muted', '--panel'], ['--color-on-primary', '--color-primary'], ['--color-on-accent', '--color-accent'], ['--on-pressed', '--pressed'], ['--btn-text', '--btn'], ['--color-primary', '--panel']]) out.push({ name: fg + ' on ' + bg, ratio: +contrast(v(fg), v(bg)).toFixed(2) });
+        return out;
+      }
+      case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
+    }
+    throw new Error('unknown act ' + name);
+  },
+};
+
+// boot
+applyTheme();
+showScene('title');
+})();
+</script>
+</body>
+</html>
