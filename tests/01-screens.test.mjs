@@ -14,7 +14,7 @@ async function targets(t) {
   });
 }
 
-export const tests = [
+const TESTS = [
   {
     name: 'title and menus',
     async run(t) {
@@ -28,7 +28,7 @@ export const tests = [
 
       await t.page.click('#b-play');
       t.equal((await t.state()).scene, 'layouts', 'Play opens the layout picker');
-      t.equal(await t.page.locator('.card').count(), 5, 'five layout cards');
+      t.equal(await t.page.locator('.card').count(), 7, 'seven layout cards (five classic, two portrait)');
       await t.shot('01-layouts', { fullPage: true });
       await t.checkLayout();
 
@@ -72,3 +72,6 @@ export const tests = [
     },
   },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

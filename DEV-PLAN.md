@@ -125,3 +125,19 @@ under `screenshots/<milestone>/<viewport>/`.
 | D13 | M4 | `03-row-toast` | toast test seed cleared the Bathhouse suit on the final pair, hidden behind the win screen | test searches seeds for an early Row finish | fixed |
 | D14 | M5 | `03-row-toast` (mobile) | multi-line toast used a pill radius and became an oval | toast uses the large radius | fixed |
 | D15 | M5 | `02-layout-row` (mobile) | Bathhouse Row and Arlington tiles are about 22–26 px wide on a 390 px phone | one-time toast points at Zoom or landscape; zoom (1.8×) is tested | mitigated (see REPORT gaps) |
+
+### Visual campaign v3 defects (see VISUAL-PLAN.md / VISUAL-REPORT.md)
+| # | Milestone | Found in | Defect | Fix | Status |
+|---|---|---|---|---|---|
+| V1 | m1-3d | first 3D render | tile faces flickered between atlas cells: the per-instance face index arrived as 23.9999 for 24 | round the index in the shader | fixed |
+| V2 | m1-3d | first 3D render | faces washed out white: the studio environment's overhead panel mirrored straight into the camera | dim, low-placed environment panels; key light low from the north-west | fixed |
+| V3 | m1-3d | first 3D render | blurred garbage mip levels on the 2048² atlas under SwiftShader | CPU-built mip chain from canvas halving | fixed |
+| V4 | m1-3d | `file://` load | painted art taints the WebGL atlas (cross-origin images under `file://`) | `assets/art-data.js` data URIs, loaded only under `file://` | fixed |
+| V5 | m1-3d | `09-shuffle-done` | unfreezing the animation clock didn't redraw, so the shot froze mid-flip | `animAt(null)` marks the frame dirty; one more draw after any animation ends | fixed |
+| V6 | m1-3d | `03-play` combo check | SwiftShader frames (~0.5 s) stretched the 4 s combo window between test calls | the two quick matches run in one page call | fixed |
+| V7 | m2 | GPU perf | first deal stalled ~800 ms compiling shaders | warm-up compile on the title screen; deal starts after the first 3D frame | fixed |
+| V8 | m2 review | `03-win` | "º6" instead of the ✦ ornament (an escaped `\2726` mangled by an edit script) | fixed escape | fixed |
+| V9 | m2 review | `01-game` | grey-on-grey board, crooked/keystoned camera, tiles smaller than the 2D build | dark verde slab trimmed to the tiles; level off-axis camera with a 13° lens; warmer faces | fixed |
+| V10 | m2 review | `03-hint` | hint was a dashed focus ring and clashed with selection in Neon Night | turquoise ripple ring + lift for hints in both renderers; selection is always a thick gold ring | fixed |
+| V11 | m2 review | mobile `01-game` | phones opened on the wide Classic Pyramid | portrait phones default to Tufa Terraces; zoom shows edge chevrons; pinch-to-zoom | fixed |
+| V12 | m2 review | backdrop | Quapaw dome painted cobalt/yellow; Row on a raised balustraded terrace; title palazzo not a Row building | v4 paintings from HABS photos: ochre chevron dome, fronts meet the sidewalk through hedges, title shows Fordyce / Quapaw / Ozark | fixed |

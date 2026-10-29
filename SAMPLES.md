@@ -80,3 +80,10 @@ an open left or right side) are a traditional public-domain game and are not tak
 | Stuck | Recoverable state with Shuffle / Undo / New buttons | 2, 3 |
 | Rendering | Our own Canvas 2D with cached face bitmaps (none of the samples is Canvas-based) | own |
 | Accessibility | Keyboard for every action, live-region announcements | 1 (feature list) |
+
+## Vendored libraries (visual campaign v3, 2026-10-29)
+| Library | Version | Source | License | Files | How it is used |
+|---|---|---|---|---|---|
+| **three.js** | r169 (`three@0.169.0`) | npm registry tarball `https://registry.npmjs.org/three/-/three-0.169.0.tgz` (integrity `sha512-Ed906MA3dR4TS5riErd4QBsRGPcx+HBDX2O5yYE5GqJeFQTPU+M56Va/f/Oph9X7uZo3W3o4l2ZhBZ6f6qUv0w==`) | MIT | `vendor/three.min.js`, `vendor/three-LICENSE.txt` | `build/three.module.min.js`, unchanged except for a wrapper by `tools/vendor-three.mjs`: the trailing ES `export {…}` becomes `window.THREE = {…}` inside a strict-mode function, so it loads with `<script src>` under `file://`. r169 is the last release whose module build is a single self-contained file. `board3d.js` uses the core only (WebGLRenderer, InstancedMesh, MeshPhysicalMaterial, PMREMGenerator, lights and shadows). No addons were copied: the rounded tile geometry and the studio environment are written in `board3d.js`. |
+
+To refresh: `npm pack three@0.169.0` in an empty scratch folder, extract it, then run `node games/mahjong/tools/vendor-three.mjs <extracted>/package`.

@@ -17,7 +17,7 @@ Arkansas (springs, bathhouses, lakes, mountains and flowers) and every board is 
 ## 3. Modes
 | Mode | Description |
 |---|---|
-| **Classic** | Choose one of five layouts; a random seed each game. |
+| **Classic** | Choose one of seven layouts (five classic, plus two eight-wide portrait layouts that fit phones); a random seed each game. |
 | **Daily Puzzle** | One date-seeded deal per day on a layout that rotates daily; the daily streak is tracked. |
 | **Continue** | Resume the last unfinished game (saved automatically). |
 
@@ -125,9 +125,18 @@ All WebAudio synthesis, no files. Soft, woody, bathhouse-calm.
 - Tap to select. Zoom toggle (1.8×) with drag-to-pan for small tiles. No hover-only information.
 - No horizontal page scroll; the board always fits the space between HUD and toolbar.
 
+## 7b. Visual campaign v3 (3D board)
+See `VISUAL-PLAN.md` and `MECHANICS.md` §6b. In short:
+- **Tiles:** real 3D resin tiles with WebGL (three.js r169, vendored). Faces come from the same painted art; the layered side stripes follow the tile set.
+- **Camera and table:** a fixed tilted camera (or top-down), soft shadows, and a marble slab with a brass rim.
+- **Backdrop:** a painted Bathhouse Row behind the board, in day and Neon Night versions.
+- **Feel:** a deal-in, a match lift with a clack, steam, sparks and a score pop, and a flip-wave shuffle.
+- **Phones:** two portrait layouts, Tufa Terraces and Display Springs.
+- **Fallback:** the 2D renderer remains for no WebGL, software WebGL, slow devices (a watchdog) and Settings → Tiles: Flat.
+
 ## 11. Performance budgets
-- 60 fps during animations on a mid-range laptop; zero work when idle.
-- `index.html` ≤ 2 MB; `assets/` ≤ 3.5 MB. Interactive in ≤ 2 s (target < 300 ms after load).
+- 60 fps during animations on a mid-range laptop; zero work when idle. 3D: 30+ fps on phones, with a watchdog that falls back to flat tiles.
+- `index.html` ≤ 2 MB; `assets/` ≤ 3.5 MB over http (`assets/art-data.js`, used only under `file://`, is excluded); `vendor/` ≤ 0.8 MB. Interactive in ≤ 2 s (target < 300 ms after load).
 - Deal generation < 50 ms per layout; hint < 50 ms typical.
 
 ## 12. Save / load

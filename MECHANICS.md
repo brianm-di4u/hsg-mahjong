@@ -101,6 +101,44 @@ Settings and stats are separate objects (`SETTINGS`, `STATS`). `history` entries
 - **Fit:** compute the layout's pixel bounds for a trial `W`, then scale to fit the board area; zoom (mobile)
   multiplies the scale by 1.8 and pans with drag, clamped to the board.
 
+### 6b. 3D board (visual campaign v3)
+- **Three canvases** stack in `#board-wrap`:
+  - `#board-bg`, at the bottom, is the painted backdrop: Bathhouse Row by day, or at night for Neon Night. Before it loads, the tile set's cloth stands in.
+  - `#board3d` is the WebGL tiles (`board3d.js` on `vendor/three.min.js`, three.js r169).
+  - `#board`, on top, takes input and draws the overlay: the selection ring, the dashed hint ring, the keyboard cursor, steam, sparks and score pops.
+- **Tiles:**
+  - One `InstancedMesh` of rounded boxes, 1 wide × 1.3 deep × 0.56 thick, so 144 tiles take one draw call.
+  - Each tile has two per-instance attributes:
+    - `aFace`: index into a 2048² face atlas, drawn by the same `drawFace()` as the 2D sprites, with CPU-built mipmaps.
+    - `aState`: dim, selected, hint and hover.
+  - A shader patch on `MeshPhysicalMaterial` paints:
+    - the face on the top
+    - the tile back on the bottom
+    - the tile set's resin bands on the sides (`BANDS3D`), with a bright seam between bands
+    - a dim for blocked tiles, plus selection and hint glow
+- **Scene:**
+  - a marble slab with a brass rim under the board, which receives the shadows
+  - a studio PMREM environment
+  - a low key light from the north-west, with a PCF soft shadow map that is redrawn only when tiles move
+  - hemisphere and south-east fill lights
+  - neutral tone mapping
+- **Camera (Settings → Camera):** **Classic** (default) is an oblique orthographic projection: straight down, with each unit of height shifting a tile up and to the left (0.3 per unit), so the board is square with no keystone and every free face shows. **Tilted** is a 13° perspective lens from the south-east, pitched 22° from vertical (13° on a portrait screen), with an off-axis shift that keeps rows level. **Top-down** is that lens pitched 2°. Every tile's top-left index stays visible. The fit dollies until the board's bounding box (plus the slab) fills the area. Zoom dollies in 1.35–1.8×, and pan slides along the camera plane.
+- **Picking:** a ray from the pointer against each present tile's rest box, including the selection lift. Animations never move hit boxes. `screenCenter(i)` projects a tile's top face. It serves `tileCenter`, keyboard navigation, pan-to-hint and zoom centring.
+- **Animation:** the game state is unchanged, and the renderer rebuilds every tile's transform each drawn frame.
+  - **Deal-in:** tiles drop layer by layer. It starts after the first 3D frame, so a shader compile can't eat it.
+  - **Selection:** a lift of 0.2.
+  - **Hint:** a pulse and bob for 8 s, or until a match.
+  - **Match fly:** rise, slide together, clack, lift and shrink; steam, sparks and "+n" pop at the clack.
+  - **Shuffle:** a diagonal wave of 360° flips, showing the old faces, then the back, then the new faces.
+  - **Blocked tiles:** they ease in and out of dim.
+  - `isIdle()` also waits for the deal, the dim fades and a settled last frame.
+- **Choosing a renderer:**
+  - **Tiles: Auto** uses 3D unless WebGL is missing, the GPU is a software rasteriser (SwiftShader, llvmpipe, Basic Render), or a watchdog saw 30 animated frames after the deal-in average slower than 60 ms (about 17 fps). The watchdog's verdict is saved in `bhm.gl.slow` and comes with a toast.
+  - **Tiles: 3D** and **Tiles: Flat** are explicit choices.
+  - `?gl=1` and `?gl=0` force either; the tests use `?gl=1`.
+  - If the WebGL context is lost, the game falls back to the 2D renderer with the state untouched.
+- **`file://`:** image files are cross-origin there, so they would taint the atlas, and WebGL refuses tainted textures. The tile art therefore also ships as data URIs in `assets/art-data.js` (`tools/build-art-data.mjs`). That file is loaded only under `file://`.
+
 ## 7. AI
 None for solitaire. The solver (hint/plan) is the only search: depth-first, safe-move collapse (a key whose
 remaining tiles are all free and even in number is removed without branching), memo on the presence bitset,
@@ -114,7 +152,8 @@ Cosmetic randomness (steam wobble) uses `Math.random` and never touches game sta
 ## 9. Save format (`localStorage`, all wrapped in try/catch)
 | Key | Contents |
 |---|---|
-| `bhm.settings.v1` | `{sound, volume, motion:'auto'|'full'|'reduced', theme:'auto'|'light'|'dark', highlightFree, showTimer, captions}` |
+| `bhm.settings.v1` | `{sound, volume, motion:'auto'|'full'|'reduced', theme:'auto'|'light'|'dark', highlightFree, showTimer, captions, tileset:'auto'|'palm'|'ribbon'|'peacock', graphics:'auto'|'3d'|'flat', camera:'tilted'|'top'}` (older saves lack the last keys and get the defaults) |
+| `bhm.gl.slow` | `true` once the 3D watchdog has switched Tiles: Auto to flat tiles; cleared by choosing Auto or 3D in Settings |
 | `bhm.stats.v1` | `{played, won, streak, bestStreak, layouts:{id:{played, won, bestMs, bestScore}}, daily:{last, streak, best, done:{date:ms}}}` |
 | `bhm.game.v1` | the state object `S` for "Continue" (saved after every move and every 5 s of play) |
 If storage throws or is missing, the game keeps everything in memory and says "Stats won't be saved" once in Settings.

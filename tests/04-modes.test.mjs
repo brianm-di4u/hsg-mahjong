@@ -1,7 +1,7 @@
 // Daily puzzle, stats persistence, continue after reload, no storage (PRD AC14-AC17).
 const waitWin = (t) => t.page.waitForFunction(() => document.getElementById('o-win').classList.contains('on'), null, { timeout: 5000 }).catch(() => t.fail('win overlay did not open'));
 
-export const tests = [
+const TESTS = [
   {
     name: 'daily puzzle is date-seeded',
     async run(t) {
@@ -80,3 +80,6 @@ export const tests = [
     },
   },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

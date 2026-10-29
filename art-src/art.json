@@ -37,6 +37,8 @@
   { "name": "table-palm", "src": "table-palm.png", "w": 1600, "h": 1000, "quality": 0.8 },
   { "name": "table-ribbon", "src": "table-ribbon.png", "w": 1600, "h": 1000, "quality": 0.8 },
   { "name": "table-peacock", "src": "table-peacock.png", "w": 1600, "h": 1000, "quality": 0.8 },
-  { "name": "title-hero", "src": "title-hero.png", "w": 1600, "h": 900, "quality": 0.8 }
+  { "name": "title-hero", "src": "title-hero-v3.png", "w": 1600, "h": 900, "quality": 0.8 },
+  { "name": "backdrop-day", "src": "backdrop-day-v4.png", "w": 1600, "h": 900, "quality": 0.78 },
+  { "name": "backdrop-night", "src": "backdrop-night-v4.png", "w": 1600, "h": 900, "quality": 0.78 }
  ]
 }

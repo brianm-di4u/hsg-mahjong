@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-export const tests = [
+const TESTS = [
   {
     name: 'contrast in the light theme',
     viewports: ['desktop'],
@@ -15,8 +15,14 @@ export const tests = [
     },
   },
   {
+    // Tiles: Auto. On a real GPU that is 3D; the harness renders WebGL with SwiftShader (software), where Auto
+    // must fall back to flat tiles, and that is what this measures. tools/perf-gpu.mjs measures 3D on a GPU.
     name: 'performance, size and load',
+    url: 'index.html',
     async run(t) {
+      const g0 = await t.state();
+      t.log('WebGL renderer: ' + g0.glName + ' -> tiles ' + g0.gfx);
+      if (/swiftshader|llvmpipe|software/i.test(g0.glName)) t.equal(g0.gfx, '2d', 'software WebGL falls back to flat tiles under Auto');
       t.expect(t.loadMs < 2000, 'hooks ready in ' + t.loadMs + ' ms');
       const bytes = fs.statSync(path.join(HERE, '..', 'index.html')).size;
       t.expect(bytes < 2 * 1024 * 1024, 'index.html is ' + bytes + ' bytes');
@@ -34,3 +40,6 @@ export const tests = [
     },
   },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

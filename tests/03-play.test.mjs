@@ -6,7 +6,7 @@ function freePairs(s) {
 }
 const waitOverlay = (t, id) => t.page.waitForFunction((i) => document.getElementById(i).classList.contains('on'), id, { timeout: 5000 }).catch(() => t.fail('overlay ' + id + ' did not open'));
 
-export const tests = [
+const TESTS = [
   {
     name: 'select, blocked, match and steam',
     async run(t) {
@@ -38,12 +38,12 @@ export const tests = [
       await t.shot('03-steam');
       await t.game('act', 'animAt', null);
       await t.shot('03-matched');
-      // combo: a second pair right away
-      const [c, d] = freePairs(await t.state())[0];
-      await t.game('act', 'match', c, d);
-      s = await t.state();
-      t.equal(s.combo, 1, 'quick second pair is a combo');
-      t.equal(s.score, 25, 'combo pair scores 10 + 5');
+      // combo: two more pairs back to back (in one page call, so slow software WebGL frames can't stretch the gap)
+      const fp = freePairs(await t.state());
+      const r2 = await t.page.evaluate(([p, q]) => { const g = window.__game; g.act('match', p[0], p[1]); const s1 = g.getState(); g.act('match', q[0], q[1]); const s2 = g.getState(); return [s1.score, s2.score, s1.combo, s2.combo]; }, [fp[0], fp[1]]);
+      // (the chain may already include the pair above if it fell inside the 4 s window, so check the rule, not a count)
+      t.equal(r2[3], r2[2] + 1, 'quick follow-up pair extends the combo');
+      t.equal(r2[1] - r2[0], 10 + Math.min(25, 5 * r2[3]), 'combo pair scores 10 + 5 x combo (' + (r2[1] - r2[0]) + ')');
     },
   },
   {
@@ -82,14 +82,16 @@ export const tests = [
     name: 'Bathhouse Row complete toast',
     async run(t) {
       // find a deal whose plan clears the Bathhouse suit well before the end
-      let s;
-      for (let seed = 1923; seed < 1960; seed++) {
-        await t.game('newGame', { layout: 'tower', seed });
-        let guard = 80;
-        while (!(await t.state()).rowDone && guard-- > 0) await t.game('act', 'solveStep');
-        s = await t.state();
-        if (s.tilesLeft >= 20) break;
-      }
+      // (the search runs inside the page: one round trip instead of hundreds, which matters with software WebGL)
+      await t.page.evaluate(() => {
+        for (let seed = 1923; seed < 1960; seed++) {
+          window.__game.newGame({ layout: 'tower', seed });
+          let guard = 80;
+          while (!window.__game.getState().rowDone && guard-- > 0) window.__game.act('solveStep');
+          if (window.__game.getState().tilesLeft >= 20) break;
+        }
+      });
+      const s = await t.state();
       t.expect(s.tilesLeft >= 20, 'row finished with tiles still on the board');
       t.expect(s.rowDone, 'all 36 Bathhouse tiles cleared');
       t.expect(s.tiles.filter((x) => x.present && x.f >= 9 && x.f < 18).length === 0, 'no Bathhouse tiles left');
@@ -119,6 +121,7 @@ export const tests = [
       t.expect(s.planValid, 'shuffled board has a valid solution');
       t.expect(s.pairsAvailable > 0, 'pairs available after shuffle');
       t.equal(s.shuffles, 1, 'shuffle counted');
+      await t.page.waitForFunction(() => window.__game.isIdle(), null, { timeout: 30000 }).catch(() => {}); // software WebGL: a 0.9 s flip can take many seconds
       await t.shot('03-shuffled');
     },
   },
@@ -126,14 +129,18 @@ export const tests = [
     name: 'hints clear the whole board and the win screen shows a fact',
     async run(t) {
       await t.game('newGame', { layout: 'row', seed: 314 });
-      let guard = 80;
-      while (guard-- > 0) {
-        const s = await t.state();
-        if (s.tilesLeft === 0) break;
-        const pr = await t.game('act', 'hint');
-        if (!pr) { t.fail('hint returned nothing with ' + s.tilesLeft + ' tiles left'); break; }
-        await t.game('act', 'match', pr[0], pr[1]);
-      }
+      const fail = await t.page.evaluate(() => {
+        const g = window.__game;
+        for (let guard = 80; guard-- > 0;) {
+          const left = g.getState().tilesLeft;
+          if (left === 0) return null;
+          const pr = g.act('hint');
+          if (!pr) return 'hint returned nothing with ' + left + ' tiles left';
+          g.act('match', pr[0], pr[1]);
+        }
+        return null;
+      });
+      if (fail) t.fail(fail);
       let s = await t.state();
       t.equal(s.tilesLeft, 0, 'following hints clears the board');
       t.equal(s.gameStatus, 'won', 'game won');
@@ -150,3 +157,6 @@ export const tests = [
     },
   },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

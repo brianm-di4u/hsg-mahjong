@@ -24,7 +24,8 @@
   --radius-sm:3px; --radius-md:6px; --radius-lg:12px; --radius-pill:999px;
   /* derived for this game */
   --table-a:#1F5F6B; --table-b:#174A54; /* thermal-water pool depth */
-  --bar:#E6D7B5; --bar-text:#1F2A24; --panel:#FBF8F1; --scrim:rgba(20,18,31,.55);
+  --bar:#173F47; --bar-text:#F5EDDC; --chrome-muted:#BFD6CF; --chrome-b:#0F2C33; --brass:#D9B24C; --icon:#F0CF73;
+  --status-bg:#0F2C33; --status-text:#EDE4CF; --panel:#FBF8F1; --scrim:rgba(20,18,31,.55);
   --btn:#FFFFFF; --btn-text:#1F2A24; --focus:#2B4C9B; --pressed:#355E41; --on-pressed:#FFFFFF;
   color-scheme:light;
 }
@@ -34,7 +35,8 @@ html[data-theme="dark"]{
   --color-primary:#D4AF37; --color-on-primary:#14121F; --color-accent:#FF5A5A; --color-on-accent:#14121F;
   --color-success:#5FD38A; --color-danger:#FF6B6B; --color-highlight:#4FC3FF; --color-border:#3A3550;
   --table-a:#1F1C2E; --table-b:#14121F;
-  --bar:#1F1C2E; --bar-text:#D8CFBD; --panel:#1F1C2E; --scrim:rgba(0,0,0,.6);
+  --bar:#1D1A31; --bar-text:#E8DFC9; --chrome-muted:#ABA5C0; --chrome-b:#110F1E; --brass:#4FC3FF; --icon:#7FD8FF;
+  --status-bg:#110F1E; --status-text:#E8DFC9; --panel:#1F1C2E; --scrim:rgba(0,0,0,.6);
   --btn:#2A2640; --btn-text:#D8CFBD; --focus:#4FC3FF; --pressed:#D4AF37; --on-pressed:#14121F;
   color-scheme:dark;
 }
@@ -62,10 +64,22 @@ button{font:inherit;color:inherit}
 svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* ---------- title ---------- */
-#s-title{align-items:center;justify-content:flex-start;overflow-y:auto;background:var(--color-bg)}
-#title-art{width:100%;max-width:900px;height:min(38vh,330px);display:block;flex:none}
-.title-block{text-align:center;padding:0 var(--space-5) var(--space-6);max-width:560px;width:100%;flex:1 0 auto;display:flex;flex-direction:column;justify-content:center}
-h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);margin:var(--space-3) 0 0;letter-spacing:.02em;color:var(--color-primary)}
+#s-title{align-items:center;justify-content:flex-end;overflow-y:auto;background:var(--color-bg)}
+#title-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+.title-block{position:relative;text-align:center;margin:0 var(--space-4) max(3vh,16px);padding:var(--space-5) var(--space-5) var(--space-4);max-width:470px;width:calc(100% - 24px);display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(rgba(23,63,71,.9),rgba(15,44,51,.94));color:var(--bar-text);border:1px solid var(--brass);border-radius:18px;box-shadow:0 0 0 4px rgba(15,44,51,.45),0 0 0 5px rgba(217,178,76,.5),0 18px 50px rgba(10,20,22,.5);backdrop-filter:blur(6px)}
+html[data-theme="dark"] .title-block{background:linear-gradient(rgba(29,26,49,.9),rgba(17,15,30,.94));box-shadow:0 0 0 4px rgba(17,15,30,.45),0 0 0 5px rgba(79,195,255,.45),0 18px 50px rgba(0,0,0,.6)}
+h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,5vw,3rem);white-space:nowrap;margin:0;letter-spacing:.02em;color:var(--color-primary)}
+.title-block h1{color:var(--icon);text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.title-block .subtitle{color:var(--chrome-muted)}
+.title-block .foot{color:var(--chrome-muted)}
+.title-block .menu{grid-template-columns:repeat(4,1fr)}
+.title-block .menu .btn{background:linear-gradient(rgba(255,255,255,.10),rgba(255,255,255,.02));color:var(--bar-text);border:1px solid rgba(217,178,76,.55);border-radius:12px;font-size:.9rem;padding:0 6px}
+.title-block .menu .btn:hover{border-color:var(--brass)}
+.title-block .menu .btn.primary{grid-column:span 2;min-height:54px;font-size:1.15rem;background:linear-gradient(#F2D27A,#C99A35);color:#211A08;border-color:#F7E2A0}
+html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradient(#7FD8FF,#2E9FD8);color:#0B1020;border-color:#BFEBFF}
+.title-block .menu .wide{grid-column:1 / -1}
+@media (max-width:420px){.title-block .menu{grid-template-columns:1fr 1fr}.title-block .menu .btn.primary{grid-column:span 1}.title-block .menu .wide{grid-column:1 / -1}}
 .subtitle{font-family:var(--font-serif-victorian);font-style:italic;color:var(--color-muted);margin:var(--space-2) 0 var(--space-5);font-size:1.1rem}
 .menu{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
 .menu .wide{grid-column:1 / -1}
@@ -73,7 +87,7 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);marg
 
 /* ---------- layouts ---------- */
 #s-layouts{overflow-y:auto}
-.topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:1px solid var(--color-border);flex:none}
+.topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:linear-gradient(var(--bar),var(--chrome-b));color:var(--bar-text);border-bottom:2px solid var(--brass);flex:none}
 .topbar h2{margin:0;font-family:var(--font-serif-victorian);font-size:1.3rem;flex:1}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-4);padding:var(--space-5);max-width:1100px;width:100%;margin:0 auto}
 .card{border:2px solid var(--color-border);border-radius:var(--radius-lg);background:var(--panel);padding:var(--space-4);text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:var(--space-3);min-height:44px}
@@ -82,25 +96,37 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);marg
 .card b{font-family:var(--font-serif-victorian);font-size:1.15rem}
 .card .cap{font-size:.9rem;color:var(--color-muted)}
 .card .best{font-size:.85rem;color:var(--color-accent);font-weight:600}
+.card .tag{align-self:flex-start;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--bar);color:var(--bar-text)}
 
 /* ---------- game ---------- */
 #s-game{background:var(--color-bg)}
-.hud{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:var(--bar);color:var(--bar-text);border-bottom:2px solid #D4AF37;border-image:linear-gradient(90deg,#A6D9C8,#D4AF37 30%,#F0907F 50%,#D4AF37 70%,#A6D9C8) 1;flex:none;min-height:52px}
+.hud{position:relative;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:linear-gradient(var(--bar),var(--chrome-b));color:var(--bar-text);flex:none;min-height:54px;box-shadow:0 2px 0 var(--brass),0 4px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.25);z-index:2}
+.hud .iconbtn,.topbar .iconbtn{color:var(--icon)}
 .hud .name{flex:1;min-width:0;line-height:1.15}
-.hud .name b{display:block;font-family:var(--font-serif-victorian);font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hud .name span{font-size:.8rem;color:var(--color-muted)}
-.stats{display:flex;gap:var(--space-4);font-variant-numeric:tabular-nums;font-weight:700;font-size:.95rem}
-.stats div{display:flex;flex-direction:column;align-items:center;line-height:1.1}
-.stats small{font-weight:500;font-size:.7rem;color:var(--color-muted);text-transform:uppercase;letter-spacing:.04em}
+.hud .name b{display:block;font-family:var(--font-serif-victorian);font-size:1.12rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud .name span{font-size:.8rem;color:var(--chrome-muted)}
+.stats{display:flex;gap:6px;font-variant-numeric:tabular-nums;font-weight:700;font-size:1rem}
+.stats div{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:48px;padding:3px 8px;border-radius:10px;background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 1px rgba(217,178,76,.35)}
+.stats small{font-weight:600;font-size:.72rem;color:var(--chrome-muted);text-transform:uppercase;letter-spacing:.06em}
 #board-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:linear-gradient(var(--table-a),var(--table-b))}
 #board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:pointer}
-.status{flex:none;min-height:40px;display:flex;align-items:center;padding:var(--space-2) var(--space-4);background:var(--panel);border-top:1px solid var(--color-border);font-size:.92rem;line-height:1.25}
+#board-bg,#board3d{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
+.gl #board-bg,.gl #board3d{display:block}
+.status{flex:none;min-height:38px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px var(--space-4);background:var(--status-bg);color:var(--status-text);border-top:1px solid rgba(217,178,76,.45);font-size:.9rem;line-height:1.25;font-style:italic;font-family:var(--font-serif-victorian)}
 .status span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.toolbar{flex:none;display:flex;justify-content:center;gap:var(--space-2);padding:var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));background:var(--bar);border-top:2px solid #D4AF37;border-image:linear-gradient(90deg,#A6D9C8,#D4AF37 30%,#F0907F 50%,#D4AF37 70%,#A6D9C8) 1}
-.tool{flex:1;max-width:110px;min-height:52px;min-width:44px;border-radius:var(--radius-md);border:2px solid var(--color-border);background:var(--btn);color:var(--btn-text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.75rem;font-weight:600;padding:2px}
-.tool:hover{border-color:var(--color-primary)}
-.tool[aria-pressed="true"]{background:var(--pressed);color:var(--on-pressed);border-color:var(--pressed)}
-.tool:disabled{opacity:.45;cursor:default}
+.toolbar{flex:none;display:flex;justify-content:center;gap:8px;padding:8px var(--space-3) calc(8px + env(safe-area-inset-bottom));background:linear-gradient(var(--bar),var(--chrome-b));box-shadow:0 -2px 0 var(--brass)}
+.tool{position:relative;flex:1;max-width:104px;min-height:54px;min-width:44px;border-radius:14px;border:1px solid rgba(217,178,76,.55);background:linear-gradient(rgba(255,255,255,.10),rgba(255,255,255,.02));color:var(--bar-text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:.76rem;font-weight:700;letter-spacing:.02em;padding:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 5px rgba(0,0,0,.3)}
+.tool svg.ic{color:var(--icon)}
+.tool:hover{border-color:var(--brass);background:linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,.04))}
+.tool:active{transform:translateY(1px)}
+.tool.primary{background:linear-gradient(#F2D27A,#C99A35);color:#211A08;border-color:#F7E2A0}
+.tool.primary svg.ic{color:#211A08}
+html[data-theme="dark"] .tool.primary{background:linear-gradient(#7FD8FF,#2E9FD8);color:#0B1020;border-color:#BFEBFF}
+html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
+.tool[aria-pressed]::after{content:"";position:absolute;top:6px;right:7px;width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.tool[aria-pressed="true"]{background:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.12));border-color:var(--brass);box-shadow:inset 0 2px 6px rgba(0,0,0,.45)}
+.tool[aria-pressed="true"]::after{background:var(--icon);box-shadow:0 0 8px var(--icon)}
+.tool:disabled{opacity:.4;cursor:default}
 .tool .badge{font-variant-numeric:tabular-nums}
 .toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-20px);opacity:0;pointer-events:none;background:var(--panel);color:var(--color-text);border:2px solid var(--color-highlight);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-5);font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center;font-size:.95rem}
 .toast.on{transform:translate(-50%,0);opacity:1}
@@ -108,8 +134,8 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,6vw,3.2rem);marg
 /* ---------- overlays ---------- */
 .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:var(--space-4);z-index:10}
 .overlay.on{display:flex}
-.panel{background:var(--panel);color:var(--color-text);border-radius:var(--radius-lg);border:2px solid var(--color-border);width:100%;max-width:600px;max-height:100%;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)}
-.panel header{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3) var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border)}
+.panel{background:var(--panel);color:var(--color-text);border-radius:16px;border:1px solid var(--brass);width:100%;max-width:600px;max-height:100%;display:flex;flex-direction:column;box-shadow:0 0 0 4px var(--panel),0 0 0 5px rgba(217,178,76,.5),0 18px 50px rgba(0,0,0,.45)}
+.panel header{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-3) var(--space-3) var(--space-5);border-bottom:1px solid var(--color-border);background:linear-gradient(rgba(217,178,76,.10),rgba(217,178,76,0));border-radius:16px 16px 0 0}
 .panel header h2{margin:0;flex:1;font-family:var(--font-serif-victorian);font-size:1.35rem;color:var(--color-primary)}
 .panel .body{padding:var(--space-4) var(--space-5);overflow-y:auto}
 .panel .actions{display:flex;flex-wrap:wrap;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-top:1px solid var(--color-border);justify-content:center}
@@ -131,10 +157,16 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 .guide{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:var(--space-3)}
 .guide figure{margin:0;text-align:center;font-size:.8rem;line-height:1.2}
 .guide canvas{width:62px;height:auto;display:block;margin:0 auto 4px}
-.big{font-size:2.2rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin:var(--space-2) 0}
+.big{font-size:2.6rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:var(--space-2) 0;font-family:var(--font-serif-victorian);color:var(--color-primary)}
+#o-win .panel{max-width:520px}
+#o-win header{justify-content:center;padding-left:var(--space-3)}
+#o-win header h2{flex:none;font-size:1.7rem;text-align:center}
+#o-win header h2::before,#o-win header h2::after{content:"\2726";color:var(--brass);font-size:.9rem;margin:0 .6em;vertical-align:middle}
 @media (max-width:520px){
-  .stats{gap:var(--space-3);font-size:.88rem}
+  .stats{gap:4px;font-size:.9rem}
+  .stats div{min-width:40px;padding:2px 5px}
   .hud .name span{display:none}
+  .hud .name b{white-space:normal;font-size:.95rem;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .tool{font-size:.68rem}
   .panel .body{padding:var(--space-3) var(--space-4)}
 }
@@ -182,12 +214,14 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <button class="iconbtn" id="b-pause" aria-label="Pause"><svg class="ic" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
     </div>
     <div id="board-wrap">
-      <canvas id="board" tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
+      <canvas id="board-bg" aria-hidden="true"></canvas>
+      <canvas id="board3d" aria-hidden="true"></canvas>
+      <canvas id="board"tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
       <div class="toast" id="toast" role="status"></div>
     </div>
     <div class="status" id="status"><span id="status-text">Match pairs of free tiles.</span></div>
     <div class="toolbar" role="toolbar" aria-label="Game tools">
-      <button class="tool" id="t-hint" title="Hint (H)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>Hint</button>
+      <button class="tool primary" id="t-hint" title="Hint (H)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>Hint</button>
       <button class="tool" id="t-shuffle" title="Shuffle (S)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.6 0 2.8-1.6 3.9-3.5M13.1 9.5C14.2 7.6 15.4 7 17 7h3M17 4l3 3-3 3M17 14l3 3-3 3"/></svg>Shuffle</button>
       <button class="tool" id="t-undo" title="Undo (U)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Undo</button>
       <button class="tool" id="t-redo" title="Redo (R)"><svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>Redo</button>
@@ -247,7 +281,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. Hints cost 15, shuffles 50. Winning adds 500 plus 1 point per second under ten minutes.</p>
     <h3>Controls</h3>
     <ul>
-      <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> enlarges the board; drag to look around.</li>
+      <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> (or spreading two fingers) enlarges the board; drag to look around, and pinch to zoom back out.</li>
       <li><b>Keyboard:</b> <span class="kbd">←</span><span class="kbd">↑</span><span class="kbd">→</span><span class="kbd">↓</span> move, <span class="kbd">Enter</span> or <span class="kbd">Space</span> select, <span class="kbd">H</span> hint, <span class="kbd">S</span> shuffle, <span class="kbd">U</span> undo, <span class="kbd">R</span> redo, <span class="kbd">F</span> free-tile highlight, <span class="kbd">Z</span> zoom, <span class="kbd">P</span> pause, <span class="kbd">Esc</span> menu.</li>
     </ul>
     <p style="font-size:.85rem;color:var(--color-muted)">Tile backs are inspired by the Quapaw Bathhouse's chevron-tiled dome; the real tile colors are not documented, so these are guesses. Facts come from the Hot Springs Games research corpus.</p>
@@ -273,6 +307,8 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <div class="setrow"><span class="lbl">Motion</span><div class="seg" role="group" aria-label="Motion" data-set="motion"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="full">Full</button><button class="btn small" data-v="reduced">Reduced</button></div></div>
     <div class="setrow"><span class="lbl">Theme</span><div class="seg" role="group" aria-label="Theme" data-set="theme"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="light">Light</button><button class="btn small" data-v="dark">Neon Night</button></div></div>
     <div class="setrow"><span class="lbl">Tile set</span><div class="seg" role="group" aria-label="Tile set" data-set="tileset"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="palm">Palm</button><button class="btn small" data-v="ribbon">Ribbon</button><button class="btn small" data-v="peacock">Peacock</button></div></div>
+    <div class="setrow"><span class="lbl">Tiles</span><div class="seg" role="group" aria-label="Tiles" data-set="graphics"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="3d">3D</button><button class="btn small" data-v="flat">Flat</button></div></div>
+    <div class="setrow"><span class="lbl">Camera</span><div class="seg" role="group" aria-label="Camera" data-set="camera"><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="tilted">Tilted</button><button class="btn small" data-v="top">Top-down</button></div></div>
     <div class="setrow"><span class="lbl" id="lb-free">Highlight free tiles</span><button class="btn small" id="se-free" aria-labelledby="lb-free" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-timer">Show timer</span><button class="btn small" id="se-timer" aria-labelledby="lb-timer" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-cap">Names on tiles (when large)</span><button class="btn small" id="se-cap" aria-labelledby="lb-cap" aria-pressed="true">On</button></div>
@@ -392,6 +428,25 @@ const ENGINE = (() => {
         b.rect(0, 9, 18, 5, 2).row(1, 11, 18, 3).one(1, 9, 19).one(2, 13, 18);                  // south island
         b.rect(0, 22, 18, 3, 2).one(1, 23, 19);                                                 // south-east
         return b.tiles;
+      },
+    },
+    // Portrait-first layouts: eight tiles wide, so tiles stay large on a phone held upright.
+    {
+      id: 'terraces', name: 'Tufa Terraces', portrait: true, caption: 'Thermal water leaves tufa behind as it evaporates. The Tufa Terrace Trail climbs past the Hot Water Cascade.',
+      build() {
+        return L().rect(0, 0, 0, 8, 11)          // the hillside
+          .rect(1, 1, 1, 7, 6)                     // terraces, offset half a tile
+          .rect(2, 2, 2, 6, 2)
+          .one(3, 6, 3).one(3, 8, 3).tiles;        // the spring at the top
+      },
+    },
+    {
+      id: 'display', name: 'Display Springs', portrait: true, caption: 'Two steaming pools. The Display Spring behind the Maurice is one of the few springs left open to the air.',
+      build() {
+        return L().rect(0, 0, 0, 8, 11)
+          .rect(1, 2, 2, 6, 4).rect(1, 2, 12, 6, 4)   // two pools
+          .rect(2, 6, 4, 2, 2).rect(2, 6, 14, 2, 2)   // and their steam
+          .tiles;
       },
     },
   ];
@@ -608,6 +663,8 @@ const ENGINE = (() => {
 })();
 </script>
 
+<script src="vendor/three.min.js"></script>
+<script src="board3d.js"></script>
 <script id="app-script">
 'use strict';
 (() => {
@@ -701,7 +758,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
-const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true, tileset: 'auto' };
+const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic' };
 const SETTINGS = Object.assign({}, DEFAULT_SETTINGS, store.get('bhm.settings.v1', {}));
 function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
@@ -811,33 +868,50 @@ const ARR_R = [24, 16, 13, 13, 11.5, 10.5, 9.5, 8.6, 9.2];
 const ART_ON = !/[?&]art=0\b/.test(location.search);
 const art = {}, artWant = new Set();
 let artTick = 0, artPending = 0;
-const artImg = (n) => art[n] || null;
+let artNoTaint = false; // true while painting the WebGL atlas from file:// images that would taint it
+const artImg = (n) => (artNoTaint && !artData.has(n) ? null : art[n] || null);
 const BATH_ART = ['superior', 'hale', 'maurice', 'fordyce', 'quapaw', 'ozark', 'buckstaff', 'lamar', 'admin'];
 const HONOR_ART = ['mtn-hotsprings', 'mtn-north', 'mtn-west', 'mtn-sugarloaf', 'dragon-red', 'dragon-green', 'dragon-white',
   'flower-magnolia', 'flower-dogwood', 'flower-redbud', 'flower-sweetgum', 'season-spring', 'season-summer', 'season-autumn', 'season-winter'];
 // Tile sets: layered acrylic side stripes (face side first), back art, table art.
 const TILESETS = {
-  palm: { name: 'Palm', bands: ['#FFFFFF', '#F4F6EE', '#C6E38A', '#A6D9C8', '#93C455'], rim: 'rgba(70,96,60,.28)' },
-  ribbon: { name: 'Ribbon', bands: ['#FFFFFF', '#F7F2EF', '#F0907F', '#3F7D5C', '#E57C6C'], rim: 'rgba(120,60,50,.28)' },
-  peacock: { name: 'Peacock', bands: ['#FFFFFF', '#EEF3F1', '#1F807A', '#D4AF37', '#15504E'], rim: 'rgba(212,175,55,.55)' },
+  // (the 2D renderer's sides, matching the 3D bands: ivory face layers over a deep jade back)
+  palm: { name: 'Palm', bands: ['#FFFFFF', '#F6F2E6', '#7FBF4A', '#3F8A55', '#2F7D4F'], rim: 'rgba(70,96,60,.28)' },
+  ribbon: { name: 'Ribbon', bands: ['#FFFFFF', '#F7F0EA', '#E57C6C', '#3B7A57', '#2F6E4E'], rim: 'rgba(120,60,50,.28)' },
+  peacock: { name: 'Peacock', bands: ['#FFFFFF', '#EEF3EE', '#D4AF37', '#1D6460', '#155753'], rim: 'rgba(212,175,55,.55)' },
 };
+const HAS_BACKDROP = true;  // set when assets/backdrop-day.webp and backdrop-night.webp are packed
 function tileSet() { return TILESETS[SETTINGS.tileset] ? SETTINGS.tileset : (isDark() ? 'peacock' : 'palm'); }
 function essentialArt() {
   const t = tileSet();
-  return ['spring-one', 'pip-spring-a', 'pip-spring-b', 'pip-spring-c', 'fish-bass', 'fish-trout', ...BATH_ART.map((b) => 'bath-' + b), ...HONOR_ART, 'back-' + t, 'table-' + t, 'title-hero'];
+  return ['spring-one', 'pip-spring-a', 'pip-spring-b', 'pip-spring-c', 'fish-bass', 'fish-trout', ...BATH_ART.map((b) => 'bath-' + b), ...HONOR_ART, 'back-' + t, 'table-' + t, 'title-hero',
+    ...(HAS_BACKDROP ? [isDark() ? 'backdrop-night' : 'backdrop-day'] : [])];
+}
+// Under file:// every image file is cross-origin and would taint the WebGL face atlas, so the tile art also ships
+// as data: URIs in assets/art-data.js (tools/build-art-data.mjs). Over http that file is never requested.
+const FILE_URL = location.protocol === 'file:';
+const artData = new Set();
+let artDataP = null;
+function artDataReady() {
+  if (!FILE_URL) return Promise.resolve();
+  if (!artDataP) artDataP = new Promise((res) => { const sc = document.createElement('script'); sc.src = 'assets/art-data.js'; sc.onload = sc.onerror = () => res(); document.head.appendChild(sc); });
+  return artDataP;
 }
 function loadArt(names) {
   if (!ART_ON) return Promise.resolve();
-  return Promise.all(names.filter((n) => !artWant.has(n)).map((n) => {
-    artWant.add(n); artPending++; const im = new Image(); im.decoding = 'async'; im.src = 'assets/' + n + '.webp';
-    return im.decode().then(() => { art[n] = im; artChanged(); }, () => {}).finally(() => { artPending--; });
-  }));
+  const todo = names.filter((n) => !artWant.has(n));
+  for (const n of todo) { artWant.add(n); artPending++; }
+  return artDataReady().then(() => Promise.all(todo.map((n) => {
+    const data = window.MJ_ART_DATA && window.MJ_ART_DATA[n];
+    const im = new Image(); im.decoding = 'async'; im.src = data || 'assets/' + n + '.webp';
+    return im.decode().then(() => { art[n] = im; if (data || !FILE_URL) artData.add(n); artChanged(); }, () => {}).finally(() => { artPending--; });
+  })));
 }
 // New art arrived: rebake sprites, table, title and guide at most once per frame.
 function artChanged() {
   if (artTick) return;
   artTick = requestAnimationFrame(() => {
-    artTick = 0; SPR.key = ''; bgCache = null;
+    artTick = 0; SPR.key = ''; bgCache = null; atlas.key = '';
     if (scene === 'title') drawTitleArt();
     if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
     if (G) { layoutBoard(); markDirty(); }
@@ -1304,7 +1378,7 @@ let S = null;            // the serializable game state (MECHANICS §3)
 let LAYOUT = E.LAYOUTS[0];
 let nextSeed = null;
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
-const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0 };
+const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0, dealAt: 0 };
 let scene = 'title';
 let hoverTile = -1;
 let lastTick = 0;
@@ -1329,7 +1403,8 @@ function newGame(opts = {}) {
     daily = opts.date || todayStr();
     const d = dailyInfo(daily); layout = d.layout; seed = d.seed;
   } else {
-    layout = layoutById(opts.layout || (S && S.layoutId) || 'pyramid');
+    const phone = window.innerWidth < window.innerHeight && window.innerWidth < 700;
+    layout = layoutById(opts.layout || (S && S.layoutId) || (phone ? 'terraces' : 'pyramid')); // phones start on a layout that fits them
     seed = opts.seed != null ? opts.seed >>> 0 : nextSeed != null ? nextSeed >>> 0 : (Math.random() * 4294967296) >>> 0;
     nextSeed = null;
   }
@@ -1343,6 +1418,7 @@ function newGame(opts = {}) {
   };
   STATS.played++; layoutStats(layout.id).played++; S.statsCounted = true; saveStats();
   anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null;
+  anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   showScene('game');
   layoutBoard(); markDirty(); updateHud(); saveGame();
   // small tiles on a portrait phone: point at Zoom and landscape
@@ -1411,7 +1487,7 @@ function doMatch(a, b) {
   S.history.push({ t: 'm', a, b, before });
   S.redo = [];
   AUDIO.match(S.combo);
-  spawnMatchFx(a, b);
+  spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
   setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')');
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
@@ -1442,7 +1518,7 @@ function hint() {
   if (!pr) { const p = pairsAvailable(); pr = p[0] || null; }
   if (!pr) { setStatus('No free pairs: try Shuffle.'); return null; }
   S.hints++; S.score = Math.max(0, S.score - 15);
-  anim.hint = pr; anim.hintUntil = now() + 3200;
+  anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
   AUDIO.chime();
@@ -1500,6 +1576,13 @@ function redo() {
   return true;
 }
 
+let countBusy = false;
+function countUp(el, to) {
+  if (reduced()) { el.textContent = to.toLocaleString('en-US'); return; }
+  const t0 = performance.now(), dur = 900; countBusy = true;
+  const step = () => { const k = Math.min(1, (performance.now() - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(to * e).toLocaleString('en-US'); if (k < 1) requestAnimationFrame(step); else countBusy = false; };
+  step();
+}
 function win() {
   S.status = 'won';
   const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
@@ -1533,16 +1616,225 @@ function win() {
   if (fact) { fc.hidden = false; fc.querySelector('.q').textContent = 'Did you know? ' + fact.q; fc.querySelector('.a').textContent = fact.a + '. ' + fact.e; fc.querySelector('.src').textContent = 'Source: ' + fact.s; }
   else fc.hidden = true;
   announce('Board cleared! Score ' + S.score);
-  setTimeout(() => { if (S.status === 'won') openOverlay('o-win'); }, reduced() ? 60 : 900);
+  setTimeout(() => { if (S.status === 'won') { openOverlay('o-win'); countUp($('ow-score'), S.score); } }, reduced() ? 60 : 900);
 }
 
 // ===================== layout and rendering =====================
 const canvas = $('board');
 const ctx = canvas.getContext('2d');
-let dirty = true, raf = 0;
+let dirty = true, raf = 0, settled = true; // settled: the last drawn frame showed no animation in flight
 function now() { return anim.frozen != null ? anim.frozen : performance.now(); }
 function markDirty() { dirty = true; kick(); }
 function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+
+// ===================== 3D board (board3d.js on vendor/three.min.js) =====================
+// WebGL draws the tiles on #board3d, #board-bg holds the painted table, and #board stays on top as the input
+// surface and the overlay for rings, steam and score pops. Without WebGL (or with Tiles: Flat, or ?gl=0) the
+// 2D renderer further down draws everything on #board, exactly as before.
+const GL_OFF = /[?&]gl=0\b/.test(location.search), GL_FORCE = /[?&]gl=1\b/.test(location.search);
+const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const SHUF_MS = 900, DEAL_MS = 1150, FLY_MS = 640;
+let R3 = null, r3Dead = false, fadeBusy = false;
+// Tiles: Auto picks 3D unless the GPU is a software rasteriser or the first animations ran slowly (the watchdog
+// in frame() remembers that in bhm.gl.slow). 3D and Flat are explicit choices; ?gl=1 / ?gl=0 force either.
+const GLP = window.MJ3D ? MJ3D.probe() : { ok: false, software: false, name: '' };
+if (TEST && /[?&]glhw=1(&|$)/.test(location.search)) GLP.software = false; // tests: treat software WebGL as a GPU, to exercise the watchdog
+let glSlow = !!store.get('bhm.gl.slow', false);
+function want3D() {
+  if (GL_OFF || !GLP.ok) return false;
+  if (GL_FORCE || SETTINGS.graphics === '3d') return true;
+  return SETTINGS.graphics !== 'flat' && !GLP.software && !glSlow;
+}
+const canvas3d = $('board3d'), bgCanvas = $('board-bg'), bgCtx = bgCanvas.getContext('2d');
+function use3D() { return !!R3 && want3D(); }
+if (TEST) window.__r3 = () => R3;
+function setGraphics() {
+  if (want3D() && !R3 && !r3Dead && window.MJ3D) {
+    try { R3 = MJ3D.create({ canvas: canvas3d, mobile: COARSE, preserve: TEST }); } catch (e) { R3 = null; }
+    if (!R3) r3Dead = true;
+    else canvas3d.addEventListener('webglcontextlost', (e) => { e.preventDefault(); r3Dead = true; R3 = null; setGraphics(); });
+  }
+  $('board-wrap').classList.toggle('gl', use3D());
+  if (R3) R3.boardId = null;
+  atlas.key = ''; bgCache = null; SPR.key = '';
+  if (G) { layoutBoard(); markDirty(); }
+}
+// Every face (and the back) painted once into one texture atlas, from the same drawFace() the 2D sprites use.
+const atlas = { key: '', cv: null, cols: 8, rows: 6 };
+function buildAtlas(captions) {
+  const key = [captions, tileSet(), Object.keys(art).length].join('|');
+  if (atlas.key === key) return;
+  atlas.key = key;
+  const cw = 256, ch = 332; // 8 x 6 cells in a power-of-two texture, so mipmaps are clean everywhere
+  const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 2048;
+  const c = cv.getContext('2d');
+  for (let f = 0; f <= E.FACES; f++) {
+    c.save(); c.translate((f % atlas.cols) * cw, Math.floor(f / atlas.cols) * ch); c.scale(cw / 100, ch / 130);
+    c.beginPath(); c.rect(0, 0, 100, 130); c.clip();
+    const g = c.createLinearGradient(0, 0, 30, 130); g.addColorStop(0, '#FCFBF7'); g.addColorStop(1, '#F1EEE6');
+    c.fillStyle = g; c.fillRect(0, 0, 100, 130);
+    artNoTaint = true;
+    if (f === E.FACES) drawBack(c); else drawFace(c, f, captions);
+    artNoTaint = false;
+    c.restore();
+  }
+  atlas.cv = cv;
+  R3.setAtlas(cv, atlas.cols, atlas.rows, E.FACES, cw, ch);
+}
+// Resin layers on the tile sides, from the face down: [end of band as a fraction of the thickness, color].
+const BANDS3D = {
+  palm: [[0.52, '#FBF8EE'], [0.56, '#D9EBC4'], [0.62, '#7FBF4A'], [1, '#2F7D4F']],
+  ribbon: [[0.52, '#FBF8F3'], [0.56, '#F6E2DA'], [0.64, '#E57C6C'], [1, '#2F6E4E']],
+  peacock: [[0.5, '#F9FBF7'], [0.54, '#D7E8E2'], [0.6, '#D4AF37'], [1, '#155753']],
+};
+function style3D() {
+  const dark = isDark();
+  R3.setStyle({ bands: BANDS3D[tileSet()], dark, select: dark ? '#4FC3FF' : '#FFB21E', hint: dark ? '#2EE6D6' : '#18B2A0' });
+}
+function layoutBoard3D() {
+  const wrap = $('board-wrap');
+  const cssW = wrap.clientWidth, cssH = wrap.clientHeight;
+  if (!cssW || !cssH) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  for (const cv of [canvas, bgCanvas]) if (cv.width !== Math.round(cssW * dpr) || cv.height !== Math.round(cssH * dpr)) { cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr); }
+  const sizeKey = cssW + 'x' + cssH + '@' + dpr;
+  if (R3.sizeKey !== sizeKey) { R3.sizeKey = sizeKey; R3.resize(cssW, cssH, dpr); bgCache = null; }
+  view.cssW = cssW; view.cssH = cssH; view.dpr = dpr;
+  const boardId = LAYOUT.id + ':' + G.n;
+  if (R3.boardId !== boardId) { R3.setBoard(G.pos); R3.boardId = boardId; }
+  R3.setSlab(!(S && S.status === 'won'));
+  // Classic: oblique orthographic (square board, stacks offset up-left). Tilted: a narrow perspective camera from
+  // the south-east. Top-down: the same perspective camera almost straight down.
+  const cam = SETTINGS.camera, portrait = cssW < cssH;
+  R3.setView({ zoom: 1, panX: 0, panY: 0, mode: cam === 'classic' ? 'classic' : 'tilted', pitch: cam === 'top' ? 2 : portrait ? 13 : 22, yaw: cam === 'top' ? 0 : portrait ? 6 : 9 });
+  const fitPx = R3.tilePx();
+  let k = 1;
+  if (view.zoom) {
+    const bp = R3.boardPx(), pad = cssW < 520 ? 8 : 20;
+    k = Math.max(1.35, Math.min(1.8, 110 / fitPx));
+    if (portrait) k = Math.max(k, Math.min(2.6, (cssH - pad * 2) / bp.h, 120 / fitPx)); // on a phone, fill the height too
+    const maxX = Math.max(0, (bp.w * k - cssW) / 2 + pad), maxY = Math.max(0, (bp.h * k - cssH) / 2 + pad);
+    view.panX = Math.max(-maxX, Math.min(maxX, view.panX)); view.panY = Math.max(-maxY, Math.min(maxY, view.panY));
+  } else { view.panX = 0; view.panY = 0; }
+  R3.setView({ zoom: k, panX: view.panX, panY: view.panY });
+  view.W = Math.max(8, Math.round(R3.tilePx())); view.H = Math.round(view.W * 1.3); view.D = Math.max(2, Math.round(view.W * 0.17));
+  buildAtlas(SETTINGS.captions && view.W >= 52);
+  style3D();
+  view.scr = G.pos.map((p, i) => { const q = R3.project(i); return [q.x - view.W / 2, q.y - view.H / 2]; });
+  bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0); drawTable(bgCtx, cssW, cssH);
+  dirty = true;
+}
+function screenCenter(i) {
+  if (use3D()) { const p = R3.project(i); return [p.x, p.y]; }
+  return [view.scr[i][0] + view.W / 2, view.scr[i][1] + view.H / 2];
+}
+const ease = (k) => k * k * (3 - 2 * k);
+const easeOut = (k) => 1 - (1 - k) * (1 - k) * (1 - k);
+const tiles3 = [];
+let lastDraw3 = 0;
+function draw3D(t) {
+  const c = ctx, dpr = view.dpr || 1;
+  const pt = performance.now(), dt = Math.min(100, pt - (lastDraw3 || pt)); lastDraw3 = pt;
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, view.cssW, view.cssH);
+  const veil = SETTINGS.highlightFree, rm = reduced();
+  const flying = new Map(); for (const a of anim.list) for (const i of a.tiles) flying.set(i, a);
+  const shuf = anim.shuffleAt && t - anim.shuffleAt < SHUF_MS ? (t - anim.shuffleAt) / SHUF_MS : -1;
+  const dealWait = anim.dealAt === -1;
+  const deal = dealWait ? 0 : anim.dealAt && t - anim.dealAt < DEAL_MS ? (t - anim.dealAt) / DEAL_MS : -1;
+  const lastH = S.history[S.history.length - 1], oldFaces = shuf >= 0 && lastH && lastH.t === 's' ? lastH.faces : null;
+  let maxSum = 1; for (const p of G.pos) maxSum = Math.max(maxSum, p[0] + p[1]);
+  const hintOn = anim.hint && t < anim.hintUntil;
+  fadeBusy = false;
+  for (let i = 0; i < G.n; i++) {
+    const o = tiles3[i] || (tiles3[i] = { dimC: 0 });
+    o.face = S.faces[i]; o.dx = o.dy = o.dz = o.rot = o.rotX = o.yaw = o.pdy = 0; o.scale = 1; o.sel = o.hint = o.hover = 0; o.dim = 0;
+    o.show = !paused && (S.present[i] || flying.has(i));
+    if (!o.show) continue;
+    const a = flying.get(i);
+    if (a) { flyTile(o, a, i, t); continue; }
+    const fr = free(i), p = G.pos[i];
+    const target = veil && !fr ? 1 : 0;
+    if (rm || o.dimC == null) o.dimC = target; else { o.dimC += (target - o.dimC) * Math.min(1, dt / 110); if (Math.abs(target - o.dimC) < 0.01) o.dimC = target; else fadeBusy = true; }
+    o.dim = o.dimC;
+    if (i === S.selected) { o.dy = o.pdy = 0.2; o.sel = 1; }
+    else if (i === hoverTile && fr && !COARSE) { o.dy = 0.05; o.hover = 1; }
+    if (hintOn && (anim.hint[0] === i || anim.hint[1] === i)) { o.hint = 0.6 + 0.4 * Math.sin(t / 160); o.dy += rm ? 0.12 : 0.12 + 0.06 * Math.sin(t / 170); }
+    if (anim.shake && anim.shake.i === i && t - anim.shake.start < 260) o.dx = Math.sin((t - anim.shake.start) / 18) * 0.07 * (1 - (t - anim.shake.start) / 260);
+    if (shuf >= 0) {
+      const d = (p[0] + p[1]) / maxSum * 0.3, k = Math.max(0, Math.min(1, (shuf - d) / 0.7)), e = ease(k);
+      o.rot = e * Math.PI * 2; o.dy += Math.sin(Math.PI * k) * (0.7 + p[2] * 0.1);
+      if (oldFaces && k < 0.5) o.face = oldFaces[i];
+    }
+    if (deal >= 0) {
+      const d = p[2] * 0.1 + (p[0] + p[1]) / maxSum * 0.42, k = Math.max(0, Math.min(1, (deal - d) / 0.4));
+      if (k <= 0) { o.show = false; continue; }
+      const e = easeOut(k); o.dy += (1 - e) * 2.2; o.rotX = (1 - e) * -0.3;
+    }
+  }
+  R3.update(tiles3);
+  // redraw the shadow map only when tiles really move (state change, deal, fly, shuffle, shake);
+  // the hint bob and the hover lift are too small to need it
+  R3.render(dirty || flying.size > 0 || shuf >= 0 || deal >= 0 || !!(anim.shake && t - anim.shake.start < 260));
+  if (dealWait) anim.dealAt = now();
+  drawOverlay3D(c, t, hintOn);
+}
+// Match: both tiles rise above the board, slide together, clack, then lift away and shrink into steam.
+function flyTile(o, a, i, t) {
+  const k = Math.max(0, Math.min(1, (t - a.start) / a.dur));
+  if (a.type === 'fade') { o.scale = 1 - k; return; }
+  const [ax, ay, az] = R3.tileBase(a.tiles[0]), [bx, by, bz] = R3.tileBase(a.tiles[1]);
+  const [x0, y0, z0] = R3.tileBase(i);
+  const left = (i === a.tiles[0]) === (ax <= bx) ? -1 : 1;
+  const mx = (ax + bx) / 2, mz = (az + bz) / 2, top = R3.boardTop() + 0.9;
+  const tx = mx + left * 0.5, gapX = mx + left * 0.95;
+  let x, y, z, s = 1, yaw = 0;
+  if (k < 0.55) { const e = ease(k / 0.55); x = x0 + (gapX - x0) * e; z = z0 + (mz - z0) * e; y = y0 + (top - y0) * e + Math.sin(e * Math.PI) * 0.6; yaw = left * 0.25 * Math.sin(e * Math.PI); s = 1 + 0.22 * e; }
+  else if (k < 0.68) { const e = (k - 0.55) / 0.13; x = gapX + (tx - gapX) * e * e; z = mz; y = top; s = 1.22; }
+  else { const e = (k - 0.68) / 0.32; x = tx - left * 0.1 * e; z = mz; y = top + e * 1.2; s = 1.22 * (1 - ease(e)); yaw = left * e * 0.6; }
+  o.dx = x - x0; o.dy = y - y0; o.dz = z - z0; o.scale = Math.max(0.001, s); o.yaw = yaw; o.sel = k < 0.68 ? 0.6 : 0;
+}
+function quadPath(c, q, grow) {
+  const cx = (q[0][0] + q[2][0]) / 2, cy = (q[0][1] + q[2][1]) / 2;
+  c.beginPath();
+  q.forEach(([x, y], k) => { const dx = x - cx, dy = y - cy, L = Math.hypot(dx, dy) || 1; const px = x + dx / L * grow, py = y + dy / L * grow; if (k) c.lineTo(px, py); else c.moveTo(px, py); });
+  c.closePath();
+}
+function drawOverlay3D(c, t, hintOn) {
+  const { W } = view, dark = isDark();
+  if (paused) { c.fillStyle = 'rgba(255,255,255,.8)'; c.font = '600 18px system-ui'; c.textAlign = 'center'; c.fillText('Paused', view.cssW / 2, view.cssH / 2); return; }
+  c.lineJoin = 'round';
+  if (S.selected >= 0 && S.present[S.selected]) {
+    const q = R3.project(S.selected).quad;
+    c.save(); c.shadowColor = 'rgba(255,178,30,.9)'; c.shadowBlur = W * 0.3;
+    quadPath(c, q, 3); c.lineWidth = Math.max(4, W * 0.1); c.strokeStyle = '#FFB21E'; c.stroke(); c.restore();
+    quadPath(c, q, -1); c.lineWidth = Math.max(1.5, W * 0.025); c.strokeStyle = '#1F2A24'; c.stroke();
+  }
+  if (hintOn) { // a spring-water ripple: a solid ring plus a second one spreading out (selection is one thick gold ring)
+    const col = dark ? '46,230,214' : '24,178,160', ph = (t % 1100) / 1100;
+    for (const i of anim.hint) {
+      if (!S.present[i]) continue;
+      const q = R3.project(i).quad;
+      c.save(); c.shadowColor = 'rgba(' + col + ',.9)'; c.shadowBlur = W * 0.25;
+      quadPath(c, q, 3); c.lineWidth = Math.max(3, W * 0.07); c.strokeStyle = 'rgb(' + col + ')'; c.stroke(); c.restore();
+      if (!reduced()) { c.save(); quadPath(c, q, 4 + ph * W * 0.35); c.lineWidth = Math.max(1.5, W * 0.035); c.strokeStyle = 'rgba(' + col + ',' + (1 - ph).toFixed(2) + ')'; c.stroke(); c.restore(); }
+    }
+  }
+  if (view.zoom) { // chevrons on the edges where more of the board lies off screen
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < G.n; i++) if (S.present[i]) { const [x, y] = screenCenter(i); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const cw = view.cssW, ch = view.cssH, m = 14, sz = 11;
+    const chev = (x, y, ang) => { c.save(); c.translate(x, y); c.rotate(ang); c.beginPath(); c.moveTo(-sz * 0.5, -sz); c.lineTo(sz * 0.5, 0); c.lineTo(-sz * 0.5, sz);
+      c.lineWidth = 7; c.strokeStyle = 'rgba(15,44,51,.55)'; c.stroke(); c.lineWidth = 3.5; c.strokeStyle = '#F0CF73'; c.stroke(); c.restore(); };
+    if (x0 < W * 0.2) chev(m, ch / 2, Math.PI); if (x1 > cw - W * 0.2) chev(cw - m, ch / 2, 0);
+    if (y0 < W * 0.2) chev(cw / 2, m, -Math.PI / 2); if (y1 > ch - W * 0.2) chev(cw / 2, ch - m, Math.PI / 2);
+  }
+  if (S.cursor >= 0 && kbActive && S.present[S.cursor]) {
+    const q = R3.project(S.cursor).quad;
+    c.save(); quadPath(c, q, 6); c.lineWidth = Math.max(5, W * 0.11); c.strokeStyle = '#14121F'; c.stroke();
+    c.lineWidth = Math.max(2.5, W * 0.05); c.strokeStyle = '#FFFFFF'; c.stroke(); c.restore();
+  }
+  drawParticles(c, t);
+}
 
 function boundsFor(W, H, D) {
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -1554,6 +1846,7 @@ function boundsFor(W, H, D) {
 }
 function layoutBoard() {
   if (!G) return;
+  if (use3D()) { layoutBoard3D(); return; }
   const wrap = $('board-wrap');
   const cssW = wrap.clientWidth, cssH = wrap.clientHeight;
   if (!cssW || !cssH) return;
@@ -1583,9 +1876,10 @@ function layoutBoard() {
   dirty = true;
 }
 
-function spawnMatchFx(a, b) {
+function spawnMatchFx(a, b, pts) {
   const t = now();
   if (reduced()) { anim.list.push({ type: 'fade', tiles: [a, b], start: t, dur: 160 }); return; }
+  if (use3D()) { spawnMatchFx3D(a, b, pts, t); return; }
   const [ax, ay] = view.scr[a], [bx, by] = view.scr[b];
   const mx = (ax + bx) / 2, my = (ay + by) / 2 - view.H * 0.6;
   anim.list.push({ type: 'fly', tiles: [a, b], start: t, dur: 480, to: [mx, my] });
@@ -1595,9 +1889,33 @@ function spawnMatchFx(a, b) {
   }
   for (let k = 0; k < 10; k++) anim.particles.push({ x: mx + view.W / 2 + (Math.random() - 0.5) * view.W, y: my + view.H / 2, vx: (Math.random() - 0.5) * 0.08 * view.W, vy: -(0.08 + Math.random() * 0.08) * view.H, r0: view.W * (0.2 + Math.random() * 0.2), start: t + 300 + k * 18, dur: 1000 + Math.random() * 400 });
 }
+function spawnMatchFx3D(a, b, pts, t) {
+  anim.list.push({ type: 'fly', tiles: [a, b], start: t, dur: FLY_MS });
+  const [ax, , az] = R3.tileBase(a), [bx, , bz] = R3.tileBase(b);
+  const [mx, my] = R3.worldToScreen((ax + bx) / 2, R3.boardTop() + 0.9 + R3.TH, (az + bz) / 2);
+  const W = view.W, H = view.H, clack = t + FLY_MS * 0.66, rnd = Math.random;
+  for (const i of [a, b]) { // the pools the tiles lay on breathe out
+    const [sx, sy] = screenCenter(i);
+    for (let k = 0; k < 6; k++) anim.particles.push({ unit: true, x: sx + (rnd() - 0.5) * W * 0.6, y: sy + (rnd() - 0.2) * H * 0.4, vx: (rnd() - 0.5) * W * 0.5, vy: -(0.5 + rnd() * 0.6) * H, r0: W * (0.16 + rnd() * 0.14), start: t + 60 + k * 26, dur: 800 + rnd() * 400 });
+  }
+  for (let k = 0; k < 14; k++) { const ang = rnd() * Math.PI * 2, sp = (0.6 + rnd()) * W; anim.particles.push({ unit: true, x: mx + Math.cos(ang) * W * 0.3, y: my + Math.sin(ang) * W * 0.2, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp * 0.6 - H * 0.6, r0: W * (0.22 + rnd() * 0.2), start: clack + k * 12, dur: 900 + rnd() * 500 }); }
+  // the plume: a column of steam two or three tiles tall, bigger with each step of a combo
+  const plume = 1 + Math.min(3, S.combo) * 0.25;
+  for (let k = 0; k < 16; k++) anim.particles.push({ unit: true, x: mx + (rnd() - 0.5) * W * 0.5, y: my, vx: (rnd() - 0.5) * W * 0.4, vy: -(1.6 + rnd() * 1.4) * H * plume, r0: W * (0.3 + rnd() * 0.25) * plume, start: clack + 40 + k * 35, dur: 1000 + rnd() * 500 });
+  const gold = isDark() ? ['#4FC3FF', '#E9C35A', '#FFFFFF'] : ['#FFC94A', '#FFE8A3', '#FFFFFF'];
+  for (let k = 0; k < 18; k++) { const ang = rnd() * Math.PI * 2, sp = (1.4 + rnd() * 2.2) * W; anim.particles.push({ spark: true, x: mx, y: my, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - W, r0: Math.max(3, W * (0.08 + rnd() * 0.08)), color: gold[k % 3], start: clack, dur: 550 + rnd() * 400 }); }
+  const size = Math.max(22, Math.min(40, W * 0.62));
+  anim.particles.push({ text: '+' + pts, x: mx, y: my - H * 0.2, rise: H * 0.8, size, color: isDark() ? '#7FD8FF' : '#FFD36A', start: clack, dur: 1150 });
+  if (S.combo) anim.particles.push({ text: 'Combo ×' + (S.combo + 1), x: mx, y: my + size * 0.6, rise: H * 0.8, size: size * 0.62, color: '#FFFFFF', start: clack + 60, dur: 1100 });
+}
 function spawnWinFx() {
+  if (use3D()) R3.setSlab(false); // the table clears away and the Row behind is the reward
   if (reduced()) return;
   const t = now();
+  const cx = view.cssW / 2, cy = view.cssH * 0.45, W = Math.max(30, view.W), rnd = Math.random;
+  const cols = isDark() ? ['#4FC3FF', '#E9C35A', '#FFFFFF', '#FF6FB5'] : ['#FFC94A', '#FFE8A3', '#FFFFFF', '#F0907F'];
+  for (let k = 0; k < 80; k++) { const ang = rnd() * Math.PI * 2, sp = 160 + rnd() * 420; anim.particles.push({ spark: true, x: cx, y: cy, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 220, r0: 4 + rnd() * 7, color: cols[k % 4], start: t + rnd() * 500, dur: 900 + rnd() * 700 }); }
+  anim.particles.push({ text: 'Board cleared!', x: cx, y: cy, rise: 40, size: Math.min(56, view.cssW / 9), color: isDark() ? '#7FD8FF' : '#FFD36A', start: t + 100, dur: 1600 });
   for (let k = 0; k < 70; k++) anim.particles.push({ x: Math.random() * view.cssW, y: view.cssH * (0.55 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 30, vy: -(80 + Math.random() * 140), r0: 18 + Math.random() * 36, start: t + Math.random() * 600, dur: 1400 + Math.random() * 700, unit: true });
 }
 
@@ -1617,6 +1935,17 @@ function drawTable(c, w, h) {
     const cv = document.createElement('canvas'); cv.width = Math.round(w * view.dpr); cv.height = Math.round(h * view.dpr);
     const b = cv.getContext('2d'); b.scale(view.dpr, view.dpr);
     const dark = isDark();
+    // The painted view of Bathhouse Row behind the board (day, or Neon Night), softened a little so the tiles lead.
+    const row = artImg(dark ? 'backdrop-night' : 'backdrop-day');
+    if (row) {
+      b.filter = 'blur(' + Math.max(1, Math.round(Math.min(w, h) / 500)) + 'px)'; coverImg(b, row, -6, -6, w + 12, h + 12); b.filter = 'none';
+      const v = b.createRadialGradient(w / 2, h * 0.55, Math.min(w, h) * 0.25, w / 2, h * 0.5, Math.max(w, h) * 0.75);
+      v.addColorStop(0, dark ? 'rgba(8,6,20,.25)' : 'rgba(12,30,34,.10)'); v.addColorStop(1, dark ? 'rgba(8,6,20,.55)' : 'rgba(12,30,34,.35)');
+      b.fillStyle = v; b.fillRect(0, 0, w, h);
+      bgCache = { key, cv };
+      c.drawImage(bgCache.cv, 0, 0, w, h);
+      return;
+    }
     const im = artImg('table-' + tileSet());
     if (im) {
       coverImg(b, im, 0, 0, w, h);
@@ -1640,6 +1969,21 @@ function drawTable(c, w, h) {
   c.drawImage(bgCache.cv, 0, 0, w, h);
 }
 
+// Watchdog for Tiles: Auto: if the first 30 animated 3D frames (not the deal) average slower than ~17 fps, switch to flat tiles.
+const watch = { n: 0, sum: 0, last: 0 };
+function watchFrame(pt, animating) {
+  // the deal-in is skipped: its first frames carry one-time costs (atlas upload, shader compile) that say nothing
+  // about how the game will run from then on
+  const dealing = anim.dealAt === -1 || (anim.dealAt && now() - anim.dealAt < DEAL_MS);
+  if (!use3D() || GL_FORCE || SETTINGS.graphics !== 'auto' || glSlow || !animating || dealing || document.hidden) { watch.last = 0; return; }
+  if (watch.last) { const d = pt - watch.last; if (d < 2000) { watch.n++; if (watch.n > 6) watch.sum += d; } } // gaps over 2 s are stalls (a hidden tab, a GC), not frames
+  watch.last = pt;
+  if (watch.n >= 30) {
+    const avg = watch.sum / (watch.n - 6); watch.n = 0; watch.sum = 0;
+    // below ~17 fps: the flat renderer helps a weak GPU; on a weak CPU both are slow, so only act when it is this bad
+    if (avg > 60) { glSlow = true; store.set('bhm.gl.slow', true); setGraphics(); toast('Switched to flat tiles to keep the game smooth. You can turn 3D back on in Settings.'); }
+  }
+}
 function frame() {
   raf = 0;
   const t = now();
@@ -1649,15 +1993,21 @@ function frame() {
   lastTick = pt;
   anim.list = anim.list.filter((a) => t - a.start < a.dur);
   anim.particles = anim.particles.filter((p) => t - p.start < p.dur);
-  const animating = anim.list.length || anim.particles.length || (anim.hint && t < anim.hintUntil) || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < 520);
+  const animating = anim.list.length || anim.particles.length || (anim.hint && t < anim.hintUntil) || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS)));
   if (anim.hint && t >= anim.hintUntil && anim.frozen == null) { anim.hint = null; dirty = true; }
-  if (dirty || animating) draw(t);
+  if (dirty || animating || !settled) { // !settled: one more draw shows the end state of an animation that just finished
+    draw(t);
+    // settled = nothing transitional is in flight in what was just drawn (the hint pulse is ambient, like steam)
+    settled = !(anim.list.length || anim.particles.length || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))));
+  }
+  watchFrame(pt, animating);
   dirty = false;
   if (animating && anim.frozen == null) kick();
 }
 
 function draw(t) {
   if (!G || scene !== 'game') return;
+  if (use3D()) { draw3D(t); return; }
   const c = ctx, dpr = view.dpr || 1;
   c.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawTable(c, view.cssW, view.cssH);
@@ -1666,7 +2016,7 @@ function draw(t) {
   const flying = new Set();
   for (const a of anim.list) for (const i of a.tiles) flying.add(i);
   const veil = SETTINGS.highlightFree;
-  const shuf = anim.shuffleAt && t - anim.shuffleAt < 520 ? (t - anim.shuffleAt) / 520 : -1;
+  const shuf = anim.shuffleAt && t - anim.shuffleAt < SHUF_MS ? (t - anim.shuffleAt) / SHUF_MS : -1;
   const sel = S.selected;
   for (const i of view.order) {
     if (!S.present[i] || flying.has(i)) continue;
@@ -1685,8 +2035,10 @@ function draw(t) {
     if (veil && !isFreeT) { c.fillStyle = isDark() ? 'rgba(10,8,20,.46)' : 'rgba(40,52,48,.30)'; rr(c, sx, sy, W, H, W * 0.09); c.fill(); }
     if (i === sel) { c.save(); c.shadowColor = isDark() ? 'rgba(79,195,255,.9)' : 'rgba(217,162,58,.95)'; c.shadowBlur = W * 0.25 * dpr; c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = isDark() ? '#4FC3FF' : '#D9A23A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.restore(); c.lineWidth = Math.max(1.5, W * 0.03); c.strokeStyle = '#1F2A24'; rr(c, sx + 2, sy + 2, W - 4, H - 4, W * 0.08); c.stroke(); }
     if (anim.hint && (anim.hint[0] === i || anim.hint[1] === i)) {
-      const pulse = 0.55 + 0.45 * Math.sin(t / 140);
-      c.save(); c.setLineDash([W * 0.16, W * 0.1]); c.lineWidth = Math.max(3, W * 0.09); c.strokeStyle = 'rgba(79,195,255,' + pulse.toFixed(2) + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke(); c.restore();
+      const col = isDark() ? '46,230,214' : '24,178,160', ph = (t % 1100) / 1100;
+      c.save(); c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = 'rgb(' + col + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke();
+      if (!reduced()) { const g = 4 + ph * W * 0.3; c.lineWidth = Math.max(1.5, W * 0.035); c.strokeStyle = 'rgba(' + col + ',' + (1 - ph).toFixed(2) + ')'; rr(c, sx - g, sy - g, W + g * 2, H + g * 2, W * 0.12 + g); c.stroke(); }
+      c.restore();
     }
     if (i === S.cursor && kbActive) { // keyboard cursor: solid double ring (the hint ring is dashed)
       c.save(); c.lineWidth = Math.max(5, W * 0.11); c.strokeStyle = '#14121F'; rr(c, sx - 4, sy - 4, W + 8, H + 8, W * 0.13); c.stroke();
@@ -1707,11 +2059,28 @@ function draw(t) {
       c.restore();
     }
   }
-  // steam
+  drawParticles(c, t);
+}
+// Steam puffs, gold sparks and score pops, in CSS pixels on the 2D canvas (both renderers).
+function drawParticles(c, t) {
   const st = getSteamSprite();
   for (const p of anim.particles) {
     const k = (t - p.start) / p.dur; if (k < 0) continue;
     const sec = (t - p.start) / 1000;
+    if (p.text) {
+      const e = easeOut(Math.min(1, k * 1.6));
+      c.save(); c.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3; c.font = '800 ' + p.size + 'px ' + "'Palatino Linotype','Book Antiqua',Palatino,Georgia,serif";
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      const y = p.y - e * p.rise; c.lineWidth = p.size * 0.22; c.strokeStyle = 'rgba(20,18,31,.75)'; c.strokeText(p.text, p.x, y);
+      c.fillStyle = p.color; c.fillText(p.text, p.x, y); c.restore();
+      continue;
+    }
+    if (p.spark) {
+      const x = p.x + p.vx * sec, y = p.y + p.vy * sec + 120 * sec * sec, r = p.r0 * (1 - k);
+      c.save(); c.globalAlpha = 1 - k; c.fillStyle = p.color; c.translate(x, y); c.rotate(sec * 6 + p.x);
+      c.beginPath(); for (let j = 0; j < 8; j++) { const a = j * Math.PI / 4, rr2 = j % 2 ? r * 0.35 : r; c.lineTo(Math.cos(a) * rr2, Math.sin(a) * rr2); } c.closePath(); c.fill(); c.restore();
+      continue;
+    }
     const x = p.x + p.vx * sec * (p.unit ? 1 : 10), y = p.y + p.vy * sec * (p.unit ? 1 : 10) + Math.sin(sec * 4 + p.x) * 3;
     const r = p.r0 * (1 + k * 1.6);
     c.globalAlpha = Math.max(0, (k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85) * 0.85);
@@ -1722,6 +2091,7 @@ function draw(t) {
 
 function tileAt(px, py) {
   if (!G) return -1;
+  if (use3D()) { const fl = new Set(); for (const a of anim.list) for (const i of a.tiles) fl.add(i); return R3.pick(px, py, (i) => S.present[i] && !fl.has(i)); }
   const { W, H, D } = view;
   for (let k = view.order.length - 1; k >= 0; k--) {
     const i = view.order[k];
@@ -1817,9 +2187,15 @@ function drawTitleArt() {
   for (let k = 0; k < 16; k++) { const x = (k * 97) % w, y = h * (0.35 + ((k * 53) % 40) / 100), r = 20 + (k * 13) % 30; c.globalAlpha = dark ? 0.18 : (hero ? 0.3 : 0.5); c.drawImage(st, x - r, y - r, r * 2, r * 2); }
   c.globalAlpha = 1;
   // a fan of tiles
-  const tw = Math.min(54, w / 9), th = tw * 1.3, faces = [12, 4, 31, 38, 27];
+  const fade = c.createLinearGradient(0, h * 0.45, 0, h);
+  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, dark ? 'rgba(20,18,31,.75)' : 'rgba(23,63,71,.45)');
+  c.fillStyle = fade; c.fillRect(0, 0, w, h);
+  const tw = Math.min(62, w / 8), th = tw * 1.3, faces = [12, 4, 31, 38, 27];
+  // the fan sits on top of the title card, like tiles laid on the table
+  const card = document.querySelector('.title-block');
+  const fanY = Math.max(8, (card && card.offsetTop ? card.offsetTop : h * 0.5) - th * 0.72);
   for (let k = 0; k < faces.length; k++) {
-    c.save(); c.translate(w / 2 + (k - 2) * tw * 0.78, h * 0.42); c.rotate((k - 2) * 0.12);
+    c.save(); c.translate(w / 2 + (k - 2) * tw * 0.78 - tw / 2, fanY + Math.abs(k - 2) * tw * 0.12); c.rotate((k - 2) * 0.12);
     tileBody(c, tw, th, tw * 0.12, dark);
     c.save(); rr(c, 0, 0, tw, th, tw * 0.09); c.clip(); c.scale(tw / 100, th / 130); drawFace(c, faces[k], false); c.restore();
     c.restore();
@@ -1852,6 +2228,15 @@ function drawTitleBackdrop(c, w, h, dark) {
 // ---------- layout cards ----------
 function drawPreview(cv, layout) {
   const pos = layout.build();
+  if (use3D()) { // a small render of the real 3D board, with a fixed sample deal
+    try {
+      buildAtlas(false); style3D();
+      const g = E.buildGeometry(pos), d = E.deal(g, E.makeRng(1924));
+      R3.snapshot(pos, d.faces, cv, { pitch: 8, yaw: 4, slab: false, under: (c, w, h) => { const im = artImg(isDark() ? 'backdrop-night' : 'backdrop-day'); if (im) { c.filter = 'blur(1.5px) saturate(.85)'; coverImg(c, im, -4, -4, w + 8, h + 8); c.filter = 'none'; c.fillStyle = 'rgba(10,30,34,.25)'; c.fillRect(0, 0, w, h); } } });
+      R3.boardId = null; R3.sizeKey = '';
+      return;
+    } catch (e) { /* fall back to the flat preview */ }
+  }
   const w = cv.clientWidth || 240, h = cv.clientHeight || 130, dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1869,11 +2254,15 @@ function drawPreview(cv, layout) {
 }
 function buildCards() {
   const box = $('cards'); box.innerHTML = '';
-  for (const l of E.LAYOUTS) {
+  // portrait-first layouts lead on a phone held upright
+  const portrait = window.innerWidth < window.innerHeight && window.innerWidth < 700;
+  const list = portrait ? [...E.LAYOUTS.filter((l) => l.portrait), ...E.LAYOUTS.filter((l) => !l.portrait)] : E.LAYOUTS;
+  for (const l of list) {
     const ls = STATS.layouts[l.id];
     const b = document.createElement('button'); b.className = 'card'; b.dataset.layout = l.id;
     b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="cap"></span><span class="best"></span>';
-    b.querySelector('b').textContent = l.name; b.querySelector('.cap').textContent = l.caption;
+    b.querySelector('b').textContent = l.name;
+    if (l.portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Fits phones'; b.querySelector('b').after(tag); } b.querySelector('.cap').textContent = l.caption;
     b.querySelector('.best').textContent = ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : '144 tiles';
     b.addEventListener('click', () => { AUDIO.unlock(); newGame({ layout: l.id }); });
     box.appendChild(b);
@@ -1919,7 +2308,7 @@ function buildStats() {
 function applyTheme() {
   document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
   loadArt(essentialArt());
-  bgCache = null; SPR.key = '';
+  bgCache = null; SPR.key = ''; atlas.key = '';
   if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
   if (scene === 'title') drawTitleArt();
   if (G) { layoutBoard(); markDirty(); }
@@ -1934,6 +2323,8 @@ function syncSettingsUI() {
 function setSetting(k, v) {
   SETTINGS[k] = v; saveSettings(); syncSettingsUI();
   if (k === 'theme' || k === 'tileset') applyTheme();
+  if (k === 'graphics' && v !== 'flat') { glSlow = false; store.del('bhm.gl.slow'); }
+  if (k === 'graphics' || k === 'camera') { setGraphics(); }
   if (k === 'captions') { SPR.key = ''; layoutBoard(); markDirty(); }
   if (k === 'sound' || k === 'volume') AUDIO.toggle();
   if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
@@ -1943,13 +2334,25 @@ function setSetting(k, v) {
 let kbActive = false;
 const ptr = { id: null, x: 0, y: 0, panX: 0, panY: 0, moved: false };
 function localXY(e) { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+// Two fingers: spreading them turns Zoom on, pinching turns it off (a toggle, like the toolbar button).
+const pinch = new Map();
+let pinchD0 = 0;
+function pinchUpdate() {
+  if (pinch.size !== 2) return;
+  const [a, b] = [...pinch.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  if (!pinchD0) { pinchD0 = d; return; }
+  if (d > pinchD0 * 1.25 && !view.zoom) { setZoom(true); pinchD0 = d; }
+  else if (d < pinchD0 * 0.8 && view.zoom) { setZoom(false); pinchD0 = d; }
+}
 canvas.addEventListener('pointerdown', (e) => {
   if (scene !== 'game') return;
+  if (e.pointerType === 'touch') { pinch.set(e.pointerId, localXY(e)); pinchD0 = 0; if (pinch.size > 1) { ptr.id = null; return; } }
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* synthetic or already-released pointer */ }
   ptr.id = e.pointerId; [ptr.x, ptr.y] = localXY(e); ptr.panX = view.panX; ptr.panY = view.panY; ptr.moved = false;
 });
 canvas.addEventListener('pointermove', (e) => {
   const [x, y] = localXY(e);
+  if (pinch.has(e.pointerId)) { pinch.set(e.pointerId, [x, y]); if (pinch.size === 2) { pinchUpdate(); return; } }
   if (ptr.id === e.pointerId) {
     const dx = x - ptr.x, dy = y - ptr.y;
     if (view.zoom && (ptr.moved || Math.hypot(dx, dy) > 8)) { ptr.moved = true; view.panX = ptr.panX + dx; view.panY = ptr.panY + dy; layoutBoard(); markDirty(); }
@@ -1957,10 +2360,12 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (e.pointerType === 'mouse' && S && S.status === 'playing') {
     const i = tileAt(x, y);
-    if (i !== hoverTile) { hoverTile = i; if (i >= 0 && S.selected < 0) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
+    if (i !== hoverTile) { hoverTile = i; if (use3D()) markDirty(); if (i >= 0 && S.selected < 0) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
   }
 });
+const pinchEnd = (e) => { pinch.delete(e.pointerId); if (pinch.size < 2) pinchD0 = 0; };
 canvas.addEventListener('pointerup', (e) => {
+  pinchEnd(e);
   if (ptr.id !== e.pointerId) return;
   ptr.id = null;
   if (ptr.moved) return;
@@ -1970,14 +2375,14 @@ canvas.addEventListener('pointerup', (e) => {
   if (i >= 0) { S.cursor = i; selectTile(i); }
   else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
 });
-canvas.addEventListener('pointercancel', () => { ptr.id = null; });
+canvas.addEventListener('pointercancel', (e) => { pinchEnd(e); ptr.id = null; });
 
 function exposed(i) { if (!S.present[i]) return false; for (const j of G.top[i]) if (S.present[j]) return false; return true; }
 function moveCursor(dir) {
   if (!S) return;
   const cands = []; for (let i = 0; i < G.n; i++) if (exposed(i)) cands.push(i);
   if (!cands.length) return;
-  const center = (i) => [view.scr[i][0] + view.W / 2, view.scr[i][1] + view.H / 2];
+  const center = screenCenter;
   let cur = S.cursor;
   if (cur < 0 || !exposed(cur)) {
     const mid = [view.cssW / 2, view.cssH / 2];
@@ -2037,7 +2442,7 @@ document.addEventListener('keydown', (e) => {
 });
 function panTo(ids) {
   let cx = 0, cy = 0;
-  for (const i of ids) { cx += view.scr[i][0] - view.panX + view.W / 2; cy += view.scr[i][1] - view.panY + view.H / 2; }
+  for (const i of ids) { const [x, y] = screenCenter(i); cx += x - view.panX; cy += y - view.panY; }
   cx /= ids.length; cy /= ids.length;
   view.panX = view.cssW / 2 - cx; view.panY = view.cssH / 2 - cy;
   layoutBoard(); markDirty();
@@ -2047,8 +2452,8 @@ function setZoom(on) {
   view.zoom = !!on;
   if (on && S && (S.selected >= 0 || S.cursor >= 0)) {
     // center the zoom on the selection or cursor
-    const i = S.selected >= 0 ? S.selected : S.cursor; const [sx, sy] = view.scr[i];
-    const k = 1.8; view.panX = -(sx + view.W / 2 - view.cssW / 2) * k; view.panY = -(sy + view.H / 2 - view.cssH / 2) * k;
+    const i = S.selected >= 0 ? S.selected : S.cursor; const [sx, sy] = screenCenter(i);
+    const k = 1.8; view.panX = -(sx - view.cssW / 2) * k; view.panY = -(sy - view.cssH / 2) * k;
   } else { view.panX = 0; view.panY = 0; }
   layoutBoard(); updateHud(); markDirty(); return view.zoom;
 }
@@ -2114,7 +2519,7 @@ function contrast(a, b) {
 window.__game = {
   seed(n) { nextSeed = n >>> 0; return nextSeed; },
   getState() {
-    const base = { scene, overlay: (document.querySelector('.overlay.on') || {}).id || null, settings: Object.assign({}, SETTINGS), theme: document.documentElement.dataset.theme, reduced: reduced(), zoom: view.zoom, tileW: view.W, statsPlayed: STATS.played, statsWon: STATS.won, storage: store.ok, status: $('status-text').textContent, live: $('live').textContent };
+    const base = { gfx: use3D() ? '3d' : '2d', glName: GLP.name, scene, overlay: (document.querySelector('.overlay.on') || {}).id || null, settings: Object.assign({}, SETTINGS), theme: document.documentElement.dataset.theme, reduced: reduced(), zoom: view.zoom, tileW: view.W, statsPlayed: STATS.played, statsWon: STATS.won, storage: store.ok, status: $('status-text').textContent, live: $('live').textContent };
     if (!S) return base;
     return Object.assign(base, {
       layoutId: S.layoutId, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
@@ -2125,7 +2530,7 @@ window.__game = {
     });
   },
   setState(s) { closeAll(); loadState(s); showScene('game'); updateHud(); markDirty(); return true; },
-  isIdle() { const t = performance.now(); if (artPending || artTick) return false; if (anim.frozen != null) return t >= toastBusyUntil; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < 520) && t >= toastBusyUntil; },
+  isIdle() { const t = performance.now(); if (artPending || artTick || countBusy) return false; if (anim.frozen != null) return t >= toastBusyUntil; if (!settled) return false; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) && !(use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))) && t >= toastBusyUntil; },
   scene(name) { return gotoScene(name); },
   newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
   pause() { pauseGame(); return true; },
@@ -2161,9 +2566,10 @@ window.__game = {
         afterMove(); return S.status === 'stuck';
       }
       case 'verifyDeals': {
-        const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); const t0 = performance.now(); let ok = 0; let maxMs = 0;
-        for (let s = 1; s <= a[1]; s++) { const t1 = performance.now(); const d = E.deal(g, E.makeRng(s * 7919)); maxMs = Math.max(maxMs, performance.now() - t1); if (d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan)) ok++; }
-        return { ok, total: a[1], ms: Math.round(performance.now() - t0), maxMs: +maxMs.toFixed(1), errors: E.validateLayout(l.build()) };
+        const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); const t0 = performance.now(); let ok = 0; const times = [];
+        for (let s = 1; s <= a[1]; s++) { const t1 = performance.now(); const d = E.deal(g, E.makeRng(s * 7919)); times.push(performance.now() - t1); if (d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan)) ok++; }
+        times.sort((x, y) => x - y);
+        return { ok, total: a[1], ms: Math.round(performance.now() - t0), maxMs: +times[times.length - 1].toFixed(1), p95Ms: +times[Math.floor(times.length * 0.95)].toFixed(1), errors: E.validateLayout(l.build()) };
       }
       case 'solverCheck': {
         const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); let solved = 0;
@@ -2174,18 +2580,25 @@ window.__game = {
         const l = layoutById(a[0]); const g = E.buildGeometry(l.build()); const d = E.deal(g, E.makeRng(a[1] >>> 0));
         const counts = new Array(E.FACES).fill(0); for (const f of d.faces) counts[f]++; return counts;
       }
-      case 'tileCenter': { const r = canvas.getBoundingClientRect(); const [sx, sy] = view.scr[a[0]]; return { x: r.left + sx + view.W / 2, y: r.top + sy + view.H / 2 }; }
+      case 'tileCenter': { const r = canvas.getBoundingClientRect(); const [x, y] = screenCenter(a[0]); return { x: r.left + x, y: r.top + y }; }
       case 'zoom': return setZoom(a[0]);
+      case 'boardFits': { // every tile's projected top face lies inside the board area
+        let out = 0; for (let i = 0; i < G.n; i++) { const [x, y] = screenCenter(i); if (x < 0 || y < 0 || x > view.cssW || y > view.cssH) out++; }
+        return { out, w: view.cssW, h: view.cssH, tileW: view.W };
+      }
+      case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt };
+      case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
+      case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
       case 'animAt': { // freeze the animation clock (for mid-animation screenshots); null resumes
-        if (a[0] == null) { anim.frozen = null; kick(); return true; }
-        const last = anim.list.length ? Math.max(...anim.list.map((x) => x.start)) : performance.now();
+        if (a[0] == null) { anim.frozen = null; markDirty(); return true; }
+        const last = a[1] === 'deal' ? anim.dealAt : a[1] === 'shuffle' ? anim.shuffleAt : anim.list.length ? Math.max(...anim.list.map((x) => x.start)) : performance.now();
         anim.frozen = a[0] === 'now' ? performance.now() : last + a[0]; dirty = true; kick(); return true;
       }
       case 'contrast': {
         const face = '#F2F0EB', out = []; // darkest corner of the tile face gradient (tileBody)
         for (let f = 0; f < E.FACES; f++) out.push({ name: 'index ' + META[f].name, ratio: +contrast(META[f].color, face).toFixed(2) });
         const cs = getComputedStyle(document.documentElement); const v = (n) => cs.getPropertyValue(n).trim();
-        for (const [fg, bg] of [['--color-text', '--color-bg'], ['--color-muted', '--color-bg'], ['--bar-text', '--bar'], ['--color-text', '--panel'], ['--color-muted', '--panel'], ['--color-on-primary', '--color-primary'], ['--color-on-accent', '--color-accent'], ['--on-pressed', '--pressed'], ['--btn-text', '--btn'], ['--color-primary', '--panel']]) out.push({ name: fg + ' on ' + bg, ratio: +contrast(v(fg), v(bg)).toFixed(2) });
+        for (const [fg, bg] of [['--color-text', '--color-bg'], ['--color-muted', '--color-bg'], ['--bar-text', '--bar'], ['--bar-text', '--chrome-b'], ['--chrome-muted', '--bar'], ['--status-text', '--status-bg'], ['--color-text', '--panel'], ['--color-muted', '--panel'], ['--color-on-primary', '--color-primary'], ['--color-on-accent', '--color-accent'], ['--on-pressed', '--pressed'], ['--btn-text', '--btn'], ['--color-primary', '--panel']]) out.push({ name: fg + ' on ' + bg, ratio: +contrast(v(fg), v(bg)).toFixed(2) });
         return out;
       }
       case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
@@ -2196,6 +2609,11 @@ window.__game = {
 };
 
 // boot
+setGraphics();
+// the other theme's backdrop follows a little later, so switching themes is instant
+if (HAS_BACKDROP) setTimeout(() => loadArt(['backdrop-day', 'backdrop-night']), 1500);
+// warm the 3D renderer while the title screen sits idle, so the first deal doesn't stutter
+(window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => { if (R3 && !G) { try { buildAtlas(false); R3.warm(); } catch (e) { /* only a head start */ } } });
 applyTheme();
 showScene('title');
 })();

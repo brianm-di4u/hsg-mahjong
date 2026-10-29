@@ -1,5 +1,5 @@
 // Keyboard-only play, pointer/touch play, zoom and live region (PRD AC29, AC30, AC33).
-export const tests = [
+const TESTS = [
   {
     name: 'keyboard-only play',
     async run(t) {
@@ -23,7 +23,8 @@ export const tests = [
       }
       let s = await t.state();
       t.equal(s.tilesLeft, 142, 'pair matched with Enter');
-      await t.page.waitForTimeout(80);
+      // the live region is filled 30 ms after a clear (so screen readers notice the change): wait for it
+      await t.page.waitForFunction(() => document.getElementById('live').textContent.includes('Matched'), null, { timeout: 5000 }).catch(() => {});
       s = await t.state();
       t.expect(s.live.includes('Matched'), 'live region announced the match: ' + s.live);
       await t.page.keyboard.press('u');
@@ -92,4 +93,26 @@ export const tests = [
       await t.checkLayout({ allowScrollY: false });
     },
   },
+  {
+    name: 'pinch zooms in and out',
+    viewports: ['mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'row', seed: 99 });
+      await t.waitForStable();
+      const box = await t.page.locator('#board').boundingBox();
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      const cdp = await t.page.context().newCDPSession(t.page);
+      const touch = (type, d) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: cx - d, y: cy, id: 1 }, { x: cx + d, y: cy, id: 2 }] });
+      const gesture = async (d0, d1) => { await touch('touchStart', d0); for (let k = 1; k <= 8; k++) await touch('touchMove', d0 + (d1 - d0) * k / 8); await touch('touchEnd', 0); await t.page.waitForTimeout(100); };
+      await gesture(30, 120);
+      t.equal((await t.state()).zoom, true, 'spreading two fingers zooms in');
+      await t.shot('06-pinch-in');
+      await gesture(120, 30);
+      t.equal((await t.state()).zoom, false, 'pinching zooms back out');
+      t.equal((await t.state()).tilesLeft, 144, 'a pinch never selects or removes tiles');
+    },
+  },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

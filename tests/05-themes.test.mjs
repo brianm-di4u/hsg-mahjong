@@ -1,5 +1,5 @@
 // Free-tile highlight, dark theme, reduced motion, sound settings (PRD AC22, AC26-AC28).
-export const tests = [
+const TESTS = [
   {
     name: 'free-tile highlight toggle',
     async run(t) {
@@ -43,8 +43,11 @@ export const tests = [
     },
   },
   {
+    // wall-clock settle time on the flat renderer (software WebGL in the harness takes ~0.5 s a frame);
+    // the 3D test below checks the same policy through the animation list
     name: 'reduced motion uses short fades',
     reducedMotion: true,
+    url: 'index.html?gl=0',
     async run(t) {
       await t.game('newGame', { layout: 'tower', seed: 8 });
       t.equal((await t.state()).reduced, true, 'reduced motion detected');
@@ -74,4 +77,24 @@ export const tests = [
       t.equal(saved.volume, 30, 'settings persisted');
     },
   },
+  {
+    name: 'reduced motion in 3D: short fades only',
+    reducedMotion: true,
+    async run(t) {
+      await t.game('newGame', { layout: 'tower', seed: 8 });
+      const a0 = await t.game('act', 'animInfo');
+      t.equal(a0.dealAt, 0, 'no deal-in animation');
+      const pr = await t.game('act', 'hint');
+      await t.game('act', 'match', pr[0], pr[1]);
+      const a1 = await t.game('act', 'animInfo');
+      t.expect(a1.list.length === 1 && a1.list[0].type === 'fade' && a1.list[0].dur <= 200, 'match is one short fade: ' + JSON.stringify(a1.list));
+      t.equal(a1.particles, 0, 'no steam, sparks or score pops');
+      await t.game('act', 'shuffle');
+      t.equal((await t.game('act', 'animInfo')).shuffleAt, 0, 'no shuffle flip');
+      await t.shot('05-reduced-3d');
+    },
+  },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

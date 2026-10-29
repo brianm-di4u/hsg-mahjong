@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets');
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(DIR, 'manifest.json'), 'utf8'));
-const MB = Object.values(MANIFEST).reduce((a, m) => a + m.bytes, 0) / 1024 / 1024;
+const MB = Object.values(MANIFEST).reduce((a, m) => a + m.bytes, 0) / 1024 / 1024; // http assets (art-data.js is file:// only and not in the manifest)
 
-export const tests = [
+const TESTS = [
   {
     name: 'painted assets load',
     async run(t) {
@@ -23,6 +23,7 @@ export const tests = [
       const missing = Object.keys(MANIFEST).filter((n) => !a.loaded.includes(n));
       t.equal(missing, [], 'every manifest asset decoded');
       t.equal(a.wanted.filter((n) => !MANIFEST[n]), [], 'the game asks only for packed assets');
+      t.expect(!(await t.page.evaluate(() => !!window.MJ_ART_DATA)), 'the file:// art bundle is not loaded over http');
     },
   },
   {
@@ -39,7 +40,7 @@ export const tests = [
   },
   {
     name: 'vector fallback (?art=0)',
-    url: 'index.html?art=0',
+    url: 'index.html?art=0&gl=1',
     async run(t) {
       const a = await t.game('act', 'art');
       t.equal(a.on, false, 'art disabled by the query flag');
@@ -49,3 +50,6 @@ export const tests = [
     },
   },
 ];
+// 3D tiles are forced on (?gl=1): the harness's Chromium renders WebGL with SwiftShader, where Tiles: Auto
+// would pick flat tiles. Tests that set their own url keep it.
+export const tests = TESTS.map((x) => ({ url: 'index.html?gl=1', ...x }));

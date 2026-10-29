@@ -1,6 +1,40 @@
 # Bathhouse Mahjong: report
 
-**Status: done (wave 1).**
+**Status: done (wave 1), plus the visual campaign v3 (see `VISUAL-REPORT.md`).**
+
+## Visual campaign v3 (2026-10-29)
+- **What changed:**
+  - **Board:** real 3D resin tiles (three.js r169, vendored) on a dark verde slab, seen through a square oblique "Classic" camera. Tilted and Top-down cameras are options.
+  - **Setting:** a painted Bathhouse Row behind the board, in day and Neon Night versions, checked against 1984 HABS photos and measured drawings; a new title painting; a restyled teal-and-brass HUD, dock and title card.
+  - **Feel:** a deal-in, a lift-and-clack match with a steam column, sparks and a score pop, a flip-wave shuffle, a turquoise ripple hint, and a win that clears the table and counts up the score.
+  - **Phones:** two new portrait layouts (Tufa Terraces, Display Springs); phones start on Terraces; Zoom fills the height; pinch-to-zoom.
+  - **Fallbacks:** the 2D renderer remains for no WebGL, software WebGL, slow frames (a watchdog), Settings → Tiles: Flat and `?gl=0`.
+  - **file://:** play works there, using a data-URI art bundle.
+- **Tests:** there are now 10 test files, including the new `09-render3d`.
+  - The final run passed 63/64 at both viewports, with 0 console errors and 0 external requests.
+  - The single failure was a combo-count test assumption. The check was fixed and the play suite re-run 10/10.
+  - Files: `screenshots/visual-final/run-full.log`, and before/after sheets in `screenshots/visual-final/before-after/`.
+- **Review scores before → final (independent reviewer):**
+
+  | Category | Before | Final |
+  |---|---|---|
+  | Art | 6 | 8 |
+  | Lighting | 4 | 8 |
+  | Feel | 3 | 7 |
+  | UI | 4 | 7 |
+  | Typography | 5 | 7 |
+  | Readability | 5 | 8 |
+  | Mobile | 2 | 7 |
+  | Authenticity | 6 | 9 (above the best benchmark) |
+
+  No Major gap remains. The Medium gaps (the win card, the steam, the empty slab, cream dialogs) are listed in VISUAL-REPORT.md.
+- **GPU performance:** 57–60 fps animating at both viewports; mobile with the CPU throttled 4× stays at 25–32 fps.
+- New research: `research/bathhouse-row-facades.md`.
+
+The wave-1 report follows unchanged.
+
+---
+
 - The final run (`node shared/test-harness/run.mjs games/mahjong --milestone final`) passes **39/39 tests** at desktop (1280×800) and mobile (390×844 @2×).
 - No console errors and no external requests.
 - All 76 screenshots in `screenshots/final/` were inspected. They were reviewed in contact sheets of 4–8 images, and individual full-size images were checked where needed.
