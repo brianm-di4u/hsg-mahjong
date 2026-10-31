@@ -29,8 +29,8 @@ Out of scope for v1: the 4-player traditional mahjong mode (stretch goal; see §
 3. Select two free tiles that **match** to remove them. Tiles match when they are the same suit and number, the same mountain or the same dragon. **Any Flower matches any Flower; any Season matches any Season.**
 4. Clear all 144 tiles to win.
 5. If no free pairs remain you are **stuck**: shuffle the remaining tiles (they are rearranged in a solvable order, with a score penalty), undo, or start again.
-6. **Undo** is unlimited and steps back one match or shuffle, restoring the score. **Redo** replays undone steps until you make a new move.
-7. **Hint** highlights a pair that keeps the board winnable, if one is known; otherwise any free pair.
+6. **Undo** is unlimited and steps back one match or shuffle, taking back that match's points (hint and shuffle penalties stay paid). **Redo** replays undone steps, with the same points, until you make a new move.
+7. **Hint** highlights a pair that keeps the board winnable, if one is known. If your own moves have left a board that no order can clear, the game says so and how many moves to undo; hints then show the free pair that opens up the most tiles.
 
 ### Scoring
 | Event | Points |
@@ -41,7 +41,7 @@ Out of scope for v1: the 4-player traditional mahjong mode (stretch goal; see §
 | Hint | −15 |
 | Shuffle | −50 |
 | Win | +500, plus +1 per second under 10:00 |
-The score never goes below 0. Undo restores the score from before the undone move.
+The score never goes below 0. Undo takes back only the undone match's own points; hint and shuffle penalties are never refunded.
 
 ## 5. Hot Springs content map
 | Where | Content | Source (see `research/town-content.md`) |
@@ -154,7 +154,7 @@ The game works fully without storage.
 7. AC7: The same seed and layout produce the same deal.
 8. AC8: The game detects the stuck state and shows the Stuck overlay with Shuffle, Undo and New.
 9. AC9: Shuffle produces a solvable arrangement of the remaining tiles with the same multiset of faces.
-10. AC10: Undo restores tiles, score and selection exactly; repeated undo back to the start works; redo replays.
+10. AC10: Undo restores tiles exactly, takes back the match's own points and clears the selection; repeated undo back to the start works; redo replays the same points.
 11. AC11: Hint highlights two free matching tiles; following hints repeatedly from the start clears the board.
 12. AC12: Clearing the last pair shows the Win overlay with score, time and a Hot Springs fact from the trivia bank.
 13. AC13: Score follows §4 (match, combo, hint, shuffle, win bonus, Bathhouse Row bonus).

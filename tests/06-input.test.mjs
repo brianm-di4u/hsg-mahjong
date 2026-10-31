@@ -48,6 +48,7 @@ const TESTS = [
     name: 'pointer and touch play with zoom',
     async run(t) {
       await t.game('newGame', { layout: 'row', seed: 99 });
+      await t.waitIdle(15000); // taps wait for the deal-in (12-interaction checks that)
       const tap = async (c) => { if (t.viewport === 'mobile') await t.page.touchscreen.tap(c.x, c.y); else await t.page.mouse.click(c.x, c.y); await t.page.waitForTimeout(60); };
       const pr = await t.game('act', 'hint');
       for (const i of pr) await tap(await t.game('act', 'tileCenter', i));

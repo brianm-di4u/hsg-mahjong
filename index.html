@@ -110,6 +110,10 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 .stats small{font-weight:600;font-size:.72rem;color:var(--chrome-muted);text-transform:uppercase;letter-spacing:.06em}
 #board-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:linear-gradient(var(--table-a),var(--table-b))}
 #board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:pointer}
+/* a long press or double tap must never start a text selection or callout over the game (mobile) */
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+input,textarea{-webkit-user-select:text;user-select:text}
+#s-game{touch-action:manipulation}
 #board-bg,#board3d{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
 .gl #board-bg,.gl #board3d{display:block}
 .status{flex:none;min-height:38px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px var(--space-4);background:var(--status-bg);color:var(--status-text);border-top:1px solid rgba(217,178,76,.45);font-size:.9rem;line-height:1.25;font-style:italic;font-family:var(--font-serif-victorian)}
@@ -236,6 +240,12 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   <header><h2 id="op-h">Paused</h2></header>
   <div class="body"><p class="big" id="op-time">0:00</p><p style="text-align:center">The clock is stopped and the board is hidden.</p></div>
   <div class="actions"><button class="btn primary" id="op-resume">Resume</button><button class="btn" id="op-new">New game</button><button class="btn" id="op-help">How to Play</button><button class="btn" id="op-settings">Settings</button><button class="btn" id="op-title">Title screen</button></div>
+</div></div>
+
+<div class="overlay" id="o-confirm" role="dialog" aria-modal="true" aria-labelledby="oc-h"><div class="panel">
+  <header><h2 id="oc-h">Abandon this game?</h2></header>
+  <div class="body"><p id="oc-text">Starting a new game ends this one.</p></div>
+  <div class="actions"><button class="btn primary" id="oc-new">New game</button><button class="btn" id="oc-keep">Keep playing</button></div>
 </div></div>
 
 <div class="overlay" id="o-stuck" role="dialog" aria-modal="true" aria-labelledby="os-h"><div class="panel">
@@ -584,26 +594,82 @@ const ENGINE = (() => {
     return left === 0;
   }
 
-  // After the player removes (a, b), try to keep the known solution (freeness is monotonic, so most repairs hold).
+  // A set of pairs clears the board iff greedy execution does: removing tiles never blocks one, so a pair that is
+  // playable stays playable. Returns the pairs in a playable order, plus whatever could not be played.
+  function orderPairs(g, present0, pairs) {
+    const present = present0.slice(), order = [];
+    let rest = pairs.slice(), left = 0;
+    for (let i = 0; i < g.n; i++) if (present[i]) left++;
+    for (let did = true; did && rest.length;) {
+      did = false; const next = [];
+      for (const p of rest) { if (isFree(g, present, p[0]) && isFree(g, present, p[1])) { present[p[0]] = present[p[1]] = false; left -= 2; order.push(p); did = true; } else next.push(p); }
+      rest = next;
+    }
+    return { order, rest, done: !rest.length && left === 0 };
+  }
+
+  // After the player removes (a, b), keep the known solution: drop their step, or pair their two partners (c, d)
+  // when they came from different steps, then re-order the pairs greedily (MECHANICS.md §2).
   function repairPlan(g, presentAfter, faces, plan, a, b) {
     if (!plan) return null;
     const ia = plan.findIndex((p) => p[0] === a || p[1] === a);
     const ib = plan.findIndex((p) => p[0] === b || p[1] === b);
     if (ia < 0 || ib < 0) return null;
-    let np;
-    if (ia === ib) np = plan.filter((_, k) => k !== ia);
-    else {
-      const c = plan[ia][0] === a ? plan[ia][1] : plan[ia][0];
-      const d = plan[ib][0] === b ? plan[ib][1] : plan[ib][0];
-      const keep = Math.max(ia, ib);
-      np = [];
-      plan.forEach((p, k) => { if (k === keep) np.push([c, d]); else if (k !== ia && k !== ib) np.push(p); });
-    }
-    return planValid(g, presentAfter, faces, np) ? np : null;
+    const set = plan.filter((_, k) => k !== ia && k !== ib);
+    if (ia !== ib) set.push([plan[ia][0] === a ? plan[ia][1] : plan[ia][0], plan[ib][0] === b ? plan[ib][1] : plan[ib][0]]);
+    for (const [c, d] of set) if (c === d || matchKey(faces[c]) !== matchKey(faces[d])) return null;
+    const r = orderPairs(g, presentAfter, set);
+    return r.done ? r.order : null;
   }
 
-  // Bounded DFS solver with safe-move collapse and memo. Returns a winning list of pairs or null.
-  function solve(g, present0, faces, budget = 25000) {
+  // Pairing search: a solution splits each kind's remaining tiles into pairs, and orderPairs checks a split.
+  // Kinds with four tiles left have three splits; hill-climb over them, favouring kinds stuck in the remainder.
+  function solvePairs(g, present, faces, rng, iters) {
+    const groups = new Map();
+    for (let i = 0; i < g.n; i++) if (present[i]) { const k = matchKey(faces[i]); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+    for (const l of groups.values()) if (l.length % 2) return null;
+    const quads = [...groups.keys()].filter((k) => groups.get(k).length === 4), choice = new Map();
+    const SPLITS = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
+    const reroll = () => { for (const k of quads) choice.set(k, rng.int(3)); };
+    const build = () => {
+      const ps = [];
+      for (const [k, l] of groups) { if (l.length === 4) for (const [x, y] of SPLITS[choice.get(k)]) ps.push([l[x], l[y]]); else for (let x = 0; x < l.length; x += 2) ps.push([l[x], l[x + 1]]); }
+      return orderPairs(g, present, ps);
+    };
+    reroll();
+    let cur = build();
+    for (let it = 0; !cur.done && it < iters && quads.length; it++) {
+      if (it % 500 === 499) { reroll(); cur = build(); continue; }
+      const stuck = [...new Set(cur.rest.map((p) => matchKey(faces[p[0]])))].filter((k) => choice.has(k));
+      const k = stuck.length && rng() < 0.8 ? stuck[rng.int(stuck.length)] : quads[rng.int(quads.length)];
+      const old = choice.get(k); choice.set(k, (old + 1 + rng.int(2)) % 3);
+      const nx = build();
+      if (nx.order.length >= cur.order.length || rng() < 0.05) cur = nx; else choice.set(k, old);
+    }
+    return cur.done ? cur.order : null;
+  }
+
+  // Dead-board test: a tile can only go after every tile stacked on it (transitively). If a kind's remaining tiles
+  // cannot be split into pairs without pairing a tile with one stacked above it, no order clears the board.
+  function stackedAbove(g, present, b, a) {
+    const q = [b], seen = new Set(q);
+    while (q.length) for (const j of g.top[q.pop()]) if (present[j] && !seen.has(j)) { if (j === a) return true; seen.add(j); q.push(j); }
+    return false;
+  }
+  function deadlocked(g, present, faces) {
+    const groups = new Map();
+    for (let i = 0; i < g.n; i++) if (present[i]) { const k = matchKey(faces[i]); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
+    const tied = (x, y) => stackedAbove(g, present, x, y) || stackedAbove(g, present, y, x);
+    for (const l of groups.values()) {
+      if (l.length % 2) return true;
+      if (l.length === 2 && tied(l[0], l[1])) return true;
+      if (l.length === 4 && [[0, 1, 2, 3], [0, 2, 1, 3], [0, 3, 1, 2]].every(([a, b, c, d]) => tied(l[a], l[b]) || tied(l[c], l[d]))) return true;
+    }
+    return false;
+  }
+
+  // Bounded DFS with safe-move collapse and memo. `exhausted` means the search finished: no solution exists.
+  function dfs(g, present0, faces, budget) {
     const present = present0.slice();
     let nodes = 0, remaining = 0;
     const seen = new Set();
@@ -629,6 +695,7 @@ const ENGINE = (() => {
       const k = key();
       if (seen.has(k)) return undo();
       seen.add(k);
+      if (deadlocked(g, present, faces)) return undo();
       const pairs = availablePairs(g, present, faces);
       if (!pairs.length) return undo();
       pairs.sort((p, q) => (weight(q[0]) + weight(q[1])) - (weight(p[0]) + weight(p[1])));
@@ -640,8 +707,24 @@ const ENGINE = (() => {
       }
       return undo();
     }
-    return rec() ? path.slice() : null;
+    const ok = rec();
+    return { plan: ok ? path.slice() : null, exhausted: !ok && nodes <= budget };
   }
+
+  // Solver: a short DFS (fast to prove a dead board), then the pairing search, then a full DFS.
+  // Returns {plan, exhausted}: plan is a winning list of pairs, or null; exhausted is true when the board is proven
+  // unwinnable. The pairing search is seeded from the board, so the same position always gives the same answer.
+  function solveInfo(g, present, faces, budget = 25000) {
+    if (deadlocked(g, present, faces)) return { plan: null, exhausted: true };
+    let r = dfs(g, present, faces, budget >> 3);
+    if (r.plan || r.exhausted) return r;
+    let h = 2166136261;
+    for (let i = 0; i < g.n; i++) if (present[i]) h = Math.imul(h ^ (i + 1), 16777619);
+    const plan = solvePairs(g, present, faces, makeRng(h >>> 0), budget * 3);
+    if (plan) return { plan, exhausted: false };
+    return dfs(g, present, faces, budget);
+  }
+  function solve(g, present, faces, budget) { return solveInfo(g, present, faces, budget).plan; }
 
   // Rearrange the remaining faces into a solvable order on the remaining positions. Returns {faces, plan} or null.
   function reshuffle(g, present, faces, rng) {
@@ -659,7 +742,7 @@ const ENGINE = (() => {
     return { faces: nf, plan: order };
   }
 
-  return { makeRng, hashStr, shuffleInPlace, LAYOUTS, buildGeometry, validateLayout, isFree, FACES, matchKey, fullPairList, removalOrder, deal, availablePairs, planValid, repairPlan, solve, reshuffle };
+  return { makeRng, hashStr, shuffleInPlace, LAYOUTS, buildGeometry, validateLayout, isFree, FACES, matchKey, fullPairList, removalOrder, deal, availablePairs, planValid, orderPairs, repairPlan, deadlocked, solvePairs, solveInfo, solve, reshuffle };
 })();
 </script>
 
@@ -762,7 +845,8 @@ const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto
 const SETTINGS = Object.assign({}, DEFAULT_SETTINGS, store.get('bhm.settings.v1', {}));
 function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
-let STATS = Object.assign(freshStats(), store.get('bhm.stats.v1', {}));
+function loadStats() { const f = freshStats(), s = store.get('bhm.stats.v1', {}) || {}; const o = Object.assign(f, s); o.layouts = Object.assign({}, s.layouts); o.daily = Object.assign(freshStats().daily, s.daily); o.daily.done = Object.assign({}, o.daily.done); return o; }
+let STATS = loadStats();
 function saveStats() { store.set('bhm.stats.v1', STATS); }
 function layoutStats(id) { return STATS.layouts[id] || (STATS.layouts[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
 
@@ -1377,6 +1461,7 @@ let G = null;            // geometry of the current layout
 let S = null;            // the serializable game state (MECHANICS §3)
 let LAYOUT = E.LAYOUTS[0];
 let nextSeed = null;
+const STUCK_TEXT = 'There are no free pairs left. Shuffle the remaining tiles into a new solvable order (−50 points), undo your last moves, or start over.';
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
 const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0, dealAt: 0 };
 let scene = 'title';
@@ -1395,9 +1480,10 @@ function fmtTime(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60
 function tilesLeft() { let n = 0; for (let i = 0; i < G.n; i++) if (S.present[i]) n++; return n; }
 function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E3779B1)) >>> 0); }
 
+// a game counts as abandoned (and breaks the win streak) once it has a match and has not been won
+function inProgress() { return !!S && (S.status === 'playing' || S.status === 'stuck') && S.history.some((h) => h.t === 'm'); }
 function newGame(opts = {}) {
-  // a game abandoned after at least one match breaks the win streak
-  if (S && S.status === 'playing' && S.history.some((h) => h.t === 'm')) { STATS.streak = 0; }
+  if (inProgress() && !S.practice) STATS.streak = 0;
   let layout, seed, daily = null;
   if (opts.daily) {
     daily = opts.date || todayStr();
@@ -1410,45 +1496,72 @@ function newGame(opts = {}) {
   }
   LAYOUT = layout;
   G = E.buildGeometry(layout.build());
-  const d = E.deal(G, E.makeRng(seed));
+  let d = null;
+  for (let k = 0; !d && k < 8; k++) d = E.deal(G, E.makeRng((seed + Math.imul(k, 0x9E3779B1)) >>> 0)); // a failed deal retries on a derived seed
+  // replaying a finished Daily Puzzle is practice: it does not count as played, won or toward any streak
+  const practice = !!(daily && STATS.daily.done[daily] != null);
   S = {
     v: 1, layoutId: layout.id, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
     history: [], redo: [], selected: -1, cursor: -1, score: 0, combo: 0, lastMatchMs: -1e9,
-    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: false,
+    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
   };
-  STATS.played++; layoutStats(layout.id).played++; S.statsCounted = true; saveStats();
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null;
+  if (!practice) { STATS.played++; layoutStats(layout.id).played++; saveStats(); }
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
+  paused = false; lastTick = 0; resetStuckDialog(); clearSelection();
   showScene('game');
   layoutBoard(); markDirty(); updateHud(); saveGame();
   // small tiles on a portrait phone: point at Zoom and landscape
-  setStatus(layout.caption);
+  setStatus(practice ? 'Practice: you have already finished this Daily Puzzle. ' + layout.caption : layout.caption);
   if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
   return { layoutId: layout.id, seed, tiles: G.n };
 }
+// New game from inside a game asks first when there is progress to lose
+function askNewGame() {
+  if (!inProgress()) { closeAll(); newGame({ layout: S ? S.layoutId : undefined }); return true; }
+  $('oc-text').textContent = 'Starting a new game ends this one' + (STATS.streak > 0 && !S.practice ? ' and resets your win streak of ' + STATS.streak + '.' : '.');
+  openOverlay('o-confirm'); return false;
+}
 
+// Validates a saved state before anything global changes; throws on a save that does not fit its layout.
 function loadState(s) {
-  LAYOUT = layoutById(s.layoutId);
-  G = E.buildGeometry(LAYOUT.build());
-  S = Object.assign({ redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9 }, JSON.parse(JSON.stringify(s)));
-  if (S.faces.length !== G.n) throw new Error('state does not match layout');
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null;
+  const layout = layoutById(s.layoutId), g = E.buildGeometry(layout.build());
+  const st = Object.assign({ redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9, hints: 0, shuffles: 0, undos: 0, practice: false }, JSON.parse(JSON.stringify(s)));
+  if (s.layoutId !== layout.id || !Array.isArray(st.faces) || !Array.isArray(st.present) || st.faces.length !== g.n || st.present.length !== g.n) throw new Error('state does not match layout');
+  if (st.faces.some((f) => !(f >= 0 && f < E.FACES)) || st.present.filter(Boolean).length % 2) throw new Error('bad faces');
+  if (!['playing', 'stuck', 'won'].includes(st.status)) st.status = 'playing';
+  if (!Array.isArray(st.history)) st.history = [];
+  // saves from before scores were kept per move have no `pts`: their match entries undo to the score before the move
+  st.history = st.history.filter((h) => h && (h.t === 'm' ? h.before : h.t === 's' && Array.isArray(h.faces) && h.faces.length === g.n));
+  if (!E.planValid(g, st.present, st.faces, st.plan)) st.plan = null; // a stale plan could hint a pair that no longer matches
+  st.selected = st.selected >= 0 && st.present[st.selected] && E.isFree(g, st.present, st.selected) ? st.selected : -1;
+  st.winnable = st.plan ? true : null;
+  LAYOUT = layout; G = g; S = st;
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shuffleAt = 0;
+  paused = false; lastTick = 0; resetStuckDialog();
+  if (!S.plan && S.status !== 'won') schedulePlanSearch();
 }
 
 function saveGame() {
   if (!S) return;
   if (S.status === 'won') { store.del('bhm.game.v1'); return; }
   // plans inside history are dropped to keep saves small; undo then re-plans with the solver
-  const hist = S.history.map((h) => (h.t === 'm' ? { t: 'm', a: h.a, b: h.b, before: Object.assign({}, h.before, { plan: null }) } : Object.assign({}, h, { plan: null })));
+  const hist = S.history.map((h) => (h.t === 'm' ? Object.assign({}, h, { before: Object.assign({}, h.before, { plan: null }) }) : Object.assign({}, h, { plan: null })));
   store.set('bhm.game.v1', Object.assign({}, S, { history: hist, redo: [] }));
 }
 
 // ---------- rules glue ----------
 function free(i) { return E.isFree(G, S.present, i); }
 function pairsAvailable() { return E.availablePairs(G, S.present, S.faces); }
+function resetStuckDialog() { $('os-shuffle').disabled = false; $('os-text').textContent = STUCK_TEXT; }
+function clearSelection() { try { const sel = window.getSelection(); if (sel && sel.rangeCount) sel.removeAllRanges(); } catch (e) { /* no selection API */ } }
+// Taps wait while the board is still dealing in or flipping through a shuffle (the faces on screen are not final yet).
+function boardBusy() { const t = now(); return (use3D() && (anim.dealAt === -1 || (anim.dealAt > 0 && t - anim.dealAt < DEAL_MS))) || (anim.shuffleAt > 0 && t - anim.shuffleAt < SHUF_MS); }
+// Moves wait while the game is paused or a dialog is up.
+function inputLocked() { return !S || paused || anyOverlay(); }
 
 function selectTile(i) {
-  if (!S || S.status !== 'playing') return { selected: S ? S.selected : -1, removed: false };
+  if (!S || S.status !== 'playing' || inputLocked()) return { selected: S ? S.selected : -1, removed: false };
   AUDIO.unlock();
   if (!S.present[i]) return { selected: S.selected, removed: false };
   if (!free(i)) {
@@ -1469,23 +1582,29 @@ function selectTile(i) {
   return { selected: i, removed: false };
 }
 
-function doMatch(a, b) {
+// Removes a pair. `rec` replays a recorded match (redo) with its original points, combo and bonus.
+function doMatch(a, b, rec) {
+  if (!S || S.status !== 'playing' || paused) return false;
   if (a === b || !S.present[a] || !S.present[b] || !free(a) || !free(b) || E.matchKey(S.faces[a]) !== E.matchKey(S.faces[b])) return false;
-  const before = { score: S.score, combo: S.combo, lastMatchMs: S.lastMatchMs, rowDone: S.rowDone, plan: S.plan };
+  const before = { combo: S.combo, lastMatchMs: S.lastMatchMs, rowDone: S.rowDone, plan: S.plan, winnable: S.winnable };
   S.present[a] = S.present[b] = false;
   S.selected = -1; anim.hint = null;
-  // combo
-  const t = S.elapsedMs;
-  S.combo = t - S.lastMatchMs <= 4000 ? S.combo + 1 : 0;
-  S.lastMatchMs = t;
-  let pts = 10 + Math.min(25, 5 * S.combo);
-  // Bathhouse Row bonus
-  let rowNow = false;
-  if (!S.rowDone) { let any = false; for (let i = 0; i < G.n; i++) if (S.present[i] && S.faces[i] >= 9 && S.faces[i] < 18) { any = true; break; } if (!any) { S.rowDone = true; rowNow = true; pts += 100; } }
+  let pts, rowNow = false;
+  if (rec) { pts = rec.pts; S.combo = rec.combo; S.lastMatchMs = rec.at; rowNow = rec.row; if (rowNow) S.rowDone = true; }
+  else {
+    // combo
+    const t = S.elapsedMs;
+    S.combo = t - S.lastMatchMs <= 4000 ? S.combo + 1 : 0;
+    S.lastMatchMs = t;
+    pts = 10 + Math.min(25, 5 * S.combo);
+    // Bathhouse Row bonus
+    if (!S.rowDone) { let any = false; for (let i = 0; i < G.n; i++) if (S.present[i] && S.faces[i] >= 9 && S.faces[i] < 18) { any = true; break; } if (!any) { S.rowDone = true; rowNow = true; pts += 100; } }
+  }
   S.score += pts;
   S.plan = E.repairPlan(G, S.present, S.faces, S.plan, a, b);
-  S.history.push({ t: 'm', a, b, before });
-  S.redo = [];
+  S.winnable = S.plan ? true : before.winnable === false ? false : null; // removing tiles never revives a dead board
+  S.history.push({ t: 'm', a, b, pts, combo: S.combo, at: S.lastMatchMs, row: rowNow, before });
+  if (!rec) S.redo = [];
   AUDIO.match(S.combo);
   spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
@@ -1493,29 +1612,74 @@ function doMatch(a, b) {
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
   if (rowNow) toast('Bathhouse Row complete! The Lamar finished the Row in 1923. +100');
   afterMove();
+  if (S.winnable === false) noteDead();
   return true;
 }
 
 function afterMove() {
   if (!S.plan && tilesLeft() > 0) schedulePlanSearch();
   if (tilesLeft() === 0) { win(); }
-  else if (!pairsAvailable().length) { S.status = 'stuck'; setTimeout(() => { if (S.status === 'stuck') openOverlay('o-stuck'); }, reduced() ? 50 : 650); announce('No more matches. Shuffle or undo.'); }
+  else if (!pairsAvailable().length) { S.status = 'stuck'; setTimeout(() => { if (S.status === 'stuck' && scene === 'game' && !paused) openOverlay('o-stuck'); }, reduced() ? 50 : 650); announce('No more matches. Shuffle or undo.'); }
   updateHud(); saveGame(); markDirty();
 }
 
-let planTimer = 0;
+// How many undos reach the last position known to be winnable (null when none is known).
+function undosToWinnable() { for (let k = S.history.length - 1; k >= 0; k--) { const h = S.history[k]; if (h.t === 'm' ? h.before.plan : h.plan) return S.history.length - k; } return null; }
+// The player's own moves can leave a board that no order clears: say so once, and how far back to undo.
+function noteDead() {
+  if (S.winnable !== false || S.status !== 'playing') return;
+  const n = undosToWinnable();
+  setStatus('This board can no longer be cleared. ' + (n ? 'Undo ' + (n === 1 ? 'one move' : 'up to ' + n + ' moves') + ' to get back on track, or play on and shuffle when stuck.' : 'Undo a few moves, or play on and shuffle when stuck.'));
+  if (!S.deadNoted) { S.deadNoted = true; announce('The board can no longer be cleared.'); toast('No way to clear this board from here. Undo to go back.'); }
+}
+// Plan search after a failed repair: a quick pass here, then a deep one in a worker (proving a board dead can take
+// seconds). Each answer is applied only if the board is still the one it was asked about.
+let planTimer = 0, planWorker = null, planAsk = null;
+function boardKey() { return S.layoutId + '|' + S.seed + '|' + S.present.map((p) => (p ? 1 : 0)).join('') + '|' + S.faces.join(','); }
+function planAnswer(key, r) {
+  if (!S || boardKey() !== key || S.plan || S.status !== 'playing') return;
+  if (r.plan && E.planValid(G, S.present, S.faces, r.plan)) { S.plan = r.plan; S.winnable = true; }
+  else if (r.exhausted) { S.winnable = false; noteDead(); }
+}
+function deepSearch(key) {
+  try {
+    if (planWorker && planAsk) { planWorker.terminate(); planWorker = null; } // a newer board supersedes the old question
+    if (!planWorker) {
+      const src = $('engine').textContent + '\nonmessage = (e) => { const d = e.data, g = ENGINE.buildGeometry(ENGINE.LAYOUTS.find((l) => l.id === d.layout).build()); const r = ENGINE.solveInfo(g, d.present, d.faces, d.budget); postMessage({ key: d.key, plan: r.plan, exhausted: r.exhausted }); };';
+      planWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      planWorker.onmessage = (e) => { planAsk = null; planAnswer(e.data.key, e.data); };
+      planWorker.onerror = () => { planWorker = null; planAsk = null; };
+    }
+    planAsk = key;
+    planWorker.postMessage({ key, layout: S.layoutId, present: S.present, faces: S.faces, budget: 2000000 });
+  } catch (e) { planWorker = null; planAsk = null; } // no workers (old browser, sandbox): the quick pass stands
+}
 function schedulePlanSearch() {
   clearTimeout(planTimer);
-  planTimer = setTimeout(() => { if (S && !S.plan && S.status === 'playing') { S.plan = E.solve(G, S.present, S.faces, 6000); } }, 30);
+  planTimer = setTimeout(() => {
+    if (!S || S.plan || S.status !== 'playing' || S.winnable === false) return;
+    const key = boardKey(), r = E.solveInfo(G, S.present, S.faces, 6000);
+    if (r.plan || r.exhausted) planAnswer(key, r); else deepSearch(key);
+  }, 30);
+}
+// Without a known plan, prefer the free pair that frees the most tiles.
+function bestFreePair() {
+  let best = null, bestN = -1;
+  for (const pr of pairsAvailable()) {
+    const p = S.present.slice(); p[pr[0]] = p[pr[1]] = false; let n = 0;
+    for (let i = 0; i < G.n; i++) if (p[i] && E.isFree(G, p, i)) n++;
+    if (n > bestN) { bestN = n; best = pr; }
+  }
+  return best;
 }
 
 function hint() {
-  if (!S || S.status !== 'playing') return null;
+  if (!S || S.status !== 'playing' || inputLocked()) return null;
   AUDIO.unlock();
-  if (!S.plan) S.plan = E.solve(G, S.present, S.faces, 20000);
+  if (!S.plan && S.winnable !== false) { const r = E.solveInfo(G, S.present, S.faces, 20000); S.plan = r.plan; S.winnable = r.plan ? true : r.exhausted ? false : null; if (S.winnable == null && !planAsk) deepSearch(boardKey()); }
   let pr = null;
   if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
-  if (!pr) { const p = pairsAvailable(); pr = p[0] || null; }
+  if (!pr) pr = bestFreePair();
   if (!pr) { setStatus('No free pairs: try Shuffle.'); return null; }
   S.hints++; S.score = Math.max(0, S.score - 15);
   anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
@@ -1525,21 +1689,23 @@ function hint() {
   const m = META[S.faces[pr[0]]];
   setStatus('Hint: match the two highlighted ' + m.name.split(':')[0] + ' tiles (−15).');
   announce('Hint: ' + m.name + ' pair highlighted');
+  if (S.winnable === false) noteDead();
   updateHud(); saveGame(); kick();
   return pr;
 }
 
 function shuffle(force) {
-  if (!S || (S.status !== 'playing' && S.status !== 'stuck')) return null;
+  if (!S || (S.status !== 'playing' && S.status !== 'stuck') || paused) return null;
   AUDIO.unlock();
   const res = E.reshuffle(G, S.present, S.faces, rngFor(S.shuffles + S.history.length * 7));
   if (!res) { setStatus('These tiles cannot be rearranged into a solvable order. Undo instead.'); $('os-text').textContent = 'The remaining tiles cannot be rearranged into a solvable order. Undo a few moves or start a new game.'; $('os-shuffle').disabled = true; return null; }
-  S.history.push({ t: 's', faces: S.faces, plan: S.plan, before: { score: S.score, status: S.status } });
+  // penalties stay paid: undoing or redoing a shuffle never refunds it or charges again
+  S.history.push({ t: 's', faces: S.faces, plan: S.plan, winnable: S.winnable, before: { status: S.status } });
   S.redo = [];
-  S.faces = res.faces; S.plan = res.plan; S.selected = -1; anim.hint = null;
+  S.faces = res.faces; S.plan = res.plan; S.winnable = true; S.selected = -1; anim.hint = null; S.deadNoted = false;
   S.shuffles++; if (!force) S.score = Math.max(0, S.score - 50);
   S.status = 'playing';
-  closeOverlay('o-stuck');
+  closeOverlay('o-stuck'); resetStuckDialog();
   anim.shuffleAt = reduced() ? 0 : now();
   AUDIO.rattle();
   setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared (−50).');
@@ -1548,13 +1714,25 @@ function shuffle(force) {
   return true;
 }
 
+// Swaps the board's faces and plan with a shuffle entry (undo and redo both use it).
+function swapShuffle(h) {
+  const f = S.faces, p = S.plan, w = S.winnable;
+  S.faces = h.faces; S.plan = h.plan; S.winnable = h.plan ? true : h.winnable === false ? false : null;
+  h.faces = f; h.plan = p; h.winnable = w;
+}
 function undo() {
-  if (!S || !S.history.length || S.status === 'won') return false;
+  if (!S || !S.history.length || S.status === 'won' || paused) return false;
   const h = S.history.pop();
-  if (h.t === 'm') { S.present[h.a] = S.present[h.b] = true; S.score = h.before.score; S.combo = h.before.combo; S.lastMatchMs = h.before.lastMatchMs; S.rowDone = h.before.rowDone; S.plan = h.before.plan; }
-  else { const cur = S.faces; S.faces = h.faces; h.faces = cur; const cp = S.plan; S.plan = h.plan; h.plan = cp; S.score = h.before.score; }
-  S.redo.push(h); S.undos++; S.selected = -1; anim.hint = null;
-  S.status = 'playing'; closeOverlay('o-stuck'); $('os-shuffle').disabled = false;
+  if (h.t === 'm') {
+    S.present[h.a] = S.present[h.b] = true;
+    // only the move's own points come back off: hint and shuffle penalties stay paid (older saves lack pts)
+    S.score = h.pts != null ? Math.max(0, S.score - h.pts) : h.before.score;
+    S.combo = h.before.combo; S.lastMatchMs = h.before.lastMatchMs; S.rowDone = h.before.rowDone; S.plan = h.before.plan;
+    S.winnable = S.plan ? true : h.before.winnable === false ? false : null;
+    anim.list = anim.list.filter((x) => !x.tiles.includes(h.a) && !x.tiles.includes(h.b)); // the restored tiles stop flying away
+  } else swapShuffle(h);
+  S.redo.push(h); S.undos++; S.selected = -1; anim.hint = null; S.deadNoted = false;
+  S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
   AUDIO.click();
   setStatus('Undone. ' + tilesLeft() + ' tiles on the board.');
   announce('Undo');
@@ -1562,15 +1740,19 @@ function undo() {
   return true;
 }
 function redo() {
-  if (!S || !S.redo.length || S.status !== 'playing') return false;
-  const h = S.redo.pop();
-  const keep = S.redo;
-  if (h.t === 'm') { S.selected = -1; doMatch(h.a, h.b); }
-  else {
-    S.history.push({ t: 's', faces: S.faces, plan: S.plan, before: { score: S.score, status: S.status } });
-    S.faces = h.faces; S.plan = h.plan; S.shuffles++; S.score = Math.max(0, S.score - 50); afterMove();
+  if (!S || !S.redo.length || (S.status !== 'playing' && S.status !== 'stuck') || paused) return false;
+  const h = S.redo[S.redo.length - 1];
+  if (h.t === 'm') {
+    if (S.status !== 'playing') return false;
+    S.redo.pop(); S.selected = -1;
+    if (!doMatch(h.a, h.b, h)) { S.redo.push(h); return false; }
+  } else {
+    S.redo.pop();
+    swapShuffle(h); S.history.push(h);
+    S.selected = -1; anim.hint = null; S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
+    anim.shuffleAt = reduced() ? 0 : now();
+    afterMove();
   }
-  S.redo = keep;
   updateHud(); saveGame();
   setStatus('Redone.');
   return true;
@@ -1588,25 +1770,29 @@ function win() {
   const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
   const base = S.score;
   S.score += 500 + timeBonus;
-  STATS.won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
-  const ls = layoutStats(S.layoutId); ls.won++;
+  const ls = layoutStats(S.layoutId);
   const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
-  if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score);
+  if (!S.practice) {
+    STATS.won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
+    ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score);
+  }
   if (S.daily) {
     const dd = STATS.daily;
-    if (!dd.done[S.daily]) {
+    if (dd.done[S.daily] == null) {
+      // the daily streak counts consecutive days; finishing an older puzzle later never moves it backwards
       const prev = dd.last ? new Date(dd.last + 'T12:00:00') : null, cur = new Date(S.daily + 'T12:00:00');
-      dd.streak = prev && Math.round((cur - prev) / 86400000) === 1 ? dd.streak + 1 : 1;
-      dd.best = Math.max(dd.best, dd.streak); dd.last = S.daily;
+      const gap = prev ? Math.round((cur - prev) / 86400000) : null;
+      if (gap == null || gap > 0) { dd.streak = gap === 1 ? dd.streak + 1 : 1; dd.last = S.daily; }
+      dd.best = Math.max(dd.best, dd.streak);
     }
-    dd.done[S.daily] = Math.min(dd.done[S.daily] || Infinity, S.elapsedMs);
+    dd.done[S.daily] = Math.min(dd.done[S.daily] == null ? Infinity : dd.done[S.daily], S.elapsedMs);
   }
   saveStats(); store.del('bhm.game.v1');
   AUDIO.win();
   spawnWinFx();
   // fact
   const fact = FACTS.length ? FACTS[rngFor(999).int(FACTS.length)] : null;
-  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + ' in ' + fmtTime(S.elapsedMs) + (newBest ? ' · new best time!' : '');
+  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
   const rows = [['Pairs, combos and penalties', base], ['Clear bonus', 500], ['Time bonus (under 10:00)', timeBonus]];
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
@@ -1656,6 +1842,8 @@ function setGraphics() {
   }
   $('board-wrap').classList.toggle('gl', use3D());
   if (R3) R3.boardId = null;
+  anim.list.length = 0; anim.particles.length = 0; // effects are renderer-specific
+  if (anim.dealAt === -1 && !use3D()) anim.dealAt = 0;
   atlas.key = ''; bgCache = null; SPR.key = '';
   if (G) { layoutBoard(); markDirty(); }
 }
@@ -1880,6 +2068,7 @@ function spawnMatchFx(a, b, pts) {
   const t = now();
   if (reduced()) { anim.list.push({ type: 'fade', tiles: [a, b], start: t, dur: 160 }); return; }
   if (use3D()) { spawnMatchFx3D(a, b, pts, t); return; }
+  if (!view.scr[a] || !view.scr[b]) return; // board not laid out yet (zero size): no effect to draw
   const [ax, ay] = view.scr[a], [bx, by] = view.scr[b];
   const mx = (ax + bx) / 2, my = (ay + by) / 2 - view.H * 0.6;
   anim.list.push({ type: 'fly', tiles: [a, b], start: t, dur: 480, to: [mx, my] });
@@ -2051,7 +2240,7 @@ function draw(t) {
     for (const i of a.tiles) {
       const spr = SPR.faces[S.faces[i]]; const [sx, sy] = view.scr[i];
       c.save(); c.globalAlpha = 1 - k;
-      if (a.type === 'fly') {
+      if (a.type === 'fly' && a.to) {
         const e = k * k * (3 - 2 * k);
         const x = sx + (a.to[0] - sx) * e, y = sy + (a.to[1] - sy) * e - Math.sin(k * Math.PI) * H * 0.3, s = 1 - 0.35 * e;
         c.translate(x + W / 2, y + H / 2); c.scale(s, s); c.drawImage(spr, -W / 2, -H / 2, spr.width / dpr, spr.height / dpr);
@@ -2089,7 +2278,18 @@ function drawParticles(c, t) {
   c.globalAlpha = 1;
 }
 
-function tileAt(px, py) {
+// A tap that lands on a blocked tile within `tol` px of a free one (a seam, or a finger a little off) takes the free one.
+function tileAt(px, py, tol = 0) {
+  const i = tileUnder(px, py);
+  if (i < 0 || !tol || free(i)) return i;
+  let best = i, bd = 1e9;
+  for (const r of [tol / 2, tol]) for (let k = 0; k < 8; k++) {
+    const dx = Math.cos(k * Math.PI / 4) * r, dy = Math.sin(k * Math.PI / 4) * r, j = tileUnder(px + dx, py + dy);
+    if (j >= 0 && j !== i && free(j) && r < bd) { bd = r; best = j; }
+  }
+  return best;
+}
+function tileUnder(px, py) {
   if (!G) return -1;
   if (use3D()) { const fl = new Set(); for (const a of anim.list) for (const i of a.tiles) fl.add(i); return R3.pick(px, py, (i) => S.present[i] && !fl.has(i)); }
   const { W, H, D } = view;
@@ -2355,7 +2555,8 @@ canvas.addEventListener('pointermove', (e) => {
   if (pinch.has(e.pointerId)) { pinch.set(e.pointerId, [x, y]); if (pinch.size === 2) { pinchUpdate(); return; } }
   if (ptr.id === e.pointerId) {
     const dx = x - ptr.x, dy = y - ptr.y;
-    if (view.zoom && (ptr.moved || Math.hypot(dx, dy) > 8)) { ptr.moved = true; view.panX = ptr.panX + dx; view.panY = ptr.panY + dy; layoutBoard(); markDirty(); }
+    if (!ptr.moved && Math.hypot(dx, dy) > 8) ptr.moved = true; // a drag is never a tap
+    if (view.zoom && ptr.moved) { view.panX = ptr.panX + dx; view.panY = ptr.panY + dy; layoutBoard(); markDirty(); }
     return;
   }
   if (e.pointerType === 'mouse' && S && S.status === 'playing') {
@@ -2368,14 +2569,16 @@ canvas.addEventListener('pointerup', (e) => {
   pinchEnd(e);
   if (ptr.id !== e.pointerId) return;
   ptr.id = null;
-  if (ptr.moved) return;
+  if (ptr.moved || !S || boardBusy()) return;
   kbActive = false;
   const [x, y] = localXY(e);
-  const i = tileAt(x, y);
+  const i = tileAt(x, y, e.pointerType === 'touch' ? 9 : 4);
   if (i >= 0) { S.cursor = i; selectTile(i); }
   else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
 });
 canvas.addEventListener('pointercancel', (e) => { pinchEnd(e); ptr.id = null; });
+// no long-press menu, drag image or text selection from the game screen
+for (const ev of ['contextmenu', 'selectstart', 'dragstart']) $('s-game').addEventListener(ev, (e) => e.preventDefault());
 
 function exposed(i) { if (!S.present[i]) return false; for (const j of G.top[i]) if (S.present[j]) return false; return true; }
 function moveCursor(dir) {
@@ -2413,24 +2616,27 @@ function handleKey(key, ev) {
   }
   if (scene === 'layouts' && k === 'Escape') { showScene('title'); return true; }
   if (scene !== 'game' || !S) return false;
+  if (S.status === 'won') return false; // the win card is on its way
   if (k === 'Escape' || k === 'p') { pauseGame(); return true; }
+  const rep = !!(ev && ev.repeat); // holding a key must not repeat hints, shuffles or undos
   if (k === '?') { openOverlay('o-help'); return true; }
-  if (ctrl && k === 'z') { undo(); return true; }
-  if (ctrl && k === 'y') { redo(); return true; }
+  if (ctrl && k === 'z') { if (!rep) { if (ev.shiftKey) redo(); else undo(); } return true; }
+  if (ctrl && k === 'y') { if (!rep) redo(); return true; }
   if (ctrl) return false;
+  if (rep && !k.startsWith('Arrow')) return true;
   switch (k) {
     case 'ArrowLeft': kbActive = true; moveCursor('left'); return true;
     case 'ArrowRight': kbActive = true; moveCursor('right'); return true;
     case 'ArrowUp': kbActive = true; moveCursor('up'); return true;
     case 'ArrowDown': kbActive = true; moveCursor('down'); return true;
-    case 'Enter': case ' ': kbActive = true; if (S.cursor < 0 || !S.present[S.cursor]) moveCursor('right'); else selectTile(S.cursor); return true;
+    case 'Enter': case ' ': kbActive = true; if (S.cursor < 0 || !S.present[S.cursor]) moveCursor('right'); else if (!boardBusy()) selectTile(S.cursor); return true;
     case 'h': hint(); return true;
     case 's': shuffle(); return true;
     case 'u': undo(); return true;
     case 'r': redo(); return true;
     case 'f': setSetting('highlightFree', !SETTINGS.highlightFree); return true;
     case 'z': setZoom(!view.zoom); return true;
-    case 'n': newGame({ layout: S.layoutId }); return true;
+    case 'n': askNewGame(); return true;
   }
   return false;
 }
@@ -2449,13 +2655,11 @@ function panTo(ids) {
 }
 function setZoom(on) {
   if (!G) return view.zoom;
-  view.zoom = !!on;
-  if (on && S && (S.selected >= 0 || S.cursor >= 0)) {
-    // center the zoom on the selection or cursor
-    const i = S.selected >= 0 ? S.selected : S.cursor; const [sx, sy] = screenCenter(i);
-    const k = 1.8; view.panX = -(sx - view.cssW / 2) * k; view.panY = -(sy - view.cssH / 2) * k;
-  } else { view.panX = 0; view.panY = 0; }
-  layoutBoard(); updateHud(); markDirty(); return view.zoom;
+  view.zoom = !!on; view.panX = 0; view.panY = 0;
+  layoutBoard();
+  // center the zoom on the selection or cursor, measured after the zoom (2D and 3D zoom by different amounts)
+  if (on && S && (S.selected >= 0 || S.cursor >= 0)) panTo([S.selected >= 0 ? S.selected : S.cursor]);
+  updateHud(); markDirty(); return view.zoom;
 }
 
 // ---------- buttons ----------
@@ -2463,6 +2667,7 @@ const on = (id, fn) => $(id).addEventListener('click', (e) => { AUDIO.unlock(); 
 on('b-play', () => showScene('layouts'));
 on('b-daily', () => newGame({ daily: true }));
 function resumeLoaded() {
+  paused = false; lastTick = 0; clearSelection();
   showScene('game'); updateHud();
   if (S.status !== 'won' && !pairsAvailable().length) { S.status = 'stuck'; openOverlay('o-stuck'); }
 }
@@ -2484,7 +2689,9 @@ on('t-redo', () => redo());
 on('t-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
-on('op-new', () => { closeAll(); paused = false; newGame({ layout: S.layoutId }); });
+on('op-new', () => askNewGame());
+on('oc-new', () => { closeAll(); paused = false; newGame({ layout: S.layoutId }); });
+on('oc-keep', () => closeOverlay('o-confirm'));
 on('op-help', () => openOverlay('o-help'));
 on('op-settings', () => openOverlay('o-settings'));
 on('op-title', () => { closeAll(); paused = false; saveGame(); showScene('title'); });
@@ -2525,11 +2732,11 @@ window.__game = {
       layoutId: S.layoutId, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
       freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
       selected: S.selected, cursor: S.cursor, score: S.score, combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
-      gameStatus: S.status, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
+      gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
       tiles: G.pos.map(([x, y, z], i) => ({ i, x, y, z, f: S.faces[i], key: E.matchKey(S.faces[i]), present: S.present[i], free: free(i) })),
     });
   },
-  setState(s) { closeAll(); loadState(s); showScene('game'); updateHud(); markDirty(); return true; },
+  setState(s) { closeAll(); loadState(s); resumeLoaded(); markDirty(); return true; },
   isIdle() { const t = performance.now(); if (artPending || artTick || countBusy) return false; if (anim.frozen != null) return t >= toastBusyUntil; if (!settled) return false; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) && !(use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))) && t >= toastBusyUntil; },
   scene(name) { return gotoScene(name); },
   newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
@@ -2546,7 +2753,7 @@ window.__game = {
       case 'solveStep': {
         if (!S.plan) S.plan = E.solve(G, S.present, S.faces, 40000);
         const pr = S.plan && S.plan.find(([x, y]) => free(x) && free(y));
-        if (!pr) return null; doMatch(pr[0], pr[1]); return pr;
+        if (!pr || !doMatch(pr[0], pr[1])) return null; return pr;
       }
       case 'solveTo': { let guard = 200; while (tilesLeft() > a[0] && guard-- > 0) { if (!window.__game.act('solveStep')) break; } anim.list.length = 0; anim.particles.length = 0; markDirty(); return tilesLeft(); }
       case 'key': return handleKey(a[0], a[1] || {});
@@ -2582,6 +2789,10 @@ window.__game = {
       }
       case 'tileCenter': { const r = canvas.getBoundingClientRect(); const [x, y] = screenCenter(a[0]); return { x: r.left + x, y: r.top + y }; }
       case 'zoom': return setZoom(a[0]);
+      case 'advance': S.elapsedMs += a[0]; return Math.round(S.elapsedMs); // move the game clock (combo windows, best times)
+      case 'tileAt': { const r = canvas.getBoundingClientRect(); return tileAt(a[0] - r.left, a[1] - r.top, a[2] || 0); }
+      case 'screenCenter': return screenCenter(a[0]);
+      case 'cursor': S.cursor = a[0]; kbActive = true; markDirty(); return S.cursor;
       case 'boardFits': { // every tile's projected top face lies inside the board area
         let out = 0; for (let i = 0; i < G.n; i++) { const [x, y] = screenCenter(i); if (x < 0 || y < 0 || x > view.cssW || y > view.cssH) out++; }
         return { out, w: view.cssW, h: view.cssH, tileW: view.W };

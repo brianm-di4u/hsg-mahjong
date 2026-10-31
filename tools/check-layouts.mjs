@@ -1,18 +1,9 @@
 // Extracts the pure engine block (<script id="engine">) from index.html and checks every layout in Node:
 // tile count, overlaps, support, and that seeded deals replay to an empty board. Run from the repo root:
 //   node tools/check-layouts.mjs [deals-per-layout]
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
-import { fileURLToPath } from 'node:url';
+import { loadEngine } from './engine-load.mjs';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const html = fs.readFileSync(path.join(HERE, '..', 'index.html'), 'utf8');
-const src = html.match(/<script id="engine">([\s\S]*?)<\/script>/)[1];
-const ctx = {};
-vm.createContext(ctx);
-vm.runInContext(src + '\nthis.E = ENGINE;', ctx);
-const E = ctx.E;
+const E = loadEngine();
 const N = +(process.argv[2] || 100);
 let bad = 0;
 for (const L of E.LAYOUTS) {
