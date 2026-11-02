@@ -69,7 +69,7 @@ Order confirmed by the labels on the HABS-28 site plan and silhouette: Superior,
 7. **HABS caption dates** ("circa 1920" for Superior, Ozark, Buckstaff and Lamar) are approximate; prefer the NRHP dates (1916, 1922, 1912, 1923).
 8. **Fordyce brick colour.** NRHP "cream" vs the photo's golden buff with darker lozenge outlines. Lighting and film may shift colour; treat photo colours as [observed 1984], not as specification.
 
-## Reference photos (in `games/mahjong/benchmarks/ref/`, git-ignored, review only)
+## Reference photos (in the workspace's `reference/photos/<building>/`, git-ignored, review only)
 
 All are by **Jack E. Boucher, HABS, June 1984** (4×5 colour transparencies). Rights: "No known restrictions on images made by the U.S. Government" ([LOC HABS rights](https://www.loc.gov/rr/print/res/114_habs.html)), i.e. public domain. LOC serves JPEGs only up to 1024 px, so each file was converted locally from the LOC master TIFF to a 2400-px JPEG (0.55–0.75 MB).
 
