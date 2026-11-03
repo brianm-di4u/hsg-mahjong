@@ -168,3 +168,12 @@ An idle board draws nothing: rendering only happens when something changes or an
 - `tools/check-layouts.mjs`: validates layouts and deals in Node.
 - `tools/extract-facts.mjs`: rebuilds the inlined fact list from `research/trivia-bank.json`.
 - `reference-samples/` is empty. No third-party code was downloaded or copied.
+
+## Update: repainted backgrounds (v2.2.0, 2026-11-02)
+
+The day and night table backdrops and the title painting were repainted. The new source PNGs replace the
+`art-src/art.json` sources (git-ignored; the workspace keeps copies of the old and new paintings in
+`reference/backgrounds/`) and were packed with the usual tools. Older descriptions of these paintings in
+VISUAL-REPORT.md refer to the previous art.
+
+`npm test`: 85/85 passed.

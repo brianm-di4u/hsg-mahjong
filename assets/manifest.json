@@ -135,7 +135,7 @@
   "file": "title-hero.webp",
   "w": 1600,
   "h": 900,
-  "bytes": 452324
+  "bytes": 495604
  },
  "pip-spring-a": {
   "file": "pip-spring-a.webp",
@@ -225,12 +225,12 @@
   "file": "backdrop-day.webp",
   "w": 1600,
   "h": 900,
-  "bytes": 331970
+  "bytes": 328356
  },
  "backdrop-night": {
   "file": "backdrop-night.webp",
   "w": 1600,
   "h": 900,
-  "bytes": 306506
+  "bytes": 343450
  }
 }
