@@ -122,4 +122,45 @@ export const tests = [
       t.equal((await t.state()).scene, 'layouts', 'the game still responds after a stray error');
     },
   },
+  {
+    name: 'S6-06: junk saves and junk stats do not show NaN or soft-lock',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'tower', seed: 777 }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 136); await t.game('act', 'hint');
+      await t.page.evaluate(() => { document.addEventListener('visibilitychange', (e) => e.stopImmediatePropagation(), true); });
+      const good = await t.page.evaluate(() => localStorage.getItem('bhm.game.v1'));
+      t.expect(!!good, 'a good save exists');
+      const mut = (fn) => { const o = JSON.parse(good); fn(o); return JSON.stringify(o); };
+      const bad = {
+        'score string': mut((o) => { o.score = 'abc'; }),
+        'elapsedMs null': mut((o) => { o.elapsedMs = null; }),
+        'status won': mut((o) => { o.status = 'won'; }),
+      };
+      // a page with a game in it saves itself when it hides, so reload first, then plant the save
+      const plant = async (json) => { await t.reload(); await t.page.evaluate((j) => localStorage.setItem('bhm.game.v1', j), json); await t.reload(); };
+      for (const [name, json] of Object.entries(bad)) {
+        await plant(json);
+        await t.page.click('#b-continue');
+        const s = await t.state();
+        t.equal([s.scene, s.tilesLeft, s.gameStatus], ['game', 144, 'playing'], name + ': the bad save is discarded and a fresh game starts');
+        const hud = await t.page.evaluate(() => ['h-score', 'h-time', 'h-left'].map((id) => document.getElementById(id).textContent).join('|'));
+        t.expect(!/NaN/.test(hud), name + ': HUD has no NaN: ' + hud);
+      }
+      // the good save still continues
+      await plant(good); await t.page.click('#b-continue');
+      t.equal((await t.state()).tilesLeft, 136, 'a good save still continues');
+      // junk stats
+      await t.page.evaluate(() => localStorage.setItem('bhm.stats.v1', JSON.stringify({ played: 'abc', won: null, streak: -4, layouts: { tower: null, pyramid: { played: 'x', won: 2, bestMs: 'abc' } }, daily: { done: null, streak: 'x', last: 5 } })));
+      await t.reload();
+      await t.page.click('#b-stats');
+      const txt = await t.page.evaluate(() => document.getElementById('o-stats').innerText);
+      t.expect(!/NaN|undefined|Infinity/.test(txt), 'Stats shows no NaN: ' + txt.replace(/s+/g, ' ').slice(0, 200));
+      await t.page.keyboard.press('Escape');
+      await t.page.click('#b-play');
+      const cards = await t.page.evaluate(() => document.getElementById('cards').innerText);
+      t.expect(!/NaN/.test(cards), 'layout cards show no NaN');
+    },
+  },
 ];
