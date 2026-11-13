@@ -91,4 +91,35 @@ export const tests = [
       t.equal(await acState(), 'running', 'showing the tab resumes it');
     },
   },
+  {
+    name: 'S6-02: junk settings do not kill the buttons, and a stray error is contained',
+    url: URL,
+    viewports: ['desktop'],
+    allowConsoleErrors: true,
+    async run(t) {
+      const junk = '{"volume":"abc","motion":"x","theme":"zzz","tileset":"nope","graphics":"zz","camera":"zz","sound":"yes","showTimer":7}';
+      await t.page.evaluate((j) => localStorage.setItem('bhm.settings.v1', j), junk);
+      await t.reload();
+      const s = (await t.state()).settings;
+      t.expect(Number.isFinite(s.volume) && s.volume >= 0 && s.volume <= 100, 'volume is a finite 0-100 number, got ' + s.volume);
+      t.equal([s.motion, s.theme, s.tileset, s.graphics, s.camera], ['auto', 'auto', 'auto', 'auto', 'classic'], 'enum values fall back to the defaults');
+      t.equal([typeof s.sound, typeof s.showTimer], ['boolean', 'boolean'], 'booleans are booleans');
+      await t.page.click('#b-play');
+      t.equal((await t.state()).scene, 'layouts', 'Play works with junk settings');
+      await t.game('scene', 'title');
+      await t.page.click('#b-settings');
+      t.equal((await t.state()).overlay, 'o-settings', 'Settings opens');
+      await t.page.keyboard.press('Escape');
+      // volume 9999 is clamped
+      await t.page.evaluate(() => localStorage.setItem('bhm.settings.v1', '{"volume":9999}'));
+      await t.reload();
+      t.equal((await t.state()).settings.volume, 100, 'volume is clamped');
+      // a stray error shows a toast and the game keeps going
+      await t.page.evaluate(() => { setTimeout(() => { throw new Error('boom'); }, 0); });
+      await t.page.waitForTimeout(200);
+      t.expect(await t.page.evaluate(() => document.getElementById('toast').classList.contains('on')), 'a toast tells the player');
+      await t.page.click('#b-play');
+      t.equal((await t.state()).scene, 'layouts', 'the game still responds after a stray error');
+    },
+  },
 ];

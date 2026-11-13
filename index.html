@@ -842,7 +842,20 @@ const store = {
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
 const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic' };
-const SETTINGS = Object.assign({}, DEFAULT_SETTINGS, store.get('bhm.settings.v1', {}));
+const SETTING_CHOICES = { motion: ['auto', 'full', 'reduced'], theme: ['auto', 'light', 'dark'], tileset: ['auto', 'palm', 'ribbon', 'peacock'], graphics: ['auto', '3d', 'flat'], camera: ['classic', 'tilted', 'top'] };
+// Stored settings come from a file anyone can edit: keep only values the game can use, the defaults for the rest
+function cleanSettings(raw) {
+  const o = Object.assign({}, DEFAULT_SETTINGS);
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return o;
+  for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    const v = raw[k];
+    if (typeof DEFAULT_SETTINGS[k] === 'boolean') { if (typeof v === 'boolean') o[k] = v; else if (v === 'true' || v === 1) o[k] = true; else if (v === 'false' || v === 0) o[k] = false; }
+    else if (k === 'volume') { const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN; if (Number.isFinite(n)) o[k] = Math.min(100, Math.max(0, Math.round(n))); }
+    else if (SETTING_CHOICES[k].includes(v)) o[k] = v;
+  }
+  return o;
+}
+const SETTINGS = cleanSettings(store.get('bhm.settings.v1', {}));
 function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
 function loadStats() { const f = freshStats(), s = store.get('bhm.stats.v1', {}) || {}; const o = Object.assign(f, s); o.layouts = Object.assign({}, s.layouts); o.daily = Object.assign(freshStats().daily, s.daily); o.daily.done = Object.assign({}, o.daily.done); return o; }
@@ -2680,7 +2693,7 @@ function setZoom(on) {
 }
 
 // ---------- buttons ----------
-const on = (id, fn) => $(id).addEventListener('click', (e) => { AUDIO.unlock(); fn(e); });
+const on = (id, fn) => $(id).addEventListener('click', (e) => { try { AUDIO.unlock(); } catch (err) { /* a sound problem must not kill the button */ } fn(e); });
 on('b-play', () => showScene('layouts'));
 on('b-daily', () => startNewGame({ daily: true }));
 function resumeLoaded() {
@@ -2730,6 +2743,11 @@ for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('c
 for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('click', () => showScene('title'));
 for (const o of document.querySelectorAll('.overlay')) o.addEventListener('click', (e) => { if (e.target === o && !['o-win', 'o-stuck', 'o-pause'].includes(o.id)) closeOverlay(o.id); });
 
+// One stray error should not leave the player with a frozen screen: say so and keep the loop running
+let lastErrToast = -1e9;
+function onStrayError() { const t = performance.now(); if (t - lastErrToast > 8000) { lastErrToast = t; try { toast('Something went wrong, but the game is still running.'); } catch (e) { /* toast itself failed */ } } try { markDirty(); } catch (e) { /* not ready yet */ } }
+window.addEventListener('error', onStrayError);
+window.addEventListener('unhandledrejection', onStrayError);
 window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
 document.addEventListener('visibilitychange', () => { lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
 const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
