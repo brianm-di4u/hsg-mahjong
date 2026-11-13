@@ -904,6 +904,8 @@ const AUDIO = (() => {
       [0, 2, 4, 5, 6].forEach((k, i) => tone(PENTA[k] / 2, t + i * 0.13, 0.9, 'triangle', 0.16));
       noise(t + 0.2, 1.8, 4800, 0.6, 0.16, 'highpass', 0.4);
     },
+    // a hidden tab goes quiet: sounds already scheduled stop with the context, and it resumes on return
+    setActive(active) { if (!ac) return; try { const p = active ? ac.resume() : ac.suspend(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* context already closed */ } },
     toggle() { if (ac && master) master.gain.value = SETTINGS.sound ? (SETTINGS.volume / 100) * 0.5 : 0; },
   };
   return api;
@@ -2729,7 +2731,7 @@ for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('cl
 for (const o of document.querySelectorAll('.overlay')) o.addEventListener('click', (e) => { if (e.target === o && !['o-win', 'o-stuck', 'o-pause'].includes(o.id)) closeOverlay(o.id); });
 
 window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
-document.addEventListener('visibilitychange', () => { lastTick = performance.now(); if (document.hidden) saveGame(); });
+document.addEventListener('visibilitychange', () => { lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
 const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
 if (mqDark.addEventListener) mqDark.addEventListener('change', onScheme);
 

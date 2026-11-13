@@ -69,4 +69,26 @@ export const tests = [
       t.equal([s.layoutId, s.tilesLeft], ['pyramid', 136], 'Continue still resumes it');
     },
   },
+  {
+    name: 'S1-21: hiding the tab suspends the audio context and showing it resumes',
+    url: URL,
+    viewports: ['desktop'],
+    initScript: () => {
+      const O = window.AudioContext; window.__acs = [];
+      window.AudioContext = class extends O { constructor(...a) { super(...a); window.__acs.push(this); } };
+    },
+    async run(t) {
+      const setHidden = (h) => t.page.evaluate((h) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => h }); document.dispatchEvent(new Event('visibilitychange')); }, h);
+      const acState = () => t.page.evaluate(() => (window.__acs[0] ? window.__acs[0].state : 'none'));
+      await t.page.click('#b-play'); // the first gesture creates the context
+      await t.page.waitForFunction(() => window.__acs.length > 0 && window.__acs[0].state === 'running', null, { timeout: 5000 }).catch(() => {});
+      t.equal(await acState(), 'running', 'audio runs while the tab is visible');
+      await setHidden(true);
+      await t.page.waitForTimeout(300);
+      t.equal(await acState(), 'suspended', 'hiding the tab suspends the audio context');
+      await setHidden(false);
+      await t.page.waitForTimeout(300);
+      t.equal(await acState(), 'running', 'showing the tab resumes it');
+    },
+  },
 ];
