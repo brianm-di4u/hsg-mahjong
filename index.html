@@ -1736,7 +1736,8 @@ function hint() {
   if (!S.plan && S.winnable !== false) { const r = E.solveInfo(G, S.present, S.faces, 20000); S.plan = r.plan; S.winnable = r.plan ? true : r.exhausted ? false : null; if (S.winnable == null && !planAsk) deepSearch(boardKey()); }
   let pr = null;
   if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
-  if (!pr) pr = bestFreePair();
+  let guess = false; // no known way to clear the board: the pair is only the free pair that opens the most tiles
+  if (!pr) { pr = bestFreePair(); guess = !!pr; }
   if (!pr) { setStatus('No free pairs: try Shuffle.', STATUS_HOLD_MS); return null; }
   S.hints++; S.score = Math.max(0, S.score - 15);
   anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
@@ -1744,7 +1745,7 @@ function hint() {
   S.selected = -1;
   AUDIO.chime();
   const m = META[S.faces[pr[0]]];
-  setStatus('Hint: match the two highlighted ' + m.name.split(':')[0] + ' tiles (−15).', STATUS_HOLD_MS);
+  setStatus((guess ? 'Hint (best guess): match the two highlighted ' : 'Hint: match the two highlighted ') + m.name.split(':')[0] + ' tiles (−15).', STATUS_HOLD_MS);
   announce('Hint: ' + m.name + ' pair highlighted');
   if (S.winnable === false) noteDead();
   updateHud(); saveGame(); kick();
@@ -2889,6 +2890,7 @@ window.__game = {
       case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
       case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
       case 'deadBoard': S.winnable = false; noteDead(); return S.winnable; // test: declare the board dead and show the dead-board line
+      case 'noPlan': S.plan = null; S.winnable = null; return true; // test: forget the plan so hint() has to fall back
       case 'feedWatch': { watch.last = 0; watch.n = 0; watch.sum = 0; let p = performance.now(); for (const gap of a[0]) { p += gap; watchFrame(p, true); } return use3D(); } // test: feed the slow-frame watchdog synthetic frame gaps (ms)
       case 'animAt': { // freeze the animation clock (for mid-animation screenshots); null resumes
         if (a[0] == null) { anim.frozen = null; markDirty(); return true; }

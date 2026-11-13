@@ -40,4 +40,19 @@ export const tests = [
       t.expect(!(await clipped()).clip, 'dead-board message is not clipped');
     },
   },
+  {
+    name: 'S3-10: a hint chosen without a known plan says it is a best guess',
+    viewports: ['desktop'],
+    url: URL,
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 11 }); await t.waitIdle(15000);
+      let s = await t.page.evaluate(() => { const real = ENGINE.solveInfo; ENGINE.solveInfo = () => ({ plan: null, exhausted: false }); const g = window.__game; g.act('noPlan'); g.act('hint'); ENGINE.solveInfo = real; return g.getState(); });
+      t.expect(/^Hint \(best guess\)/.test(s.status), 'fallback hint is labelled: ' + s.status);
+      t.expect(!/keeps|winnable/.test(s.status), 'and makes no promise');
+      await t.game('newGame', { layout: 'pyramid', seed: 12 }); await t.waitIdle(15000);
+      s = await t.state();
+      await t.game('act', 'hint'); s = await t.state();
+      t.expect(/^Hint: match/.test(s.status), 'a hint from the known plan is not labelled a guess: ' + s.status);
+    },
+  },
 ];
