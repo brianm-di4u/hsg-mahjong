@@ -23,4 +23,29 @@ export const tests = [
       t.equal((await t.state()).selected, g.i, 'the early tap selects once the shuffle is done');
     },
   },
+  {
+    name: 'S1-07: hovering does not erase the match result or the hint text for a couple of seconds',
+    viewports: ['desktop'],
+    url: 'index.html?gl=0',
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const hint = await t.game('act', 'hint');
+      let s = await t.state();
+      t.expect(/^Hint/.test(s.status), 'the hint is shown: ' + s.status);
+      const other = s.tiles.find((x) => x.free && !hint.includes(x.i));
+      const c = await t.game('act', 'tileCenter', other.i);
+      await t.page.mouse.move(c.x - 30, c.y - 30); await t.page.mouse.move(c.x, c.y, { steps: 3 });
+      t.equal((await t.state()).status, s.status, 'hovering a tile leaves the hint text alone');
+      await t.game('act', 'match', hint[0], hint[1]);
+      s = await t.state();
+      t.expect(/^Matched/.test(s.status), 'the match result is shown: ' + s.status);
+      const free = s.tiles.filter((x) => x.free);
+      const o2 = free[free.length - 1], c2 = await t.game('act', 'tileCenter', o2.i);
+      await t.page.mouse.move(c2.x - 40, c2.y - 40); await t.page.mouse.move(c2.x, c2.y, { steps: 3 });
+      t.equal((await t.state()).status, s.status, 'hovering a tile leaves the match result alone');
+      await t.page.waitForTimeout(2800);
+      await t.page.mouse.move(c2.x - 40, c2.y - 40); await t.page.mouse.move(c2.x, c2.y, { steps: 3 });
+      t.expect(!/^Matched/.test((await t.state()).status), 'after the hold, hover shows tile facts again');
+    },
+  },
 ];

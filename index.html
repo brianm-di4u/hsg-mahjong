@@ -1664,7 +1664,7 @@ function doMatch(a, b, rec) {
   AUDIO.match(S.combo);
   spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
-  setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')');
+  setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
   if (rowNow) toast('Bathhouse Row complete! The Lamar finished the Row in 1923. +100');
   afterMove();
@@ -1685,7 +1685,7 @@ function undosToWinnable() { for (let k = S.history.length - 1; k >= 0; k--) { c
 function noteDead() {
   if (S.winnable !== false || S.status !== 'playing') return;
   const n = undosToWinnable();
-  setStatus('This board can no longer be cleared. ' + (n ? 'Undo ' + (n === 1 ? 'one move' : 'up to ' + n + ' moves') + ' to get back on track, or play on and shuffle when stuck.' : 'Undo a few moves, or play on and shuffle when stuck.'));
+  setStatus('This board can no longer be cleared. ' + (n ? 'Undo ' + (n === 1 ? 'one move' : 'up to ' + n + ' moves') + ' to get back on track, or play on and shuffle when stuck.' : 'Undo a few moves, or play on and shuffle when stuck.'), STATUS_HOLD_MS);
   if (!S.deadNoted) { S.deadNoted = true; announce('The board can no longer be cleared.'); toast('No way to clear this board from here. Undo to go back.'); }
 }
 // Plan search after a failed repair: a quick pass here, then a deep one in a worker (proving a board dead can take
@@ -1736,14 +1736,14 @@ function hint() {
   let pr = null;
   if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
   if (!pr) pr = bestFreePair();
-  if (!pr) { setStatus('No free pairs: try Shuffle.'); return null; }
+  if (!pr) { setStatus('No free pairs: try Shuffle.', STATUS_HOLD_MS); return null; }
   S.hints++; S.score = Math.max(0, S.score - 15);
   anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
   AUDIO.chime();
   const m = META[S.faces[pr[0]]];
-  setStatus('Hint: match the two highlighted ' + m.name.split(':')[0] + ' tiles (−15).');
+  setStatus('Hint: match the two highlighted ' + m.name.split(':')[0] + ' tiles (−15).', STATUS_HOLD_MS);
   announce('Hint: ' + m.name + ' pair highlighted');
   if (S.winnable === false) noteDead();
   updateHud(); saveGame(); kick();
@@ -1764,7 +1764,7 @@ function shuffle(force) {
   closeOverlay('o-stuck'); resetStuckDialog();
   anim.shuffleAt = reduced() ? 0 : now();
   AUDIO.rattle();
-  setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared (−50).');
+  setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared (−50).', STATUS_HOLD_MS);
   announce('Tiles shuffled');
   afterMove(); kick();
   return true;
@@ -2376,7 +2376,10 @@ function updateHud() {
   $('t-zoom').setAttribute('aria-pressed', String(view.zoom));
 }
 setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(); $('h-time').textContent = fmtTime(S.elapsedMs); if (Math.floor(S.elapsedMs / 5000) !== Math.floor((S.elapsedMs - 250) / 5000)) saveGame(); } }, 250);
-function setStatus(txt) { $('status-text').textContent = txt; }
+// Results (match, hint, shuffle) stay on the strip for a moment: hovering a tile must not wipe them at once.
+const STATUS_HOLD_MS = 2500;
+let statusHoldUntil = 0;
+function setStatus(txt, holdMs) { $('status-text').textContent = txt; statusHoldUntil = holdMs ? performance.now() + holdMs : 0; }
 let toastTimer = 0, toastBusyUntil = 0;
 function toast(txt) {
   const el = $('toast'); el.textContent = txt; el.classList.add('on');
@@ -2619,7 +2622,7 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (e.pointerType === 'mouse' && S && S.status === 'playing') {
     const i = tileAt(x, y);
-    if (i !== hoverTile) { hoverTile = i; if (use3D()) markDirty(); if (i >= 0 && S.selected < 0) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
+    if (i !== hoverTile) { hoverTile = i; if (use3D()) markDirty(); if (i >= 0 && S.selected < 0 && performance.now() >= statusHoldUntil) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
   }
 });
 const pinchEnd = (e) => { pinch.delete(e.pointerId); if (pinch.size < 2) pinchD0 = 0; };
