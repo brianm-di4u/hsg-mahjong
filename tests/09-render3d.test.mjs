@@ -47,10 +47,10 @@ const TESTS = [
     viewports: ['desktop'],
     url: 'index.html?glhw=1', // treat SwiftShader as a GPU, so the watchdog (not the software check) has to act
     async run(t) {
-      await t.game('newGame', { layout: 'pyramid', seed: 5 });
+      await t.game('newGame', { layout: 'pyramid', seed: 5 }); await t.waitIdle(30000);
       t.equal((await t.state()).gfx, '3d', 'starts in 3D');
-      // keep it animating until the watchdog has seen enough frames
-      await t.page.waitForFunction(() => { const g = window.__game; if (g.getState().gfx === '2d') return true; g.act('shuffle'); return false; }, null, { timeout: 120000, polling: 1500 }).catch(() => {});
+      // feed the watchdog 40 frames of 80 ms (12 fps): real frames are too fast on a GPU and too slow (over 2 s, ignored as stalls) on software GL
+      await t.game('act', 'feedWatch', Array(40).fill(80));
       const s = await t.state();
       t.log('frames measured on ' + s.glName);
       t.equal(s.gfx, '2d', 'watchdog switched to flat tiles');

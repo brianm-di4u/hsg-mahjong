@@ -2887,6 +2887,7 @@ window.__game = {
       case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt };
       case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
       case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
+      case 'feedWatch': { watch.last = 0; watch.n = 0; watch.sum = 0; let p = performance.now(); for (const gap of a[0]) { p += gap; watchFrame(p, true); } return use3D(); } // test: feed the slow-frame watchdog synthetic frame gaps (ms)
       case 'animAt': { // freeze the animation clock (for mid-animation screenshots); null resumes
         if (a[0] == null) { anim.frozen = null; markDirty(); return true; }
         const last = a[1] === 'deal' ? anim.dealAt : a[1] === 'shuffle' ? anim.shuffleAt : anim.list.length ? Math.max(...anim.list.map((x) => x.start)) : performance.now();

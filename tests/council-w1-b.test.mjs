@@ -83,4 +83,21 @@ export const tests = [
       t.equal(foot, 'Every deal starts solvable. Hints and undo keep you on track.', 'footer wording');
     },
   },
+  {
+    name: 'S6-03: the slow-frame watchdog keeps 3D on fast frames and ignores a lone stall',
+    viewports: ['desktop'],
+    url: 'index.html?glhw=1',
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 5 }); await t.waitIdle(30000);
+      t.equal((await t.state()).gfx, '3d', 'starts in 3D');
+      await t.game('act', 'feedWatch', Array(60).fill(16));
+      t.equal((await t.state()).gfx, '3d', '60 fps frames keep 3D');
+      await t.game('act', 'feedWatch', [...Array(20).fill(16), 2600, ...Array(20).fill(16)]);
+      t.equal((await t.state()).gfx, '3d', 'one 2.6 s stall is not a slow GPU');
+      await t.game('act', 'feedWatch', Array(40).fill(50));
+      t.equal((await t.state()).gfx, '3d', '20 fps is fine');
+      await t.game('act', 'feedWatch', Array(40).fill(80));
+      t.equal((await t.state()).gfx, '2d', '12 fps frames switch to flat tiles');
+    },
+  },
 ];
