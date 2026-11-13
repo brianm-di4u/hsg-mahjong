@@ -1549,6 +1549,7 @@ function newGame(opts = {}) {
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
   showScene('game');
+  view.zoom = false; view.panX = 0; view.panY = 0; // a new board starts unzoomed, whatever the last one was
   layoutBoard(); markDirty(); updateHud(); saveGame();
   // small tiles on a portrait phone: point at Zoom and landscape
   setStatus(practice ? 'Practice: you have already finished this Daily Puzzle. ' + layout.caption : layout.caption);
