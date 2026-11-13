@@ -1517,10 +1517,25 @@ function newGame(opts = {}) {
   return { layoutId: layout.id, seed, tiles: G.n };
 }
 // New game from inside a game asks first when there is progress to lose
+let pendingNew = null; // the new game the Abandon dialog will start when it is confirmed (null: restart this layout)
 function askNewGame() {
+  pendingNew = null;
   if (!inProgress()) { closeAll(); newGame({ layout: S ? S.layoutId : undefined }); return true; }
   $('oc-text').textContent = 'Starting a new game ends this one' + (STATS.streak > 0 && !S.practice ? ' and resets your win streak of ' + STATS.streak + '.' : '.');
   openOverlay('o-confirm'); return false;
+}
+// A game with matches made that a new game would end: the one in play, or the saved one Continue would resume after a reload
+function hasProgress() {
+  if (S) return inProgress();
+  const s = store.get('bhm.game.v1', null);
+  return !!s && (s.status === 'playing' || s.status === 'stuck') && Array.isArray(s.history) && s.history.some((h) => h && h.t === 'm');
+}
+// Layout cards and the Daily button start a game here, so a thumb slip cannot silently end the one in progress
+function startNewGame(opts) {
+  if (!hasProgress()) { newGame(opts); return; }
+  pendingNew = opts;
+  $('oc-text').textContent = 'Starting a new game ends ' + (S ? 'this one' : 'your saved game') + (S && STATS.streak > 0 && !S.practice ? ' and resets your win streak of ' + STATS.streak + '.' : '.');
+  openOverlay('o-confirm');
 }
 
 // Validates a saved state before anything global changes; throws on a save that does not fit its layout.
@@ -2464,7 +2479,7 @@ function buildCards() {
     b.querySelector('b').textContent = l.name;
     if (l.portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Fits phones'; b.querySelector('b').after(tag); } b.querySelector('.cap').textContent = l.caption;
     b.querySelector('.best').textContent = ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : '144 tiles';
-    b.addEventListener('click', () => { AUDIO.unlock(); newGame({ layout: l.id }); });
+    b.addEventListener('click', () => { AUDIO.unlock(); startNewGame({ layout: l.id }); });
     box.appendChild(b);
     requestAnimationFrame(() => drawPreview(b.querySelector('canvas'), l));
   }
@@ -2665,7 +2680,7 @@ function setZoom(on) {
 // ---------- buttons ----------
 const on = (id, fn) => $(id).addEventListener('click', (e) => { AUDIO.unlock(); fn(e); });
 on('b-play', () => showScene('layouts'));
-on('b-daily', () => newGame({ daily: true }));
+on('b-daily', () => startNewGame({ daily: true }));
 function resumeLoaded() {
   paused = false; lastTick = 0; clearSelection();
   showScene('game'); updateHud();
@@ -2690,8 +2705,8 @@ on('t-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
 on('op-new', () => askNewGame());
-on('oc-new', () => { closeAll(); paused = false; newGame({ layout: S.layoutId }); });
-on('oc-keep', () => closeOverlay('o-confirm'));
+on('oc-new', () => { const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
+on('oc-keep', () => { pendingNew = null; closeOverlay('o-confirm'); });
 on('op-help', () => openOverlay('o-help'));
 on('op-settings', () => openOverlay('o-settings'));
 on('op-title', () => { closeAll(); paused = false; saveGame(); showScene('title'); });
