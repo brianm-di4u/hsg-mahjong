@@ -72,4 +72,15 @@ export const tests = [
       t.equal((await t.state()).zoom, false, 'two pans in a row, then one Zoom tap');
     },
   },
+  {
+    name: 'S1-12: the title footer does not promise that every board can be cleared',
+    viewports: ['desktop'],
+    url: 'index.html?gl=0',
+    async run(t) {
+      await t.game('scene', 'title');
+      const foot = await t.page.locator('#s-title .foot').innerText();
+      t.expect(!/every board can be cleared/i.test(foot), 'no promise about every board: ' + foot);
+      t.equal(foot, 'Every deal starts solvable. Hints and undo keep you on track.', 'footer wording');
+    },
+  },
 ];
