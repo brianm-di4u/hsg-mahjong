@@ -1500,6 +1500,7 @@ let LAYOUT = E.LAYOUTS[0];
 let nextSeed = null;
 const STUCK_TEXT = 'There are no free pairs left. Shuffle the remaining tiles into a new solvable order (−50 points), undo your last moves, or start over.';
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
+let pendingTap = null;   // a tap made while the deal-in or shuffle flip was still running
 const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0, dealAt: 0 };
 let scene = 'title';
 let hoverTile = -1;
@@ -1546,7 +1547,7 @@ function newGame(opts = {}) {
   if (!practice) { STATS.played++; layoutStats(layout.id).played++; saveStats(); }
   anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
-  paused = false; lastTick = 0; resetStuckDialog(); clearSelection();
+  paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
   showScene('game');
   layoutBoard(); markDirty(); updateHud(); saveGame();
   // small tiles on a portrait phone: point at Zoom and landscape
@@ -2246,6 +2247,7 @@ function frame() {
     settled = !(anim.list.length || anim.particles.length || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))));
   }
   watchFrame(pt, animating);
+  if (pendingTap && !boardBusy()) replayTap();
   dirty = false;
   if (animating && anim.frozen == null) kick();
 }
@@ -2621,16 +2623,24 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 const pinchEnd = (e) => { pinch.delete(e.pointerId); if (pinch.size < 2) pinchD0 = 0; };
+function tapAt(x, y, touch) {
+  kbActive = false;
+  const i = tileAt(x, y, touch ? 9 : 4);
+  if (i >= 0) { S.cursor = i; selectTile(i); }
+  else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
+}
+function replayTap() {
+  const p = pendingTap; pendingTap = null;
+  if (p && S && scene === 'game' && now() - p.at < 3000) tapAt(p.x, p.y, p.touch);
+}
 canvas.addEventListener('pointerup', (e) => {
   pinchEnd(e);
   if (ptr.id !== e.pointerId) return;
   ptr.id = null;
-  if (ptr.moved || !S || boardBusy()) return;
-  kbActive = false;
+  if (ptr.moved || !S) return;
   const [x, y] = localXY(e);
-  const i = tileAt(x, y, e.pointerType === 'touch' ? 9 : 4);
-  if (i >= 0) { S.cursor = i; selectTile(i); }
-  else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
+  if (boardBusy()) { pendingTap = { x, y, touch: e.pointerType === 'touch', at: now() }; kick(); return; } // the last early tap is replayed when the deal or flip ends
+  tapAt(x, y, e.pointerType === 'touch');
 });
 canvas.addEventListener('pointercancel', (e) => { pinchEnd(e); ptr.id = null; });
 // no long-press menu, drag image or text selection from the game screen

@@ -88,11 +88,10 @@ const TESTS = [
       let c = await t.game('act', 'tileCenter', f.i);
       await t.waitFrames(2); await t.game('act', 'animAt', 300, 'deal'); // hold the clock mid-deal (software WebGL is slow)
       await t.page.mouse.click(c.x, c.y);
-      t.equal((await t.state()).selected, -1, 'a tap during the deal-in is ignored');
+      t.equal((await t.state()).selected, -1, 'a tap during the deal-in does not select yet');
       await t.game('act', 'animAt', null);
-      await t.waitIdle(15000);
-      await t.page.mouse.click(c.x, c.y);
-      t.equal((await t.state()).selected, f.i, 'a tap after the deal selects');
+      await t.waitIdle(15000); await t.waitFrames(3);
+      t.equal((await t.state()).selected, f.i, 'the tap made during the deal-in is applied once it ends (S1-01)');
       await t.page.mouse.click(c.x, c.y);
       t.equal((await t.state()).selected, -1, 'tapping the selected tile deselects it');
       // a drag that ends on a tile (not zoomed) must not select it
@@ -107,9 +106,11 @@ const TESTS = [
       await t.game('act', 'shuffle'); await t.game('act', 'animAt', 200, 'shuffle');
       s = await t.state(); const g2 = s.tiles.find((x) => x.free); c = await t.game('act', 'tileCenter', g2.i);
       await t.page.mouse.click(c.x, c.y);
-      t.equal((await t.state()).selected, -1, 'a tap during the shuffle flip is ignored');
+      t.equal((await t.state()).selected, -1, 'a tap during the shuffle flip does not select yet');
       await t.game('act', 'animAt', null);
-      await t.waitIdle(15000);
+      await t.waitIdle(15000); await t.waitFrames(3);
+      t.equal((await t.state()).selected, g2.i, 'the tap made during the flip is applied once it ends (S1-01)');
+      await t.page.mouse.click(c.x, c.y);
       // undo during a match flight: the restored tiles are back at once and pickable
       const pr = (await t.state()).hint || await t.game('act', 'hint');
       await t.game('act', 'match', pr[0], pr[1]);
