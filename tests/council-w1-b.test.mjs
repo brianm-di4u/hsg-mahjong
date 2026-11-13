@@ -48,4 +48,28 @@ export const tests = [
       t.expect(!/^Matched/.test((await t.state()).status), 'after the hold, hover shows tile facts again');
     },
   },
+  {
+    name: 'S6-08: the Zoom button works on the first tap after a touch pan',
+    viewports: ['mobile'],
+    url: 'index.html?gl=0',
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 31 }); await t.waitIdle(15000);
+      const zoomBtn = async () => { const b = await t.page.locator('#t-zoom').boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+      await t.tap(await zoomBtn());
+      t.equal((await t.state()).zoom, true, 'a tap on Zoom turns it on');
+      const box = await t.page.locator('#board').boundingBox();
+      const mid = [box.x + box.width / 2, box.y + box.height / 2];
+      await t.touchDrag(mid, [mid[0] - 60, mid[1] - 40], { steps: 8 });
+      await t.tap(await zoomBtn());
+      t.equal((await t.state()).zoom, false, 'the first Zoom tap after a pan turns it off');
+      await t.touchDrag(mid, [mid[0] + 60, mid[1] + 20], { steps: 8 });
+      await t.tap(await zoomBtn());
+      t.equal((await t.state()).zoom, true, 'and on again after a drag with Zoom off');
+      await t.tap(mid);
+      await t.touchDrag(mid, [mid[0] - 50, mid[1]], { steps: 8 });
+      await t.touchDrag(mid, [mid[0] - 50, mid[1]], { steps: 8 });
+      await t.tap(await zoomBtn());
+      t.equal((await t.state()).zoom, false, 'two pans in a row, then one Zoom tap');
+    },
+  },
 ];

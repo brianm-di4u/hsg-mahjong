@@ -2646,6 +2646,8 @@ canvas.addEventListener('pointerup', (e) => {
   tapAt(x, y, e.pointerType === 'touch');
 });
 canvas.addEventListener('pointercancel', (e) => { pinchEnd(e); ptr.id = null; });
+// a pan is ours: cancelling the touch keeps the browser from starting a fling that would swallow the next tap
+canvas.addEventListener('touchmove', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
 // no long-press menu, drag image or text selection from the game screen
 for (const ev of ['contextmenu', 'selectstart', 'dragstart']) $('s-game').addEventListener(ev, (e) => e.preventDefault());
 
