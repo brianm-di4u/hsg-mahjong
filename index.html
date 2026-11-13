@@ -872,7 +872,7 @@ function loadStats() {
     f.layouts[id] = { played: count(l.played), won: count(l.won), bestMs: b != null && b >= 0 ? b : null, bestScore: count(l.bestScore) };
   }
   const d = s.daily && typeof s.daily === 'object' && !Array.isArray(s.daily) ? s.daily : {};
-  f.daily.last = typeof d.last === 'string' && /^d{4}-d{2}-d{2}$/.test(d.last) ? d.last : null;
+  f.daily.last = typeof d.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.last) ? d.last : null;
   f.daily.streak = count(d.streak); f.daily.best = count(d.best);
   const done = d.done && typeof d.done === 'object' && !Array.isArray(d.done) ? d.done : {};
   for (const k of Object.keys(done)) { const v = num(done[k], null); if (v != null && v >= 0) f.daily.done[k] = v; }
