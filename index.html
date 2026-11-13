@@ -117,7 +117,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #board-bg,#board3d{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
 .gl #board-bg,.gl #board3d{display:block}
 .status{flex:none;min-height:38px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px var(--space-4);background:var(--status-bg);color:var(--status-text);border-top:1px solid rgba(217,178,76,.45);font-size:.9rem;line-height:1.25;font-style:italic;font-family:var(--font-serif-victorian)}
-.status span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.status span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .toolbar{flex:none;display:flex;justify-content:center;gap:8px;padding:8px var(--space-3) calc(8px + env(safe-area-inset-bottom));background:linear-gradient(var(--bar),var(--chrome-b));box-shadow:0 -2px 0 var(--brass)}
 .tool{position:relative;flex:1;max-width:104px;min-height:54px;min-width:44px;border-radius:14px;border:1px solid rgba(217,178,76,.55);background:linear-gradient(rgba(255,255,255,.10),rgba(255,255,255,.02));color:var(--bar-text);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:.76rem;font-weight:700;letter-spacing:.02em;padding:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 2px 5px rgba(0,0,0,.3)}
 .tool svg.ic{color:var(--icon)}
@@ -1552,7 +1552,7 @@ function newGame(opts = {}) {
   view.zoom = false; view.panX = 0; view.panY = 0; // a new board starts unzoomed, whatever the last one was
   layoutBoard(); markDirty(); updateHud(); saveGame();
   // small tiles on a portrait phone: point at Zoom and landscape
-  setStatus(practice ? 'Practice: you have already finished this Daily Puzzle. ' + layout.caption : layout.caption);
+  setStatus(practice ? 'Practice: already finished today. ' + layout.caption : layout.caption);
   if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
   return { layoutId: layout.id, seed, tiles: G.n };
 }
@@ -1686,7 +1686,7 @@ function undosToWinnable() { for (let k = S.history.length - 1; k >= 0; k--) { c
 function noteDead() {
   if (S.winnable !== false || S.status !== 'playing') return;
   const n = undosToWinnable();
-  setStatus('This board can no longer be cleared. ' + (n ? 'Undo ' + (n === 1 ? 'one move' : 'up to ' + n + ' moves') + ' to get back on track, or play on and shuffle when stuck.' : 'Undo a few moves, or play on and shuffle when stuck.'), STATUS_HOLD_MS);
+  setStatus('This board can no longer be cleared. ' + (n ? 'Undo ' + (n === 1 ? 'one move' : 'up to ' + n + ' moves') + '.' : 'Undo a few moves.'), STATUS_HOLD_MS);
   if (!S.deadNoted) { S.deadNoted = true; announce('The board can no longer be cleared.'); toast('No way to clear this board from here. Undo to go back.'); }
 }
 // Plan search after a failed repair: a quick pass here, then a deep one in a worker (proving a board dead can take
@@ -2888,6 +2888,7 @@ window.__game = {
       case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt };
       case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
       case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
+      case 'deadBoard': S.winnable = false; noteDead(); return S.winnable; // test: declare the board dead and show the dead-board line
       case 'feedWatch': { watch.last = 0; watch.n = 0; watch.sum = 0; let p = performance.now(); for (const gap of a[0]) { p += gap; watchFrame(p, true); } return use3D(); } // test: feed the slow-frame watchdog synthetic frame gaps (ms)
       case 'animAt': { // freeze the animation clock (for mid-animation screenshots); null resumes
         if (a[0] == null) { anim.frozen = null; markDirty(); return true; }

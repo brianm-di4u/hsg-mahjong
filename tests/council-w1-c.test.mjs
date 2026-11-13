@@ -18,4 +18,26 @@ export const tests = [
       t.equal((await t.state()).selected, f.i, 'a tap on a free tile selects it');
     },
   },
+  {
+    name: 'S2-06: the status strip shows long system messages in full and the dead-board line is short',
+    viewports: ['mobile'],
+    url: URL,
+    async run(t) {
+      const clipped = () => t.page.evaluate(() => { const e = document.getElementById('status-text'); return { clip: e.scrollHeight > e.clientHeight + 1, lines: Math.round(e.clientHeight / parseFloat(getComputedStyle(e).lineHeight)) }; });
+      for (const date of ['2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05', '2026-04-06', '2026-04-07']) {
+        await t.game('newGame', { daily: true, date }); await t.game('act', 'solveTo', 0); await t.waitIdle(15000);
+        await t.game('newGame', { daily: true, date });
+        const s = await t.state();
+        t.expect(s.practice, 'a finished daily is practice');
+        t.expect(s.status.startsWith('Practice: already finished today.'), 'practice notice is short: ' + s.status);
+        const c = await clipped();
+        t.expect(!c.clip, `${date} ${s.layoutId}: practice message is not clipped (${c.lines} lines): ${s.status}`);
+      }
+      await t.game('newGame', { layout: 'pyramid', seed: 5 }); await t.waitIdle(15000);
+      await t.game('act', 'deadBoard');
+      const s = await t.state();
+      t.expect(/^This board can no longer be cleared\. Undo (one move|up to \d+ moves)\.$|^This board can no longer be cleared\. Undo a few moves\.$/.test(s.status), 'dead-board message: ' + s.status);
+      t.expect(!(await clipped()).clip, 'dead-board message is not clipped');
+    },
+  },
 ];
