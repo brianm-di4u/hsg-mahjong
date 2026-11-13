@@ -163,4 +163,38 @@ export const tests = [
       t.expect(!/NaN/.test(cards), 'layout cards show no NaN');
     },
   },
+  {
+    name: 'S6-01: a stale second tab does not erase stats or settings',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const B = await t.page.context().newPage();
+      try {
+        await B.goto(t.page.url());
+        await B.waitForFunction(() => !!window.__game, null, { timeout: 15000 });
+        const stats = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('bhm.stats.v1')));
+        // tab A wins a board
+        await t.game('newGame', { layout: 'pyramid', seed: 11 }); await t.waitIdle(15000);
+        await t.game('act', 'solveTo', 0);
+        await t.page.waitForFunction(() => window.__game.getState().gameStatus === 'won', null, { timeout: 10000 });
+        let a = await stats(t.page);
+        t.equal([a.played, a.won], [1, 1], 'tab A recorded the win');
+        // tab B, opened before the win, starts a game
+        await B.evaluate(() => window.__game.newGame({ layout: 'tower', seed: 12 }));
+        a = await stats(B);
+        t.equal([a.played, a.won, a.streak], [2, 1, 1], 'tab B adds to the win instead of erasing it');
+        // tab A hears about it without a reload
+        await t.page.waitForFunction(() => window.__game.getState().statsPlayed === 2, null, { timeout: 5000 }).catch(() => {});
+        t.equal((await t.state()).statsPlayed, 2, 'tab A follows the stats change');
+        // settings: each tab changes a different setting
+        await t.game('scene', 'settings');
+        await t.page.click('#o-settings [data-set="camera"] [data-v="top"]');
+        await B.evaluate(() => { const b = document.querySelector('#o-settings [data-set="theme"] [data-v="dark"]'); b.click(); });
+        const st = JSON.parse(await t.page.evaluate(() => localStorage.getItem('bhm.settings.v1')));
+        t.equal([st.camera, st.theme], ['top', 'dark'], 'both settings survive');
+        await t.page.waitForFunction(() => window.__game.getState().settings.theme === 'dark', null, { timeout: 5000 }).catch(() => {});
+        t.equal((await t.state()).settings.theme, 'dark', 'tab A follows the settings change');
+      } finally { await B.close(); }
+    },
+  },
 ];

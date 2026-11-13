@@ -856,7 +856,8 @@ function cleanSettings(raw) {
   return o;
 }
 const SETTINGS = cleanSettings(store.get('bhm.settings.v1', {}));
-function saveSettings() { store.set('bhm.settings.v1', SETTINGS); }
+// Writes only the setting that changed over what is stored now, so another tab's changes to other settings survive
+function saveSettings(k) { const cur = cleanSettings(store.get('bhm.settings.v1', {})); if (k !== undefined) cur[k] = SETTINGS[k]; else Object.assign(cur, SETTINGS); store.set('bhm.settings.v1', cur); }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
 // A finite number or the default: stored stats are not trusted to hold numbers
 function num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
@@ -879,6 +880,8 @@ function loadStats() {
   return f;
 }
 let STATS = loadStats();
+// Another tab may have saved stats since this one loaded them: take its numbers before changing and saving ours
+function freshenStats() { let has = false; try { has = localStorage.getItem('bhm.stats.v1') !== null; } catch (e) { has = false; } if (has) STATS = loadStats(); }
 function saveStats() { store.set('bhm.stats.v1', STATS); }
 function layoutStats(id) { return STATS.layouts[id] || (STATS.layouts[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
 
@@ -1517,6 +1520,7 @@ function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E377
 // a game counts as abandoned (and breaks the win streak) once it has a match and has not been won
 function inProgress() { return !!S && (S.status === 'playing' || S.status === 'stuck') && S.history.some((h) => h.t === 'm'); }
 function newGame(opts = {}) {
+  freshenStats();
   if (inProgress() && !S.practice) STATS.streak = 0;
   let layout, seed, daily = null;
   if (opts.daily) {
@@ -1818,6 +1822,7 @@ function countUp(el, to) {
 }
 function win() {
   S.status = 'won';
+  freshenStats();
   const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
   const base = S.score;
   S.score += 500 + timeBonus;
@@ -2572,7 +2577,7 @@ function syncSettingsUI() {
   $('se-storage').textContent = store.ok ? 'Settings, stats and your current game are saved in this browser.' : "Storage is unavailable, so settings and stats won't be saved.";
 }
 function setSetting(k, v) {
-  SETTINGS[k] = v; saveSettings(); syncSettingsUI();
+  SETTINGS[k] = v; saveSettings(k); syncSettingsUI();
   if (k === 'theme' || k === 'tileset') applyTheme();
   if (k === 'graphics' && v !== 'flat') { glSlow = false; store.del('bhm.gl.slow'); }
   if (k === 'graphics' || k === 'camera') { setGraphics(); }
@@ -2769,6 +2774,17 @@ let lastErrToast = -1e9;
 function onStrayError() { const t = performance.now(); if (t - lastErrToast > 8000) { lastErrToast = t; try { toast('Something went wrong, but the game is still running.'); } catch (e) { /* toast itself failed */ } } try { markDirty(); } catch (e) { /* not ready yet */ } }
 window.addEventListener('error', onStrayError);
 window.addEventListener('unhandledrejection', onStrayError);
+// Another tab changed settings or stats: follow it instead of overwriting it later
+window.addEventListener('storage', (e) => {
+  if (e.key === 'bhm.stats.v1' || e.key === null) { STATS = loadStats(); if ($('o-stats').classList.contains('on')) buildStats(); if (scene === 'layouts') buildCards(); }
+  if (e.key === 'bhm.settings.v1' || e.key === null) {
+    const old = Object.assign({}, SETTINGS); Object.assign(SETTINGS, cleanSettings(store.get('bhm.settings.v1', {})));
+    syncSettingsUI(); applyTheme(); AUDIO.toggle();
+    if (old.graphics !== SETTINGS.graphics || old.camera !== SETTINGS.camera) setGraphics();
+    if (old.captions !== SETTINGS.captions) { SPR.key = ''; if (G) layoutBoard(); }
+    updateHud(); markDirty();
+  }
+});
 window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
 document.addEventListener('visibilitychange', () => { lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
 const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
