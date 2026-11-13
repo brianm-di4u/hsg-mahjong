@@ -55,4 +55,15 @@ export const tests = [
       t.expect(/^Hint: match/.test(s.status), 'a hint from the known plan is not labelled a guess: ' + s.status);
     },
   },
+  {
+    name: 'S4-06: player-facing copy has no developer voice and the description counts seven layouts',
+    viewports: ['desktop'],
+    url: URL,
+    async run(t) {
+      const desc = await t.page.getAttribute('meta[name=description]', 'content');
+      t.expect(/seven/.test(desc) && !/five local/.test(desc), 'meta description: ' + desc);
+      const text = await t.page.evaluate(() => document.getElementById('s-title').innerText + ' ' + document.querySelector('#o-help .body').textContent);
+      t.expect(!/research corpus|these are guesses|built backwards/i.test(text), 'no developer wording in title or help');
+    },
+  },
 ];
