@@ -120,13 +120,14 @@ const TESTS = [
       await t.game('scene', 'layouts');
       const first = await t.page.locator('.card').first().getAttribute('data-layout');
       t.expect(first === 'terraces', 'phone layouts lead the picker (' + first + ')');
-      t.expect(await t.page.locator('.card .tag:not(.rate)').count() === 4, 'the four portrait boards (the two originals and two new ones) carry a "Fits phones" tag');
+      t.expect(await t.page.locator('.card .tag', { hasText: 'Fits phones' }).count() === 4, 'the four portrait boards (the two originals and two new ones) carry a "Fits phones" tag');
       await t.shot('09-phone-picker');
     },
   },
   {
     name: 'camera settings: Classic (default), Tilted, Top-down',
     async run(t) {
+      await t.game('unlockAll'); // Tilted and Top-down are locked for a new player (S3-02)
       t.equal((await t.state()).settings.camera, 'classic', 'Classic oblique camera by default');
       await t.game('newGame', { layout: 'arlington', seed: 8 });
       await t.shot('09-camera-classic');

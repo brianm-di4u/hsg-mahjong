@@ -28,7 +28,7 @@ function pickSweep({ tol }) {
   return out;
 }
 
-async function setCamera(t, v) { await t.page.evaluate((v) => document.querySelector(`[data-set="camera"] [data-v="${v}"]`).click(), v); await t.waitFrames(3); }
+async function setCamera(t, v) { await t.game('unlockAll'); await t.page.evaluate((v) => document.querySelector(`[data-set="camera"] [data-v="${v}"]`).click(), v); await t.waitFrames(3); }
 
 const TESTS = [
   {

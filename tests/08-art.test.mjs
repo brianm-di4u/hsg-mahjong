@@ -11,6 +11,7 @@ const TESTS = [
   {
     name: 'painted assets load',
     async run(t) {
+      await t.game('unlockAll'); // every tile set can be chosen (S3-02 locks some for a new player)
       t.log(Object.keys(MANIFEST).length + ' assets, ' + MB.toFixed(2) + ' MB');
       t.expect(MB <= 3.5, 'asset folder ≤ 3.5 MB (' + MB.toFixed(2) + ')');
       for (const set of ['palm', 'ribbon', 'peacock']) {
@@ -30,6 +31,7 @@ const TESTS = [
     name: 'tile set persists',
     viewports: ['desktop'],
     async run(t) {
+      await t.game('unlockAll');
       await t.game('scene', 'settings');
       await t.page.click('[data-set="tileset"] [data-v="ribbon"]');
       t.equal(await t.page.getAttribute('[data-set="tileset"] [data-v="ribbon"]', 'aria-pressed'), 'true', 'choice shown as pressed');

@@ -168,6 +168,7 @@ export const tests = [
     url: URL,
     viewports: ['desktop'],
     async run(t) {
+      await t.game('unlockAll');
       const B = await t.page.context().newPage();
       try {
         await B.goto(t.page.url());

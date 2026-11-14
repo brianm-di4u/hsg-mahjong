@@ -55,6 +55,7 @@ export const tests = [
     url: URL,
     viewports: ['desktop', 'mobile'],
     async run(t) {
+      await t.game('unlockAll'); // the new boards are locked for a new player (S3-02)
       await t.game('scene', 'layouts');
       const cards = await t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, rating: (c.querySelector('.rate') || {}).textContent, meas: (c.querySelector('.meas') || {}).textContent, best: c.querySelector('.best').textContent, phones: !!Array.from(c.querySelectorAll('.tag')).find((x) => x.textContent === 'Fits phones') })));
       t.equal(cards.length, 18, 'eighteen cards');

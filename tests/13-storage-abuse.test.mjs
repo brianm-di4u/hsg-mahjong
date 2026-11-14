@@ -64,6 +64,7 @@ export const tests = [
     url: URL,
     viewports: ['desktop'],
     async run(t) {
+      await t.game('unlockAll');
       await t.game('newGame', { layout: 'pyramid', seed: 5 }); await t.waitIdle(15000);
       await t.page.evaluate(() => {
         const set = Storage.prototype.setItem;

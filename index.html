@@ -141,6 +141,27 @@ html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
 .tool .badge{font-variant-numeric:tabular-nums}
 .toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-20px);opacity:0;pointer-events:none;background:var(--panel);color:var(--color-text);border:2px solid var(--color-highlight);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-5);font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center;font-size:.95rem}
 .toast.on{transform:translate(-50%,0);opacity:1}
+.banner{position:absolute;left:50%;bottom:12px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--bar);color:var(--bar-text);border:2px solid var(--brass);border-radius:999px;padding:var(--space-2) var(--space-5);font-weight:700;font-size:.9rem;box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center}
+.banner.on{transform:translate(-50%,0);opacity:1}
+.earned p{margin:var(--space-2) 0 0;font-size:.95rem}
+.lockhint{flex-basis:100%;margin:0;font-size:.82rem;color:var(--color-muted)}
+.btn.locked{opacity:.6;border-style:dashed}
+.btn.locked::after{content:' 🔒'}
+.card.locked canvas{opacity:.4}
+.card.locked{border-style:dashed}
+.card .stars{font-size:.85rem;color:var(--color-muted)}
+.card .stars b{color:var(--color-accent);letter-spacing:.12em;font-size:1rem}
+.tabs{margin-bottom:var(--space-3)}
+.coll h3{margin:var(--space-4) 0 var(--space-2)}
+.coll .prog{font-weight:700;margin:var(--space-2) 0}
+.coll .row{padding:var(--space-2) 0;border-bottom:1px solid var(--color-border);font-size:.92rem}
+.coll .row.off{color:var(--color-muted)}
+.coll .row b{display:block}
+.coll .src{font-size:.8rem;color:var(--color-muted)}
+.goal{display:flex;gap:var(--space-3);align-items:baseline;padding:var(--space-2) 0;border-bottom:1px solid var(--color-border);font-size:.92rem}
+.goal .mk{flex:none;width:1.3em;text-align:center;font-weight:800}
+.goal.off{color:var(--color-muted)}
+.goal span.t{flex:1}
 
 /* ---------- overlays ---------- */
 .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--scrim);padding:var(--space-4);z-index:10}
@@ -181,7 +202,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   .tool{font-size:.68rem}
   .panel .body{padding:var(--space-3) var(--space-4)}
 }
-@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media (prefers-reduced-motion:reduce){.toast,.banner{transition:none}}
 </style>
 </head>
 <body>
@@ -230,6 +251,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <canvas id="board3d" aria-hidden="true"></canvas>
       <canvas id="board"tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
       <div class="toast" id="toast" role="status"></div>
+      <div class="banner" id="banner" aria-hidden="true"></div>
     </div>
     <div class="status" id="status"><span id="status-text">Match pairs of free tiles.</span></div>
     <div class="toolbar" role="toolbar" aria-label="Game tools">
@@ -268,6 +290,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <p id="ow-sub" style="text-align:center;margin:0"></p>
     <p class="big" id="ow-score">0</p>
     <div class="scoregrid" id="ow-grid"></div>
+    <div class="earned" id="ow-earned" hidden></div>
     <div class="factcard" id="ow-fact"><div class="q"></div><div class="a"></div><div class="src"></div></div>
   </div>
   <div class="actions"><button class="btn primary" id="ow-again">Play again</button><button class="btn" id="ow-layouts">Layouts</button><button class="btn" id="ow-title">Title</button></div>
@@ -310,7 +333,11 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 
 <div class="overlay" id="o-tiles" role="dialog" aria-modal="true" aria-labelledby="ot-h"><div class="panel" style="max-width:760px">
   <header><h2 id="ot-h">Tile Guide</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
-  <div class="body" id="ot-body"></div>
+  <div class="body" id="ot-body">
+    <div class="seg tabs" role="group" aria-label="Tile Guide sections" id="ot-tabs"><button class="btn small" data-tab="faces" aria-pressed="true">Tiles</button><button class="btn small" data-tab="coll" aria-pressed="false">Collection</button></div>
+    <div id="ot-faces"></div>
+    <div id="ot-coll" hidden></div>
+  </div>
 </div></div>
 
 <div class="overlay" id="o-stats" role="dialog" aria-modal="true" aria-labelledby="ost-h"><div class="panel">
@@ -329,9 +356,9 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <div class="setrow"><span class="lbl" id="lb-amb">Ambience</span><button class="btn small" id="se-amb" aria-labelledby="lb-amb" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl">Motion</span><div class="seg" role="group" aria-label="Motion" data-set="motion"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="full">Full</button><button class="btn small" data-v="reduced">Reduced</button></div></div>
     <div class="setrow"><span class="lbl">Theme</span><div class="seg" role="group" aria-label="Theme" data-set="theme"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="light">Light</button><button class="btn small" data-v="dark">Neon Night</button></div></div>
-    <div class="setrow"><span class="lbl">Tile set</span><div class="seg" role="group" aria-label="Tile set" data-set="tileset"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="palm">Palm</button><button class="btn small" data-v="ribbon">Ribbon</button><button class="btn small" data-v="peacock">Peacock</button></div></div>
+    <div class="setrow"><span class="lbl">Tile set</span><div class="seg" role="group" aria-label="Tile set" data-set="tileset"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="palm">Palm</button><button class="btn small" data-v="ribbon">Ribbon</button><button class="btn small" data-v="peacock">Peacock</button></div><p class="lockhint" id="lh-tileset" hidden></p></div>
     <div class="setrow"><span class="lbl">Tiles</span><div class="seg" role="group" aria-label="Tiles" data-set="graphics"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="3d">3D</button><button class="btn small" data-v="flat">Flat</button></div></div>
-    <div class="setrow"><span class="lbl">Camera</span><div class="seg" role="group" aria-label="Camera" data-set="camera"><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="tilted">Tilted</button><button class="btn small" data-v="top">Top-down</button></div></div>
+    <div class="setrow"><span class="lbl">Camera</span><div class="seg" role="group" aria-label="Camera" data-set="camera"><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="tilted">Tilted</button><button class="btn small" data-v="top">Top-down</button></div><p class="lockhint" id="lh-camera" hidden></p></div>
     <div class="setrow"><span class="lbl">Difficulty (next game)</span><div class="seg" role="group" aria-label="Difficulty" data-set="difficulty"><button class="btn small" data-v="relaxed">Relaxed</button><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="expert">Expert</button></div></div>
     <div class="setrow"><span class="lbl" id="lb-free">Highlight free tiles</span><button class="btn small" id="se-free" aria-labelledby="lb-free" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-timer">Show timer</span><button class="btn small" id="se-timer" aria-labelledby="lb-timer" aria-pressed="true">On</button></div>
@@ -975,7 +1002,7 @@ function cleanSettings(raw) {
 }
 const SETTINGS = cleanSettings(store.get('bhm.settings.v1', {}));
 // Writes only the setting that changed over what is stored now, so another tab's changes to other settings survive
-function saveSettings(k) { const cur = cleanSettings(store.get('bhm.settings.v1', {})); if (k !== undefined) cur[k] = SETTINGS[k]; else Object.assign(cur, SETTINGS); store.set('bhm.settings.v1', cur); }
+function saveSettings(k) { if (typeof STATS !== 'undefined' && !STATS.goals.rec) saveStats(); const cur = cleanSettings(store.get('bhm.settings.v1', {})); if (k !== undefined) cur[k] = SETTINGS[k]; else Object.assign(cur, SETTINGS); store.set('bhm.settings.v1', cur); }
 // Difficulty levels (S3-01). Classic is the game exactly as it was. Each number lives on its own line, so a level is retuned
 // (or a retune undone) by editing that line. `shape` is the deal shape passed to ENGINE.deal: -1 safer, 0 as always, 1 trickier.
 const LEVELS = {
@@ -985,7 +1012,42 @@ const LEVELS = {
 };
 const RATING_EASY = 50, RATING_HARD = 30; // a layout is Easy when a random player clears at least this share of its deals, Hard below the second
 function ratingOf(l) { return l.measured >= RATING_EASY ? 'Easy' : l.measured < RATING_HARD ? 'Hard' : 'Medium'; }
-function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} } }; }
+// ---------- goals and collection (S3-02) ----------
+// Stars on every layout: one for clearing it, two for clearing it without a hint, three for that and a time under par.
+const STAR_PAR_SEC_PER_PAIR = 6; // par time: 6 s per pair, so a 144-tile board is 7:12 and a 72-tile board 3:36
+const parMs = (l) => Math.round(l.build().length / 2 * STAR_PAR_SEC_PER_PAIR * 1000);
+// What stays shut at the start, and the milestone that opens it. A save from before this version opens the first four for good.
+const UNLOCK_STEPS = [
+  { wins: 1, items: [['tileset', 'ribbon'], ['layout', 'hale'], ['layout', 'lamar']] },
+  { cleared: 3, items: [['camera', 'tilted'], ['layout', 'quapaw'], ['layout', 'lake']] },
+  { cleared: 5, items: [['tileset', 'peacock'], ['layout', 'sugarloaf'], ['layout', 'cascade']] },
+  { cleared: 6, items: [['camera', 'top'], ['layout', 'promenade'], ['layout', 'central'], ['layout', 'valley'], ['layout', 'northmtn'], ['layout', 'westmtn']] },
+];
+const UNLOCKS = [];
+for (const st of UNLOCK_STEPS) for (const [kind, key] of st.items) UNLOCKS.push({ id: kind + ':' + key, kind, key, wins: st.wins || 0, cleared: st.cleared || 0 });
+const UNLOCK_BY_ID = {}; for (const u of UNLOCKS) UNLOCK_BY_ID[u.id] = u;
+const LEGACY_OPEN = ['tileset:ribbon', 'tileset:peacock', 'camera:tilted', 'camera:top']; // open before this version, so open for good in an older save
+const KIND_NAME = { tileset: 'tile set', camera: 'camera', layout: 'layout' };
+const ACH = [
+  { id: 'first-soak', name: 'First Soak', text: 'Win your first game.', when: () => STATS.won >= 1 },
+  { id: 'along-the-row', name: 'Along the Row', text: 'Clear all 36 Bathhouse tiles in one game.', when: (c) => !!c.row },
+  { id: 'clear-water', name: 'Clear Water', text: 'Win without a hint or a shuffle.', when: (c) => !!c.win && c.win.hints === 0 && c.win.shuffles === 0 },
+  { id: 'quick-dip', name: 'Quick Dip', text: 'Win a game in under 4:00.', when: (c) => !!c.win && c.win.ms < 240000 },
+  { id: 'steam-rising', name: 'Steam Rising', text: 'Make five pairs in a row, each within four seconds.', when: (c) => c.combo >= 4 },
+  { id: 'full-steam', name: 'Full Steam', text: 'Make ten pairs in a row, each within four seconds.', when: (c) => c.combo >= 9 },
+  { id: 'three-stars', name: 'Three Stars', text: 'Earn three stars on any layout.', when: () => anyBook((l) => l.stars >= 3) },
+  { id: 'daily-dip', name: 'Daily Dip', text: 'Finish a Daily Puzzle.', when: () => Object.keys(STATS.daily.done).length > 0 },
+  { id: 'weekly-regular', name: 'Weekly Regular', text: 'Finish the Daily Puzzle seven days running.', when: () => STATS.daily.best >= 7 },
+  { id: 'hard-water', name: 'Hard Water', text: 'Win a game on Expert.', when: () => STATS.tiers.expert.won >= 1 },
+  { id: 'seven-springs', name: 'Seven Springs', text: 'Clear all seven original layouts.', when: () => E.LAYOUTS.slice(0, 7).every((l) => clearedIds().has(l.id)) },
+  { id: 'grand-tour', name: 'Grand Tour', text: 'Clear every layout.', when: () => E.LAYOUTS.every((l) => clearedIds().has(l.id)) },
+  { id: 'regular', name: 'Regular', text: 'Win 10 games.', when: () => STATS.won >= 10 },
+  { id: 'know-your-tiles', name: 'Know Your Tiles', text: 'Collect the story of every tile.', when: () => STATS.goals.tiles.length >= E.FACES },
+  { id: 'local-historian', name: 'Local Historian', text: 'Read every "Did you know?" fact on the win card.', when: () => FACTS.length > 0 && STATS.goals.wins.length >= FACTS.length },
+];
+const ACH_BY_ID = {}; for (const a of ACH) ACH_BY_ID[a.id] = a;
+function freshGoals() { return { rec: false, unlocked: [], ach: {}, tiles: [], wins: [] }; }
+function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} }, goals: freshGoals() }; }
 // A finite number or the default: stored stats are not trusted to hold numbers
 function num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
 function count(v) { return Math.max(0, Math.floor(num(v, 0))); }
@@ -999,6 +1061,7 @@ function loadStats() {
       const l = L[id]; if (!l || typeof l !== 'object') continue;
       const b = num(l.bestMs, null);
       into[id] = { played: count(l.played), won: count(l.won), bestMs: b != null && b >= 0 ? b : null, bestScore: count(l.bestScore) };
+      const stars = Math.min(3, count(l.stars)); if (stars) into[id].stars = stars; // kept only once earned, so an older record stays exactly as it was
     }
   };
   readLayouts(s.layouts, f.layouts);
@@ -1009,15 +1072,54 @@ function loadStats() {
   f.daily.streak = count(d.streak); f.daily.best = count(d.best);
   const done = d.done && typeof d.done === 'object' && !Array.isArray(d.done) ? d.done : {};
   for (const k of Object.keys(done)) { const v = num(done[k], null); if (v != null && v >= 0) f.daily.done[k] = v; }
+  f.goals = cleanGoals(s.goals);
   return f;
+}
+// Goals come from a file anyone can edit: keep known ids and in-range numbers only
+function cleanGoals(raw) {
+  const g = freshGoals();
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return g;
+  g.rec = raw.rec === true;
+  if (Array.isArray(raw.unlocked)) for (const id of raw.unlocked) if (typeof id === 'string' && (UNLOCK_BY_ID[id] || LEGACY_OPEN.includes(id)) && !g.unlocked.includes(id)) g.unlocked.push(id);
+  if (raw.ach && typeof raw.ach === 'object' && !Array.isArray(raw.ach)) for (const id of Object.keys(raw.ach)) if (ACH_BY_ID[id]) g.ach[id] = typeof raw.ach[id] === 'string' ? raw.ach[id].slice(0, 10) : '';
+  if (Array.isArray(raw.tiles)) for (const f of raw.tiles) if (Number.isInteger(f) && f >= 0 && f < E.FACES && !g.tiles.includes(f)) g.tiles.push(f);
+  if (Array.isArray(raw.wins)) { const ids = new Set(FACTS.map((x) => x.id)); for (const id of raw.wins) if (typeof id === 'string' && ids.has(id) && !g.wins.includes(id)) g.wins.push(id); }
+  return g;
 }
 let STATS = loadStats();
 // Another tab may have saved stats since this one loaded them: take its numbers before changing and saving ours
 function freshenStats() { let has = false; try { has = localStorage.getItem('bhm.stats.v1') !== null; } catch (e) { has = false; } if (has) STATS = loadStats(); }
-function saveStats() { store.set('bhm.stats.v1', STATS); }
+function saveStats() { STATS.goals.rec = true; store.set('bhm.stats.v1', STATS); }
 // Records are kept apart per level: Classic's are the original STATS.layouts, so a save from before levels existed is all Classic.
 function layoutBook(level) { return level === 'relaxed' || level === 'expert' ? STATS.tiers[level].layouts : STATS.layouts; }
 function layoutStats(id, level) { const book = layoutBook(level); return book[id] || (book[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
+function anyBook(fn) { for (const book of [STATS.layouts, STATS.tiers.relaxed.layouts, STATS.tiers.expert.layouts]) for (const id of Object.keys(book)) if (fn(book[id], id)) return true; return false; }
+// The layouts won at least once on any level
+function clearedIds() { const ids = new Set(); for (const book of [STATS.layouts, STATS.tiers.relaxed.layouts, STATS.tiers.expert.layouts]) for (const id of Object.keys(book)) if (book[id].won > 0 && E.LAYOUTS.some((l) => l.id === id)) ids.add(id); return ids; }
+// Stars shown for a layout: the best earned, and at least one where a win is on record from before stars existed
+function starsOf(rec) { return rec ? Math.max(rec.stars || 0, rec.won > 0 ? 1 : 0) : 0; }
+function starsEarned(st) { return st.hints > 0 ? 1 : st.elapsedMs <= parMs(layoutById(st.layoutId)) ? 3 : 2; }
+function starGoalText(l) { return 'Two stars: no hints. Three: no hints and under ' + fmtTime(parMs(l)) + '.'; }
+// ----- unlocks: what is open (a milestone reached, or an older save) -----
+function isOpen(kind, key) { const u = UNLOCK_BY_ID[kind + ':' + key]; return !u || STATS.goals.unlocked.includes(u.id); }
+function unlockProgress(u) { return Math.min(u.wins || u.cleared, u.wins ? STATS.won : clearedIds().size); }
+function unlockCondition(u) { return u.wins ? (u.wins === 1 ? 'Win a game' : 'Win ' + u.wins + ' games') : 'Clear ' + u.cleared + ' different layouts'; }
+function unlockLabel(u) { return u.kind === 'layout' ? layoutById(u.key).name : (u.key === 'top' ? 'Top-down' : u.key[0].toUpperCase() + u.key.slice(1)) + ' ' + KIND_NAME[u.kind]; }
+// Opens every milestone now reached; returns the ones opened by this call
+function evaluateUnlocks() { const got = []; for (const u of UNLOCKS) if (!STATS.goals.unlocked.includes(u.id) && unlockProgress(u) >= (u.wins || u.cleared)) { STATS.goals.unlocked.push(u.id); got.push(u); } return got; }
+// Awards every achievement whose condition now holds; `c` says what just happened ({row, combo, win}). Returns the ones earned by this call.
+function evalAchievements(c, when) { const got = []; for (const a of ACH) if (!STATS.goals.ach[a.id] && a.when(c || {})) { STATS.goals.ach[a.id] = when == null ? todayStr() : when; got.push(a); } return got; }
+// First load of this version: a save from before it keeps everything that was open, and what its records already prove
+function setupGoals() {
+  if (STATS.goals.rec) return;
+  let older = false;
+  for (const k of ['bhm.stats.v1', 'bhm.settings.v1', 'bhm.game.v1']) { try { if (localStorage.getItem(k) !== null) older = true; } catch (e) { /* storage unavailable */ } }
+  if (!older) return; // a new player: the record is written with the first save
+  for (const id of LEGACY_OPEN) if (!STATS.goals.unlocked.includes(id)) STATS.goals.unlocked.push(id);
+  evaluateUnlocks(); evalAchievements({}, '');
+  saveStats();
+}
+setupGoals();
 
 const mqReduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
@@ -1376,7 +1478,7 @@ const CUE_GAIN = 1;                   // every cue passes through this: the one 
 const MASTER_AT_70 = 0.7 * 0.5;       // the master level the game ships with (volume 70)
 
 // ----- cues: synthesized, each call a little different (detune, level and noise offset) -----
-const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick'];
+const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve'];
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
 function makeCues(c, dest, jit) {
   const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
@@ -1398,7 +1500,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 2.3, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 2.3, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
@@ -1433,6 +1535,8 @@ function makeCues(c, dest, jit) {
     zoomIn(t) { begin('zoomIn'); noise(t, 0.28, 500, 1.2, 0.5, 'bandpass', 0.1, 0, 2600); },
     zoomOut(t) { begin('zoomOut'); noise(t, 0.28, 2600, 1.2, 0.5, 'bandpass', 0.1, 0, 500); },
     tick(t) { begin('tick'); tone(1400, t, 0.04, 'sine', 0.28); noise(t, 0.025, 3500, 2, 0.4, 'highpass'); },
+    // two struck bells a fifth apart, the upper one a little softer: a small prize, quieter than the win
+    achieve(t) { begin('achieve'); [[698.5, 0], [1046.5, 0.14]].forEach(([f, d], i) => { tone(f, t + d, 0.7, 'sine', i ? 0.22 : 0.28); tone(f * 2.76, t + d, 0.25, 'sine', 0.05); tone(f / 2, t + d, 0.3, 'triangle', 0.08); }); },
   };
   return cues;
 }
@@ -1488,6 +1592,7 @@ const AUDIO = (() => {
     best: cue('best', () => kit.music.duck(4, 800)),
     win: cue('win', () => kit.music.duck(8, 2800)),
     zoom: guard((on) => { if (!ensure()) return; const n = on ? 'zoomIn' : 'zoomOut'; played[n] = (played[n] || 0) + 1; cues[n](ac.currentTime); }),
+    achieve: cue('achieve', () => kit.music.duck(4, 700)),
     tick: guard(() => { const n = performance.now(); if (n - lastTick < 70) return; lastTick = n; if (!ensure()) return; played.tick = (played.tick || 0) + 1; cues.tick(ac.currentTime); }),
     // which piece the screen wants: 'title', 'play' or 'win' (null: none). Nothing sounds before the first gesture.
     setMood: guard((m) => { mood = m; apply(); }),
@@ -1578,7 +1683,8 @@ const TILESETS = {
   peacock: { name: 'Peacock', bands: ['#FFFFFF', '#EEF3EE', '#D4AF37', '#1D6460', '#155753'], rim: 'rgba(212,175,55,.55)' },
 };
 const HAS_BACKDROP = true;  // set when assets/backdrop-day.webp and backdrop-night.webp are packed
-function tileSet() { return TILESETS[SETTINGS.tileset] ? SETTINGS.tileset : (isDark() ? 'peacock' : 'palm'); }
+function tileSet() { const k = SETTINGS.tileset; if (TILESETS[k] && isOpen('tileset', k)) return k; return isDark() && isOpen('tileset', 'peacock') ? 'peacock' : 'palm'; }
+function cameraMode() { return isOpen('camera', SETTINGS.camera) ? SETTINGS.camera : 'classic'; }
 function essentialArt() {
   const t = tileSet();
   return ['spring-one', 'pip-spring-a', 'pip-spring-b', 'pip-spring-c', 'fish-bass', 'fish-trout', ...BATH_ART.map((b) => 'bath-' + b), ...HONOR_ART, 'back-' + t, 'table-' + t, 'title-hero',
@@ -1610,7 +1716,7 @@ function artChanged() {
   artTick = requestAnimationFrame(() => {
     artTick = 0; SPR.key = ''; bgCache = null; atlas.key = '';
     if (scene === 'title') drawTitleArt();
-    if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
+    if (guideBuilt) { guideBuilt = false; $('ot-faces').innerHTML = ''; buildGuide(); }
     if (G) { layoutBoard(); markDirty(); }
   });
 }
@@ -2258,6 +2364,7 @@ function doMatch(a, b, rec) {
   if (!rec) S.redo = [];
   AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2);
   if (rowNow) AUDIO.row();
+  if (!rec) goalsAfterMatch(S.faces[a], S.faces[b], rowNow);
   spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
   setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
@@ -2268,6 +2375,23 @@ function doMatch(a, b, rec) {
   return true;
 }
 
+// Achievements and the tile stories earned by a pair: a short banner for each, never a pause
+function goalsAfterMatch(fa, fb, rowNow) {
+  freshenStats();
+  let changed = false;
+  for (const f of [fa, fb]) if (!STATS.goals.tiles.includes(f)) { STATS.goals.tiles.push(f); changed = true; }
+  const got = evalAchievements({ row: rowNow, combo: S.combo });
+  if (changed || got.length) saveStats();
+  for (const a of got) celebrate('Achievement: ' + a.name);
+}
+let bannerQ = [], bannerOn = false;
+function celebrate(txt) { announce(txt); bannerQ.push(txt); AUDIO.achieve(); if (!bannerOn) nextBanner(); }
+function nextBanner() {
+  const el = $('banner'), t = bannerQ.shift();
+  if (!t) { bannerOn = false; el.classList.remove('on'); return; }
+  bannerOn = true; el.textContent = t; el.classList.add('on');
+  setTimeout(nextBanner, TEST ? 2200 : 3200);
+}
 function afterMove() {
   if (!S.plan && tilesLeft() > 0) schedulePlanSearch();
   if (tilesLeft() === 0) { win(); }
@@ -2428,9 +2552,10 @@ function win() {
   S.score += 500 + timeBonus;
   const ls = layoutStats(S.layoutId, S.level);
   const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
+  const stars = starsEarned(S), starsBefore = starsOf(ls);
   if (!S.practice) {
     STATS.won++; if (S.level !== 'classic') STATS.tiers[S.level].won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
-    ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score);
+    ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score); ls.stars = Math.max(ls.stars || 0, stars);
   }
   if (S.daily) {
     const dd = STATS.daily;
@@ -2443,22 +2568,36 @@ function win() {
     }
     dd.done[S.daily] = Math.min(dd.done[S.daily] == null ? Infinity : dd.done[S.daily], S.elapsedMs);
   }
+  // the fact on the card: one the player has not read yet, while any is left
+  const unread = FACTS.filter((f) => !STATS.goals.wins.includes(f.id)), pool = unread.length ? unread : FACTS;
+  const fact = pool.length ? pool[rngFor(999).int(pool.length)] : null;
+  if (fact && !STATS.goals.wins.includes(fact.id)) STATS.goals.wins.push(fact.id);
+  const earned = { ach: [], unlocks: [] };
+  earned.ach = evalAchievements(S.practice ? {} : { win: { hints: S.hints, shuffles: S.shuffles, ms: S.elapsedMs } }); // a replayed Daily Puzzle is practice: it earns nothing but what the records already show
+  if (!S.practice) earned.unlocks = evaluateUnlocks();
   saveStats(); store.del('bhm.game.v1');
   AUDIO.win(); AUDIO.setMood('win');
+  if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), newBest && !S.practice ? 2600 : 2100);
   if (newBest && !S.practice) setTimeout(() => AUDIO.best(), 1500);
   spawnWinFx();
-  // fact
-  const fact = FACTS.length ? FACTS[rngFor(999).int(FACTS.length)] : null;
   $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
   const rows = [['Pairs, combos and penalties', base], ['Clear bonus', 500], ['Time bonus (under 10:00)', timeBonus]];
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
   $('ow-grid').innerHTML = rows.map(([k, v]) => '<span>' + k + '</span><span>' + v + '</span>').join('') + '<span class="tot">Total</span><span class="tot">' + S.score + '</span>'
     + '<span style="grid-column:1/-1;font-size:.85rem;color:var(--color-muted)">' + plural(S.hints, 'hint') + ' · ' + plural(S.shuffles, 'shuffle') + ' · ' + plural(S.undos, 'undo') + '</span>';
+  const lines = [];
+  if (!S.practice) {
+    lines.push(['<b>' + '★'.repeat(stars) + '☆'.repeat(3 - stars) + '</b> ' + (stars > starsBefore ? 'New best: ' + stars + (stars === 1 ? ' star' : ' stars') + ' on ' + LAYOUT.name + '.' : stars === 3 ? 'Three stars.' : stars === 2 ? 'Three stars needs under ' + fmtTime(parMs(LAYOUT)) + '.' : 'Two stars needs a win without a hint.'), stars + ' of 3 stars']);
+  }
+  for (const a of earned.ach) lines.push(['Achievement: <b>' + a.name + '</b>. ' + a.text, 'Achievement earned: ' + a.name]);
+  for (const u of earned.unlocks) lines.push(['Unlocked: <b>' + unlockLabel(u) + '</b>', 'Unlocked: ' + unlockLabel(u)]);
+  $('ow-earned').hidden = !lines.length;
+  $('ow-earned').innerHTML = lines.map((l) => '<p>' + l[0] + '</p>').join('');
   const fc = $('ow-fact');
   if (fact) { fc.hidden = false; fc.querySelector('.q').textContent = 'Did you know? ' + fact.q; fc.querySelector('.a').textContent = fact.a + '. ' + fact.e; fc.querySelector('.src').textContent = 'Source: ' + fact.s; }
   else fc.hidden = true;
-  announce('Board cleared! Score ' + S.score);
+  announce('Board cleared! Score ' + S.score + '. ' + lines.map((l) => l[1]).join('. '));
   setTimeout(() => { if (S.status === 'won') { openOverlay('o-win'); countUp($('ow-score'), S.score); } }, reduced() ? 60 : 900);
 }
 
@@ -2550,7 +2689,7 @@ function layoutBoard3D() {
   R3.setSlab(!(S && S.status === 'won'));
   // Classic: oblique orthographic (square board, stacks offset up-left). Tilted: a narrow perspective camera from
   // the south-east. Top-down: the same perspective camera almost straight down.
-  const cam = SETTINGS.camera, portrait = cssW < cssH;
+  const cam = cameraMode(), portrait = cssW < cssH;
   R3.setView({ zoom: 1, panX: 0, panY: 0, mode: cam === 'classic' ? 'classic' : 'tilted', pitch: cam === 'top' ? 2 : portrait ? 13 : 22, yaw: cam === 'top' ? 0 : portrait ? 6 : 9 });
   const fitPx = R3.tilePx();
   let k = 1;
@@ -3007,7 +3146,7 @@ let overlayReturn = null;
 function openOverlay(id) {
   const el = $(id);
   if (id === 'o-stats') buildStats();
-  if (id === 'o-tiles') buildGuide();
+  if (id === 'o-tiles') { buildGuide(); if (guideTab === 'coll') buildCollection(); }
   if (id === 'o-settings') syncSettingsUI();
   if (id === 'o-pause') $('op-time').textContent = S ? fmtTime(S.elapsedMs) : '0:00';
   overlayReturn = overlayReturn || document.activeElement;
@@ -3126,9 +3265,9 @@ function buildCards() {
   $('level-blurb').textContent = LEVELS[level].blurb;
   syncSettingsUI(); // the Difficulty buttons above the cards share the setting with the Settings card
   for (const l of list) {
-    const ls = book[l.id];
-    const b = document.createElement('button'); b.className = 'card'; b.dataset.layout = l.id;
-    b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="tags"></span><span class="cap"></span><span class="meas"></span><span class="best"></span>';
+    const ls = book[l.id], u = UNLOCK_BY_ID['layout:' + l.id], shut = !!u && !isOpen('layout', l.id);
+    const b = document.createElement('button'); b.className = 'card' + (shut ? ' locked' : ''); b.dataset.layout = l.id;
+    b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="tags"></span><span class="cap"></span><span class="meas"></span><span class="stars"></span><span class="best"></span>';
     b.querySelector('b').textContent = l.name;
     const tags = b.querySelector('.tags'), rating = ratingOf(l);
     const rate = document.createElement('span'); rate.className = 'tag rate ' + rating.toLowerCase(); rate.textContent = rating; tags.appendChild(rate);
@@ -3136,7 +3275,15 @@ function buildCards() {
     b.querySelector('.cap').textContent = l.caption;
     b.querySelector('.meas').textContent = 'A random player clears about ' + l.measured + ' in 100 deals.';
     b.querySelector('.best').textContent = (ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : l.build().length + ' tiles') + (level !== 'classic' ? ' · ' + LEVELS[level].name : '');
-    b.addEventListener('click', () => { AUDIO.unlock(); startNewGame({ layout: l.id }); });
+    const st = starsOf(ls), sp = b.querySelector('.stars');
+    sp.innerHTML = '<b aria-hidden="true">' + '★'.repeat(st) + '☆'.repeat(3 - st) + '</b> <span class="sr-only">' + st + ' of 3 stars. </span>' + starGoalText(l);
+    if (shut) {
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Locked'; tags.appendChild(tag);
+      b.setAttribute('aria-disabled', 'true'); b.setAttribute('aria-label', l.name + ', locked. ' + unlockCondition(u) + ' to unlock' + (u.wins ? '.' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ').'));
+      b.querySelector('.best').textContent = unlockCondition(u) + ' to unlock' + (u.wins ? '' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ')');
+      b.querySelector('.meas').hidden = true; sp.hidden = true;
+    }
+    b.addEventListener('click', () => { AUDIO.unlock(); if (shut) { AUDIO.thud(); announce(l.name + ' is locked. ' + unlockCondition(u) + ' to unlock it.'); return; } startNewGame({ layout: l.id }); });
     box.appendChild(b);
     requestAnimationFrame(() => drawPreview(b.querySelector('canvas'), l));
   }
@@ -3146,7 +3293,7 @@ function buildCards() {
 let guideBuilt = false;
 function buildGuide() {
   if (guideBuilt) return; guideBuilt = true;
-  const body = $('ot-body');
+  const body = $('ot-faces');
   const groups = [['Springs ● (count the pools)', 0, 9], ['Bathhouses ■ (north to south on the Row)', 9, 18], ['Lakes & Fish ◆ (count the fish)', 18, 27], ['Mountains ▲ (the old "winds")', 27, 31], ['Dragons ⬢', 31, 34], ['Flowers ✿ (any Flower matches any Flower)', 34, 38], ['Seasons ✦ (any Season matches any Season)', 38, 42]];
   const W = 62, H = 81, D = 7, dpr = Math.min(3, window.devicePixelRatio || 1);
   for (const [title, a, b] of groups) {
@@ -3167,9 +3314,12 @@ function buildGuide() {
 
 // ---------- stats ----------
 let statsLevel = 'classic'; // the level whose per-layout records the Stats card shows
+let statsTab = 'records'; // Records, or Goals (stars, achievements, unlocks)
 function buildStats() {
   const d = STATS.daily;
-  let html = '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Win rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span></div>';
+  let html = '<div class="seg tabs" role="group" aria-label="Stats sections" id="st-tabs">' + [['records', 'Records'], ['goals', 'Goals']].map(([k, n]) => '<button class="btn small" data-tab="' + k + '" aria-pressed="' + (k === statsTab) + '">' + n + '</button>').join('') + '</div>';
+  if (statsTab === 'goals') html += goalsHtml(); else {
+  html += '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Win rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span></div>';
   const tier = (lvl) => lvl === 'classic' ? { played: Math.max(0, STATS.played - STATS.tiers.relaxed.played - STATS.tiers.expert.played), won: Math.max(0, STATS.won - STATS.tiers.relaxed.won - STATS.tiers.expert.won) } : STATS.tiers[lvl];
   html += '<h3>By difficulty</h3><table class="st"><thead><tr><th>Level</th><th>Played</th><th>Won</th><th>Win rate</th></tr></thead><tbody>';
   for (const lvl of ['relaxed', 'classic', 'expert']) { const t = tier(lvl); html += '<tr><td>' + LEVELS[lvl].name + '</td><td>' + t.played + '</td><td>' + t.won + '</td><td>' + (t.played ? Math.round(t.won / t.played * 100) + '%' : '—') + '</td></tr>'; }
@@ -3178,10 +3328,52 @@ function buildStats() {
   html += '<table class="st"><thead><tr><th>Layout</th><th>Played</th><th>Won</th><th>Best time</th><th>Best score</th></tr></thead><tbody>';
   for (const l of E.LAYOUTS) { const s = layoutBook(statsLevel)[l.id] || {}; html += '<tr><td>' + l.name + '</td><td>' + (s.played || 0) + '</td><td>' + (s.won || 0) + '</td><td>' + (s.bestMs != null ? fmtTime(s.bestMs) : '—') + '</td><td>' + (s.bestScore || '—') + '</td></tr>'; }
   html += '</tbody></table>';
+  }
   if (!store.ok) html += '<p style="color:var(--color-muted)">Storage is unavailable in this browser, so stats last only for this visit.</p>';
   $('ost-body').innerHTML = html;
-  for (const bt of $('st-level').querySelectorAll('button')) bt.addEventListener('click', () => { statsLevel = bt.dataset.v; buildStats(); const again = $('st-level').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
+  for (const bt of $('st-tabs').querySelectorAll('button')) bt.addEventListener('click', () => { statsTab = bt.dataset.tab; buildStats(); const again = $('st-tabs').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
+  if (statsTab === 'records') for (const bt of $('st-level').querySelectorAll('button')) bt.addEventListener('click', () => { statsLevel = bt.dataset.v; buildStats(); const again = $('st-level').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
 }
+// Goals: stars per layout, the achievements and what is still locked
+function goalsHtml() {
+  const G_ = STATS.goals, nAch = Object.keys(G_.ach).length;
+  let totalStars = 0; for (const l of E.LAYOUTS) totalStars += Math.max(...['relaxed', 'classic', 'expert'].map((lvl) => starsOf(layoutBook(lvl)[l.id])));
+  let h = '<div class="scoregrid"><span>Stars on layouts (best of any level)</span><span>' + totalStars + ' of ' + E.LAYOUTS.length * 3 + '</span><span>Layouts cleared</span><span>' + clearedIds().size + ' of ' + E.LAYOUTS.length + '</span><span>Tile stories collected</span><span>' + G_.tiles.length + ' of ' + E.FACES + '</span><span>Win facts read</span><span>' + G_.wins.length + ' of ' + FACTS.length + '</span></div>';
+  h += '<p style="font-size:.85rem;color:var(--color-muted)">One star for clearing a board, two for clearing it without a hint, three for that and a time under par (six seconds a pair).</p>';
+  h += '<h3>Achievements (' + nAch + ' of ' + ACH.length + ')</h3><div id="st-ach">';
+  for (const a of ACH) { const on = G_.ach[a.id] != null; h += '<div class="goal' + (on ? '' : ' off') + '"><span class="mk" aria-hidden="true">' + (on ? '✓' : '·') + '</span><span class="t"><b>' + a.name + '</b>: ' + a.text + '</span><span class="sr-only">' + (on ? 'Earned.' : 'Not yet.') + '</span></div>'; }
+  h += '</div><h3>Unlocks</h3><div id="st-unl">';
+  for (const u of UNLOCKS) { const on = isOpen(u.kind, u.key); h += '<div class="goal' + (on ? '' : ' off') + '"><span class="mk" aria-hidden="true">' + (on ? '✓' : '🔒') + '</span><span class="t"><b>' + unlockLabel(u) + '</b>: ' + (on ? 'open' : unlockCondition(u) + (u.wins ? '' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ')')) + '</span></div>'; }
+  return h + '</div>';
+}
+// ---------- collection (inside the Tile Guide) ----------
+const TILE_GROUPS = [['Springs', 0, 9], ['Bathhouses', 9, 18], ['Lakes & Fish', 18, 27], ['Mountains', 27, 31], ['Dragons', 31, 34], ['Flowers', 34, 38], ['Seasons', 38, 42]];
+function buildCollection() {
+  const g = STATS.goals, box = $('ot-coll');
+  let h = '<div class="coll"><p class="prog" id="co-tiles">Tile stories: ' + g.tiles.length + ' of ' + E.FACES + '</p><p style="margin:0;font-size:.88rem;color:var(--color-muted)">Match a pair of a tile to add its story here.</p>';
+  for (const [title, a, b] of TILE_GROUPS) {
+    h += '<h3>' + title + '</h3>';
+    for (let f = a; f < b; f++) {
+      const on = g.tiles.includes(f);
+      h += on ? '<div class="row"><b></b><span></span></div>' : '<div class="row off"><b></b><span>Not found yet. Match a pair of these.</span></div>';
+    }
+  }
+  h += '<h3>Win facts</h3><p class="prog" id="co-wins">Win facts read: ' + g.wins.length + ' of ' + FACTS.length + '</p><p style="margin:0;font-size:.88rem;color:var(--color-muted)">Each win card shows a fact you have not read yet, until you have read them all.</p>';
+  for (const f of FACTS) if (g.wins.includes(f.id)) h += '<div class="row"><b></b><span></span><span class="src"></span></div>';
+  box.innerHTML = h + '</div>';
+  // text goes in as text, not markup
+  const rows = box.querySelectorAll('.row'); let i = 0;
+  for (let f = 0; f < E.FACES; f++) { const r = rows[i++]; r.querySelector('b').textContent = g.tiles.includes(f) ? META[f].name : META[f].group + ' ' + META[f].idx; if (g.tiles.includes(f)) r.querySelector('span').textContent = META[f].fact; }
+  for (const f of FACTS) if (g.wins.includes(f.id)) { const r = rows[i++]; r.querySelector('b').textContent = f.q; r.querySelector('span').textContent = f.a + '. ' + f.e; r.querySelector('.src').textContent = 'Source: ' + f.s; }
+}
+let guideTab = 'faces';
+function setGuideTab(k) {
+  guideTab = k;
+  for (const b of $('ot-tabs').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.tab === k));
+  $('ot-faces').hidden = k !== 'faces'; $('ot-coll').hidden = k !== 'coll';
+  if (k === 'coll') buildCollection();
+}
+for (const b of document.querySelectorAll('#ot-tabs button')) b.addEventListener('click', () => setGuideTab(b.dataset.tab));
 
 // ---------- settings ----------
 function applyTheme() {
@@ -3189,7 +3381,7 @@ function applyTheme() {
   AUDIO.setPlace(isDark());
   loadArt(essentialArt());
   bgCache = null; SPR.key = ''; atlas.key = '';
-  if (guideBuilt) { guideBuilt = false; $('ot-body').innerHTML = ''; buildGuide(); }
+  if (guideBuilt) { guideBuilt = false; $('ot-faces').innerHTML = ''; buildGuide(); }
   if (scene === 'title') drawTitleArt();
   if (G) { layoutBoard(); markDirty(); }
 }
@@ -3198,6 +3390,15 @@ function syncSettingsUI() {
   onoff('se-sound', SETTINGS.sound); onoff('se-sfx', SETTINGS.effects); onoff('se-music', SETTINGS.music); onoff('se-amb', SETTINGS.ambience); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions);
   $('se-vol').value = SETTINGS.volume;
   for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.setAttribute('aria-pressed', String(SETTINGS[g.dataset.set] === b.dataset.v));
+  for (const kind of ['tileset', 'camera']) {
+    const g = document.querySelector('[data-set="' + kind + '"]'), shut = [];
+    for (const b of g.querySelectorAll('button')) {
+      const u = UNLOCK_BY_ID[kind + ':' + b.dataset.v], locked = !!u && !isOpen(kind, b.dataset.v);
+      b.classList.toggle('locked', locked); if (locked) { b.setAttribute('aria-disabled', 'true'); b.title = unlockCondition(u) + ' to unlock'; shut.push(u); } else { b.removeAttribute('aria-disabled'); b.removeAttribute('title'); }
+    }
+    const h = $('lh-' + kind); h.hidden = !shut.length;
+    h.textContent = shut.map((u) => unlockLabel(u).replace(/ (tile set|camera)$/, '') + ': ' + unlockCondition(u).toLowerCase() + (u.wins ? '' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ')')).join('. ') + (shut.length ? '.' : '');
+  }
   $('se-storage').textContent = store.ok ? 'Settings, stats and your current game are saved in this browser.' : "Storage is unavailable, so settings and stats won't be saved.";
 }
 function setSetting(k, v) {
@@ -3396,7 +3597,7 @@ on('ow-again', () => { closeOverlay('o-win'); newGame({ layout: S.layoutId }); }
 on('ow-layouts', () => { closeOverlay('o-win'); showScene('layouts'); });
 on('ow-title', () => { closeOverlay('o-win'); showScene('title'); });
 on('oh-tiles', () => { closeOverlay('o-help'); openOverlay('o-tiles'); });
-on('ost-reset', () => { if (TEST || confirm('Reset all stats?')) { STATS = freshStats(); saveStats(); buildStats(); } });
+on('ost-reset', () => { if (TEST || confirm('Reset all records? Your achievements, unlocks and collection stay.')) { const g = STATS.goals; STATS = freshStats(); STATS.goals = g; saveStats(); buildStats(); } });
 on('se-sound', () => setSetting('sound', !SETTINGS.sound));
 on('se-sfx', () => setSetting('effects', !SETTINGS.effects));
 on('se-music', () => setSetting('music', !SETTINGS.music));
@@ -3405,7 +3606,11 @@ on('se-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
 on('se-timer', () => setSetting('showTimer', !SETTINGS.showTimer));
 on('se-cap', () => setSetting('captions', !SETTINGS.captions));
 $('se-vol').addEventListener('input', (e) => setSetting('volume', +e.target.value));
-for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.addEventListener('click', () => setSetting(g.dataset.set, b.dataset.v));
+for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.addEventListener('click', () => {
+  const u = UNLOCK_BY_ID[g.dataset.set + ':' + b.dataset.v];
+  if (u && !isOpen(u.kind, u.key)) { AUDIO.unlock(); AUDIO.thud(); announce('Locked. ' + unlockCondition(u) + ' to unlock the ' + unlockLabel(u) + '.'); return; }
+  setSetting(g.dataset.set, b.dataset.v);
+});
 for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('click', () => closeOverlay(b.closest('.overlay').id));
 for (const b of document.querySelectorAll('[data-back]')) b.addEventListener('click', () => showScene('title'));
 for (const o of document.querySelectorAll('.overlay')) o.addEventListener('click', (e) => { if (e.target === o && !['o-win', 'o-stuck', 'o-pause'].includes(o.id)) closeOverlay(o.id); });
@@ -3456,6 +3661,8 @@ window.__game = {
   audioList() { const l = AUDIO.list(); return { music: l.music, ambience: l.ambience, cues: l.cues }; },
   audioRender(name, seconds, wantWav, seed) { return AUDIO.render(name, seconds, wantWav, seed); },
   audioState() { return AUDIO.state(); },
+  unlockAll() { freshenStats(); for (const u of UNLOCKS) if (!STATS.goals.unlocked.includes(u.id)) STATS.goals.unlocked.push(u.id); saveStats(); syncSettingsUI(); if (scene === 'layouts') buildCards(); if (G) { applyTheme(); } return STATS.goals.unlocked.length; },
+  goals() { return JSON.parse(JSON.stringify(STATS.goals)); },
   pause() { pauseGame(); return true; },
   resume() { resumeGame(); return true; },
   act(name, ...a) {
@@ -3532,7 +3739,7 @@ window.__game = {
         return out;
       }
       case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
-      case 'art': return { on: ART_ON, wanted: [...artWant], loaded: Object.keys(art), tileset: tileSet() };
+      case 'art': return { on: ART_ON, wanted: [...artWant], loaded: Object.keys(art), tileset: tileSet(), camera: cameraMode() };
     }
     throw new Error('unknown act ' + name);
   },
