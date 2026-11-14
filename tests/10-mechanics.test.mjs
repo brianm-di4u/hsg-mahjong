@@ -4,6 +4,7 @@ import { loadEngine } from '../tools/engine-load.mjs';
 
 const E = loadEngine();
 const LAYOUTS = E.LAYOUTS.map((l) => ({ id: l.id, pos: l.build() }));
+const SHORT = { hale: 72, lamar: 72, quapaw: 96, lake: 96, sugarloaf: 96, cascade: 96, promenade: 120, central: 120, valley: 120, northmtn: 120, westmtn: 120 }; // the wave-2 boards are shorter than a full set
 
 // Reference freeness straight from the half-tile grid: a tile is covered by any present tile on a higher layer whose
 // 2x2 footprint overlaps it, and blocked on a side by a present tile on its layer that touches that edge.
@@ -52,7 +53,7 @@ const TESTS = [
     async run(t) {
       for (const { id, pos } of LAYOUTS) {
         t.equal(E.validateLayout(pos), [], `${id} layout errors`);
-        t.equal(pos.length, 144, `${id} tile count`);
+        t.equal(pos.length, SHORT[id] || 144, `${id} tile count`);
         const g = E.buildGeometry(pos);
         for (let i = 0; i < g.n; i++) {
           for (const j of g.top[i]) t.expect(g.below[j].includes(i), `${id}: top/below asymmetric ${i}/${j}`);
@@ -94,7 +95,9 @@ const TESTS = [
           const d = E.deal(g, E.makeRng(s));
           if (!d) { t.fail(`${id} seed ${s}: no deal`); continue; }
           const c = new Array(42).fill(0); for (const f of d.faces) c[f]++;
-          const okComp = c.every((n, f) => n === (f < 34 ? 4 : 1));
+          const kinds = new Map(); for (const f of d.faces) kinds.set(E.matchKey(f), (kinds.get(E.matchKey(f)) || 0) + 1);
+          // a full board holds the whole 144-tile set; a short board holds whole kinds of four
+          const okComp = (g.n < 144 || c.every((n, f) => n === (f < 34 ? 4 : 1))) && [...kinds.values()].every((n) => n === 4) && d.faces.length === g.n;
           if (!okComp || !E.planValid(g, all, d.faces, d.plan)) bad++;
           if (s <= 20) t.equal(E.deal(g, E.makeRng(s)).faces, d.faces, `${id} seed ${s} determinism`);
         }

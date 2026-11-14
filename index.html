@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bathhouse Mahjong · Hot Springs Games</title>
-<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, seven local layouts, three difficulty levels, always-solvable deals.">
+<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, eighteen local layouts, three difficulty levels, always-solvable deals.">
 <!--
   Bathhouse Mahjong, part of Hot Springs Games (MIT License).
   One HTML file plus painted art in assets/ (vector fallbacks built in); all sound is WebAudio, all data is inlined.
@@ -383,6 +383,7 @@ const ENGINE = (() => {
     };
     return api;
   }
+  function ridge() { return L().rect(0, 0, 0, 12, 4).rect(1, 4, 0, 10, 4).rect(2, 8, 0, 8, 3).rect(3, 12, 1, 4, 2).tiles; } // North and West Mountain
   const LAYOUTS = [
     {
       id: 'pyramid', measured: 37, name: 'Classic Pyramid', caption: 'The traditional stepped pyramid: four levels and one capstone.',
@@ -471,6 +472,72 @@ const ENGINE = (() => {
           .rect(1, 2, 2, 6, 4).rect(1, 2, 12, 6, 4)   // two pools
           .rect(2, 6, 4, 2, 2).rect(2, 6, 14, 2, 2)   // and their steam
           .tiles;
+      },
+    },
+    // Short and new boards (wave 2). Names are places from this game's own data; `measured` is the share of deals a
+    // random player clears (tools/balance.mjs, 150 deals), which the card shows as Easy, Medium or Hard.
+    {
+      id: 'hale', measured: 36, name: 'Hale Bathhouse', caption: "A short board: the Hale's hip roof and bell gable. Small enough for a quick game.",
+      build() { return L().rect(0, 0, 0, 8, 4).row(0, 4, 8, 4).rect(1, 2, 1, 6, 3).rect(2, 4, 2, 4, 3).rect(3, 6, 3, 2, 2).one(4, 6, 4).one(4, 8, 4).tiles; },
+    },
+    {
+      id: 'lamar', measured: 36, name: 'Lamar Bathhouse', caption: "A short board: the Lamar's plain block, built up in four low steps.",
+      build() { return L().rect(0, 0, 0, 9, 4).rect(1, 2, 1, 7, 3).rect(2, 4, 2, 5, 2).row(3, 4, 3, 5).tiles; },
+    },
+    {
+      id: 'quapaw', measured: 30, name: 'Quapaw Dome', caption: 'Rings of tiles climb to a dome and cupola, like the roof of the Quapaw.',
+      build() {
+        const b = L(), rows = (z, y0, ws) => ws.forEach((w, k) => b.row(z, 10 - w, y0 + 2 * k, w));
+        rows(0, 0, [5, 7, 9, 9, 7, 5]); rows(1, 2, [5, 7, 7, 5]); rows(2, 2, [3, 5, 5, 3]); rows(3, 3, [3, 4, 3]); rows(4, 4, [2, 2]);
+        return b.tiles;
+      },
+    },
+    {
+      id: 'lake', measured: 50, name: 'Lake Ouachita', caption: 'A ring of shore around open water. Clear the bank and the lake appears.',
+      build() {
+        const b = L(), inLake = (x, y) => x >= 6 && x <= 12 && y >= 4 && y <= 8;
+        for (let c = 0; c < 10; c++) for (let r = 0; r < 7; r++) if (!inLake(2 * c, 2 * r)) b.one(0, 2 * c, 2 * r);
+        for (let c = 1; c <= 8; c++) for (let r = 1; r <= 5; r++) if (!inLake(2 * c, 2 * r)) b.one(1, 2 * c, 2 * r);
+        for (const c of [2, 7]) for (let r = 1; r <= 5; r++) b.one(2, 2 * c, 2 * r);
+        return b.tiles;
+      },
+    },
+    {
+      id: 'promenade', measured: 27, name: 'Grand Promenade', caption: 'Two brick walkways behind the Row, each stepped up in three courses.',
+      build() { const b = L(); for (const y of [0, 6]) b.rect(0, 0, y, 12, 2).rect(1, 2, y, 10, 2).rect(2, 4, y, 8, 2); return b.tiles; },
+    },
+    {
+      id: 'central', measured: 29, name: 'Central Avenue', caption: 'Two blocks of buildings with the avenue running between them.',
+      build() { const b = L(); for (const x0 of [0, 12]) b.rect(0, x0, 0, 5, 6).rect(1, x0 + 1, 1, 4, 5).rect(2, x0 + 2, 2, 3, 2); return b.rect(0, 10, 0, 1, 6).one(1, 10, 3).one(1, 10, 7).tiles; },
+    },
+    {
+      id: 'valley', measured: 28, name: 'Valley of Vapors', caption: 'Two ridges and the steaming valley floor between them.',
+      build() { const b = L(); for (const x0 of [0, 20]) b.rect(0, x0, 0, 6, 4).rect(1, x0 + 2, 0, 4, 4).rect(2, x0 + 4, 1, 2, 3).row(3, x0 + 4, 3, 2); return b.rect(0, 12, 0, 4, 5).rect(1, 14, 2, 2, 2).tiles; },
+    },
+    {
+      id: 'northmtn', measured: 27, name: 'North Mountain', caption: 'A long slope that climbs step by step to the ridge in the east.',
+      build() { return ridge(); },
+    },
+    {
+      id: 'westmtn', measured: 27, name: 'West Mountain', caption: 'The same long slope turned around: it climbs to the ridge in the west.',
+      build() { const t = ridge(), m = Math.max(...t.map((p) => p[0])); return t.map(([x, y, z]) => [m - x, y, z]); },
+    },
+    {
+      id: 'sugarloaf', measured: 52, name: 'Sugarloaf Mountain', portrait: true, caption: 'A steep cone of tiles, narrow enough for a phone held upright.',
+      build() {
+        const b = L(), rows = (z, y0, ws) => ws.forEach((w, k) => b.row(z, 8 - w, y0 + 2 * k, w));
+        rows(0, 0, [2, 4, 6, 8, 8, 8, 6, 4]); rows(1, 2, [2, 4, 6, 6, 6, 4]); rows(2, 4, [2, 4, 4, 4, 2]); rows(3, 6, [2, 2, 2]);
+        return b.tiles;
+      },
+    },
+    {
+      id: 'cascade', measured: 71, name: 'Hot Water Cascade', portrait: true, caption: 'A ribbon of tiles stepping down the hillside, another fit for a phone held upright.',
+      build() {
+        const b = L(), sh = (r) => Math.floor(r / 3);
+        for (let r = 0; r < 12; r++) b.row(0, sh(r), 2 * r, 5);
+        for (let r = 1; r < 11; r++) b.row(1, sh(r) + 2, 2 * r, 3);
+        for (let r = 4; r < 7; r++) b.row(2, sh(r) + 3, 2 * r, 2);
+        return b.tiles;
       },
     },
   ];
@@ -601,8 +668,15 @@ const ENGINE = (() => {
     const quads = [];
     for (let k = 0; k < pairs.length; k += 2) quads.push([pairs[k], pairs[k + 1]]);
     shuffleInPlace(quads, rng);
+    // a short board keeps the Bathhouse share of the full set (9 of 36 kinds), so the Row bonus stays a mid-game event
+    // instead of firing on the first pair when no Bathhouse tile was dealt; a full 144-tile board is untouched
+    let use = quads;
+    if (order.length < pairs.length) {
+      const want = Math.max(1, Math.round(9 * (order.length / 2) / 36)), bath = quads.filter((q) => q[0][0] >= 9 && q[0][0] < 18), rest = quads.filter((q) => !(q[0][0] >= 9 && q[0][0] < 18));
+      use = bath.slice(0, want).concat(rest);
+    }
     const chosen = [];
-    for (const q of quads) { if (chosen.length >= order.length) break; chosen.push(q[0].slice(), q[1].slice()); }
+    for (const q of use) { if (chosen.length >= order.length) break; chosen.push(q[0].slice(), q[1].slice()); }
     shuffleInPlace(chosen, rng);
     const faces = new Array(g.n).fill(-1);
     order.forEach(([a, b], k) => { const pr = chosen[k]; if (rng() < 0.5) pr.reverse(); faces[a] = pr[0]; faces[b] = pr[1]; });
@@ -2023,10 +2097,11 @@ let zoomTipShown = false;
 
 function layoutById(id) { return E.LAYOUTS.find((l) => l.id === id) || E.LAYOUTS[0]; }
 function todayStr(d = new Date()) { const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+const DAILY_POOL = 7; // the Daily Puzzle rotates through the first seven boards, as it always did; the newer boards are for choosing
 function dailyInfo(date) {
   const seed = E.hashStr('BHM-' + date);
   const days = Math.floor(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86400000);
-  return { seed, layout: E.LAYOUTS[((days % E.LAYOUTS.length) + E.LAYOUTS.length) % E.LAYOUTS.length] };
+  return { seed, layout: E.LAYOUTS[((days % DAILY_POOL) + DAILY_POOL) % DAILY_POOL] };
 }
 function fmtTime(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function tilesLeft() { let n = 0; for (let i = 0; i < G.n; i++) if (S.present[i]) n++; return n; }
