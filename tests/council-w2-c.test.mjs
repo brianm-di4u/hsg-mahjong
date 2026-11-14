@@ -286,4 +286,56 @@ export const tests = [
       t.expect(new Set(peaks).size > 1, 'repeats are not identical');
     },
   },
+  // ------------------------------------------------------------------ S2-03
+  {
+    name: 'S2-03: on a phone held upright, wide boards say so on the picker and keep a rotate chip while played',
+    url: URL,
+    viewports: ['mobile'],
+    async run(t) {
+      await t.game('unlockAll');
+      await t.game('scene', 'layouts');
+      const tags = await t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, tags: [...c.querySelectorAll('.tag')].map((x) => x.textContent) })));
+      const portrait = ['terraces', 'display', 'sugarloaf', 'cascade'];
+      for (const c of tags) {
+        if (portrait.includes(c.id)) t.expect(c.tags.includes('Fits phones') && !c.tags.includes('Best in landscape'), c.id + ' is tagged Fits phones');
+        else t.expect(c.tags.includes('Best in landscape') && !c.tags.includes('Fits phones'), c.id + ' is tagged Best in landscape');
+      }
+      await t.shot('S2-03-picker-tags');
+      await t.game('newGame', { layout: 'row', seed: 5 }); await t.waitIdle(15000);
+      const chip = t.page.locator('#rot-chip');
+      t.equal(await chip.isVisible(), true, 'a wide board in portrait shows the chip');
+      t.expect(/sideways for bigger tiles/.test(await chip.innerText()), 'and says what to do: ' + await chip.innerText());
+      const cb = await chip.boundingBox(), sb = await t.page.locator('#status').boundingBox(), tb = await t.page.locator('.toolbar').boundingBox();
+      t.expect(cb.y >= sb.y - 1 && cb.y + cb.height <= sb.y + sb.height + 1, 'the chip sits inside the status bar');
+      t.expect(cb.y + cb.height <= tb.y, 'and clear of the toolbar');
+      t.expect(cb.x >= 0 && cb.x + cb.width <= 390, 'and inside the screen');
+      t.equal((await t.game('act', 'boardFits')).out, 0, 'the board still fits with the chip showing');
+      await t.shot('S2-03-chip');
+      await t.page.waitForTimeout(4500);
+      t.equal(await chip.isVisible(), true, 'the chip is not dismissed by waiting');
+      await t.game('pause'); await t.game('resume'); await t.waitIdle(15000);
+      t.equal(await chip.isVisible(), true, 'or by pausing');
+      await t.page.setViewportSize({ width: 844, height: 390 }); await t.page.waitForTimeout(600);
+      t.equal(await chip.isVisible(), false, 'turning the phone sideways removes it');
+      await t.shot('S2-03-landscape');
+      await t.page.setViewportSize({ width: 390, height: 844 }); await t.page.waitForTimeout(600);
+      t.equal(await chip.isVisible(), true, 'and turning it back brings it back');
+      await t.game('newGame', { layout: 'terraces', seed: 5 }); await t.waitIdle(15000);
+      t.equal(await chip.isVisible(), false, 'a board that fits a phone has no chip');
+      await t.game('scene', 'title');
+      t.equal(await chip.isVisible(), false, 'and the title has none');
+    },
+  },
+  {
+    name: 'S2-03: desktop never shows the phone tag or chip',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('unlockAll');
+      await t.game('scene', 'layouts');
+      t.equal(await t.page.locator('#cards .tag', { hasText: 'Best in landscape' }).count(), 0, 'no landscape tags on a wide screen');
+      await t.game('newGame', { layout: 'row', seed: 5 }); await t.waitIdle(15000);
+      t.equal(await t.page.locator('#rot-chip').isVisible(), false, 'and no chip');
+    },
+  },
 ];
