@@ -338,4 +338,64 @@ export const tests = [
       t.equal(await t.page.locator('#rot-chip').isVisible(), false, 'and no chip');
     },
   },
+  // ------------------------------------------------------------------ S4-02
+  {
+    name: 'S4-02: every layout has its own colour of table',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const ids = await t.page.evaluate(() => { const o = []; window.__game.scene('layouts'); document.querySelectorAll('#cards .card').forEach((c) => o.push(c.dataset.layout)); return o; });
+      t.equal(ids.length, 18, 'eighteen layouts');
+      const tints = {};
+      for (const id of ids) { await t.game('newGame', { layout: id, seed: 4 }); tints[id] = (await t.game('act', 'table')).tint; t.expect(!!tints[id], id + ' has a tint'); }
+      const rgb = (h, s, l) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0), f(8), f(4)].map((v) => v * 255); };
+      let min = 1e9, pair = '';
+      for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+        const a = rgb(tints[ids[i]].h, tints[ids[i]].s, tints[ids[i]].l), b = rgb(tints[ids[j]].h, tints[ids[j]].s, tints[ids[j]].l);
+        const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); if (d < min) { min = d; pair = ids[i] + '/' + ids[j]; }
+      }
+      t.log('closest two table colours: ' + pair + ' at distance ' + min.toFixed(1) + ' of 441');
+      t.expect(min >= 10, 'no two layouts share a colour of table (closest: ' + pair + ' at ' + min.toFixed(1) + ')');
+      for (const id of ids) t.expect(tints[id].l >= 20 && tints[id].l <= 28, id + ' stays a dark table, so the tiles lead (lightness ' + tints[id].l + ')');
+    },
+  },
+  {
+    name: 'S4-02: the slab and the backdrop follow the layout in 3D',
+    url: 'index.html?gl=1',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const grab = () => t.page.evaluate(() => { const c = document.getElementById('board-bg'); const x = c.getContext('2d'); const d = x.getImageData(Math.round(c.width * 0.5), Math.round(c.height * 0.06), 1, 1).data; return [d[0], d[1], d[2]]; });
+      const seen = {};
+      for (const id of ['pyramid', 'islands', 'arlington', 'terraces']) {
+        await t.game('newGame', { layout: id, seed: 4 }); await t.waitIdle(15000);
+        const tb = await t.game('act', 'table');
+        t.equal((await t.game('act', 'gl')).on, true, 'WebGL is on');
+        const tint = tb.tint;
+        t.equal(tb.slab, tint.h + ',' + tint.s + ',' + tint.l, id + ': the 3D slab carries the layout tint');
+        seen[id] = await grab();
+        await t.shot('S4-02-' + id);
+      }
+      const keys = Object.values(seen).map((c) => c.join(','));
+      t.expect(new Set(keys).size === keys.length, 'the backdrop behind the board differs by layout: ' + keys.join(' | '));
+      await setDark(t); await t.game('newGame', { layout: 'islands', seed: 4 }); await t.waitIdle(15000);
+      t.equal((await t.game('act', 'table')).slab, '200,48,25', 'the tint is kept in the dark theme');
+      await t.shot('S4-02-islands-night');
+    },
+  },
+  {
+    name: 'S4-02: flat tiles get the layout wash on the table too',
+    url: 'index.html?gl=0',
+    viewports: ['desktop'],
+    async run(t) {
+      const grab = () => t.page.evaluate(() => { const c = document.getElementById('board'); const x = c.getContext('2d'); const d = x.getImageData(Math.round(c.width * 0.5), Math.round(c.height * 0.04), 1, 1).data; return [d[0], d[1], d[2]].join(','); });
+      const seen = [];
+      for (const id of ['pyramid', 'islands', 'arlington']) {
+        await t.game('newGame', { layout: id, seed: 4 }); await t.waitIdle(15000);
+        t.expect((await t.game('act', 'table')).wash.endsWith(id), id + ': the table is cached per layout');
+        seen.push(await grab());
+        await t.shot('S4-02-flat-' + id);
+      }
+      t.expect(new Set(seen).size === seen.length, 'the flat table differs by layout: ' + seen.join(' | '));
+    },
+  },
 ];

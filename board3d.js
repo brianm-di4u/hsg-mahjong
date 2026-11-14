@@ -167,15 +167,19 @@ function makeMaterial(atlasTex) {
 
 // Polished stone for the slab under the board, painted once on a canvas: a warm base, cloudy patches and
 // branching veins (seeded, so every load looks the same). Cream marble by day, dark verde at night.
-function marbleCanvas(dark) {
+// `tint` ({h, s, l}: hue in degrees, saturation and lightness in percent) gives a layout its own colour of stone (S4-02);
+// without one the stone is the original deep verde.
+function marbleCanvas(dark, tint) {
   const N = 1024, cv = document.createElement('canvas'); cv.width = cv.height = N;
   const c = cv.getContext('2d');
   let seed = 1923; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  c.fillStyle = dark ? '#16302D' : '#1F4A43'; c.fillRect(0, 0, N, N); // deep verde: the tiles are the brightest thing on the table
+  const hsl = (h, sat, l, a) => 'hsla(' + h + ',' + Math.max(0, Math.min(100, sat)) + '%,' + Math.max(0, Math.min(100, l)) + '%,' + (a == null ? 1 : a) + ')';
+  const T0 = tint ? { h: tint.h, s: tint.s, l: dark ? tint.l * 0.68 : tint.l } : null;
+  c.fillStyle = T0 ? hsl(T0.h, dark ? T0.s - 5 : T0.s, T0.l) : dark ? '#16302D' : '#1F4A43'; c.fillRect(0, 0, N, N); // deep verde: the tiles are the brightest thing on the table
   for (let k = 0; k < 70; k++) { // soft clouds in the stone
     const x = rnd() * N, y = rnd() * N, r = 80 + rnd() * 240;
     const g = c.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, dark ? 'rgba(60,110,100,.22)' : (k % 3 ? 'rgba(70,120,108,.30)' : 'rgba(20,50,44,.35)')); g.addColorStop(1, 'rgba(0,0,0,0)');
+    g.addColorStop(0, T0 ? (dark ? hsl(T0.h, T0.s - 12, T0.l + 18, 0.22) : k % 3 ? hsl(T0.h, T0.s - 14, T0.l + 15, 0.30) : hsl(T0.h, T0.s + 2, T0.l - 8, 0.35)) : dark ? 'rgba(60,110,100,.22)' : (k % 3 ? 'rgba(70,120,108,.30)' : 'rgba(20,50,44,.35)')); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
   }
   const vein = (x, y, a, len, w, alpha) => {
@@ -184,7 +188,7 @@ function marbleCanvas(dark) {
       a += (rnd() - 0.5) * 0.5; x += Math.cos(a) * 9; y += Math.sin(a) * 9; c.lineTo(x, y);
       if (w > 0.8 && rnd() < 0.04) vein(x, y, a + (rnd() - 0.5) * 1.6, len * 0.4 | 0, w * 0.55, alpha * 0.8);
     }
-    c.lineWidth = w * 3; c.strokeStyle = dark ? 'rgba(150,190,170,' + alpha * 0.18 + ')' : 'rgba(200,230,214,' + alpha * 0.2 + ')'; c.stroke();
+    c.lineWidth = w * 3; c.strokeStyle = T0 ? hsl(T0.h, 30, dark ? 72 : 86, alpha * (dark ? 0.18 : 0.2)) : dark ? 'rgba(150,190,170,' + alpha * 0.18 + ')' : 'rgba(200,230,214,' + alpha * 0.2 + ')'; c.stroke();
   };
   c.filter = 'blur(5px)';
   for (let k = 0; k < 14; k++) vein(rnd() * N, rnd() * N, rnd() * Math.PI * 2, 60 + rnd() * 80, 1 + rnd() * 2.2, 0.25 + rnd() * 0.3);
@@ -252,7 +256,7 @@ function create(opts) {
   const slab = new T.Mesh(new T.BufferGeometry(), slabMat), rim = new T.Mesh(new T.BufferGeometry(), rimMat);
   slab.receiveShadow = true; rim.receiveShadow = true; rim.castShadow = true; // the slab casting onto itself would only add acne
   scene.add(slab); scene.add(rim);
-  let slabDark = null;
+  let slabDark = null, slabTint = '';
   function buildSlab() {
     const w = bounds.maxX - bounds.minX + 0.36, d = bounds.maxZ - bounds.minZ + 0.36;
     slab.geometry.dispose(); rim.geometry.dispose();
@@ -330,7 +334,8 @@ function create(opts) {
     key.intensity = st.dark ? 2.2 : 2.4; key.color.set(st.dark ? 0xfff6ec : 0xfffaf2);
     fill.color.set(st.dark ? 0x7fd6ff : 0xf2f8ff); fill.intensity = st.dark ? 0.55 : 0.4;
     ground.material.opacity = st.dark ? 0.55 : 0.38;
-    if (slabDark !== !!st.dark) { slabDark = !!st.dark; slabTex.image = marbleCanvas(slabDark); slabTex.needsUpdate = true; }
+    const tk = st.tint ? st.tint.h + ',' + st.tint.s + ',' + st.tint.l : '';
+    if (slabDark !== !!st.dark || slabTint !== tk) { slabDark = !!st.dark; slabTint = tk; slabTex.image = marbleCanvas(slabDark, st.tint || null); slabTex.needsUpdate = true; }
     rimMat.color.set(st.dark ? 0x7fd6ff : 0xc9a23f); rimMat.roughness = st.dark ? 0.25 : 0.32;
     renderer.shadowMap.needsUpdate = true;
   }
@@ -528,7 +533,7 @@ function create(opts) {
   }
   return {
     renderer, scene, get camera() { return camera; }, setBoard, setAtlas, setStyle, resize, setView, update, render, warm, snapshot, setSlab, pick, project, worldToScreen, tileBase, boardTop, tilePx, boardPx, dispose,
-    get info() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, gl: renderer.capabilities.isWebGL2 ? 'webgl2' : 'webgl1' }; },
+    get info() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, gl: renderer.capabilities.isWebGL2 ? 'webgl2' : 'webgl1', tint: slabTint }; },
     TH, UW, UD, view,
   };
 }

@@ -2673,9 +2673,20 @@ const BANDS3D = {
   ribbon: [[0.52, '#FBF8F3'], [0.56, '#F6E2DA'], [0.64, '#E57C6C'], [1, '#2F6E4E']],
   peacock: [[0.5, '#F9FBF7'], [0.54, '#D7E8E2'], [0.6, '#D4AF37'], [1, '#155753']],
 };
+// The colour of each place (S4-02): hue in degrees, saturation and lightness in percent of the table slab, one entry per layout.
+// Bathhouse Row stays the original verde; stone, water and brick pick the colour each board's name suggests.
+const PLACE_TINT = {
+  pyramid: { h: 171, s: 41, l: 21 }, tower: { h: 238, s: 24, l: 25 }, arlington: { h: 352, s: 38, l: 26 }, row: { h: 32, s: 38, l: 24 },
+  islands: { h: 200, s: 48, l: 25 }, terraces: { h: 62, s: 16, l: 26 }, display: { h: 138, s: 36, l: 22 },
+  hale: { h: 282, s: 28, l: 26 }, lamar: { h: 316, s: 30, l: 26 }, quapaw: { h: 258, s: 34, l: 26 }, lake: { h: 218, s: 52, l: 24 },
+  sugarloaf: { h: 90, s: 32, l: 22 }, cascade: { h: 186, s: 58, l: 26 }, promenade: { h: 18, s: 42, l: 25 }, central: { h: 46, s: 40, l: 24 },
+  valley: { h: 112, s: 26, l: 22 }, northmtn: { h: 205, s: 14, l: 28 }, westmtn: { h: 345, s: 12, l: 28 },
+};
+function placeTint(id) { return PLACE_TINT[id] || null; }
+function tintCss(t, dl, a) { return 'hsla(' + t.h + ',' + t.s + '%,' + (t.l + dl) + '%,' + a + ')'; }
 function style3D() {
   const dark = isDark();
-  R3.setStyle({ bands: BANDS3D[tileSet()], dark, select: dark ? '#4FC3FF' : '#FFB21E', hint: dark ? '#2EE6D6' : '#18B2A0' });
+  R3.setStyle({ tint: LAYOUT ? placeTint(LAYOUT.id) : null, bands: BANDS3D[tileSet()], dark, select: dark ? '#4FC3FF' : '#FFB21E', hint: dark ? '#2EE6D6' : '#18B2A0' });
 }
 function layoutBoard3D() {
   const wrap = $('board-wrap');
@@ -2920,8 +2931,13 @@ function getSteamSprite() {
 }
 
 let bgCache = null;
+// A wash of the layout's colour over the whole table, so each place has its own air even where no slab is drawn (flat tiles)
+function placeWash(b, w, h, dark) {
+  const t = LAYOUT ? placeTint(LAYOUT.id) : null; if (!t) return;
+  b.fillStyle = tintCss(t, dark ? 4 : 8, dark ? 0.3 : 0.26); b.fillRect(0, 0, w, h);
+}
 function drawTable(c, w, h) {
-  const key = w + 'x' + h + (isDark() ? 'd' : 'l') + tileSet();
+  const key = w + 'x' + h + (isDark() ? 'd' : 'l') + tileSet() + (LAYOUT ? LAYOUT.id : '');
   if (!bgCache || bgCache.key !== key) {
     const cv = document.createElement('canvas'); cv.width = Math.round(w * view.dpr); cv.height = Math.round(h * view.dpr);
     const b = cv.getContext('2d'); b.scale(view.dpr, view.dpr);
@@ -2933,6 +2949,7 @@ function drawTable(c, w, h) {
       const v = b.createRadialGradient(w / 2, h * 0.55, Math.min(w, h) * 0.25, w / 2, h * 0.5, Math.max(w, h) * 0.75);
       v.addColorStop(0, dark ? 'rgba(8,6,20,.25)' : 'rgba(12,30,34,.10)'); v.addColorStop(1, dark ? 'rgba(8,6,20,.55)' : 'rgba(12,30,34,.35)');
       b.fillStyle = v; b.fillRect(0, 0, w, h);
+      placeWash(b, w, h, dark);
       bgCache = { key, cv };
       c.drawImage(bgCache.cv, 0, 0, w, h);
       return;
@@ -2944,6 +2961,7 @@ function drawTable(c, w, h) {
       const v = b.createRadialGradient(w / 2, h * 0.45, Math.min(w, h) * 0.3, w / 2, h * 0.45, Math.max(w, h) * 0.75);
       v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, dark ? 'rgba(0,0,0,.45)' : 'rgba(30,40,35,.22)');
       b.fillStyle = v; b.fillRect(0, 0, w, h);
+      placeWash(b, w, h, dark);
       bgCache = { key, cv };
       c.drawImage(bgCache.cv, 0, 0, w, h);
       return;
@@ -2955,6 +2973,7 @@ function drawTable(c, w, h) {
     b.globalAlpha = dark ? 0.08 : 0.1; b.fillStyle = dark ? '#4FC3FF' : '#C8C3B6';
     for (let row = 0; row < 3; row++) for (let x = -20 + row * 18; x < w + 40; x += 36) { b.beginPath(); b.ellipse(x, h - row * 22, 26, 14, 0, Math.PI, 0); b.fill(); }
     b.globalAlpha = 1;
+    placeWash(b, w, h, dark);
     bgCache = { key, cv };
   }
   c.drawImage(bgCache.cv, 0, 0, w, h);
@@ -3243,7 +3262,7 @@ function drawPreview(cv, layout) {
     try {
       buildAtlas(false); style3D();
       const g = E.buildGeometry(pos), d = E.deal(g, E.makeRng(1924));
-      R3.snapshot(pos, d.faces, cv, { pitch: 8, yaw: 4, slab: false, under: (c, w, h) => { const im = artImg(isDark() ? 'backdrop-night' : 'backdrop-day'); if (im) { c.filter = 'blur(1.5px) saturate(.85)'; coverImg(c, im, -4, -4, w + 8, h + 8); c.filter = 'none'; c.fillStyle = 'rgba(10,30,34,.25)'; c.fillRect(0, 0, w, h); } } });
+      R3.snapshot(pos, d.faces, cv, { pitch: 8, yaw: 4, slab: false, under: (c, w, h) => { const im = artImg(isDark() ? 'backdrop-night' : 'backdrop-day'); if (im) { c.filter = 'blur(1.5px) saturate(.85)'; coverImg(c, im, -4, -4, w + 8, h + 8); c.filter = 'none'; const tn = placeTint(layout.id); c.fillStyle = tn ? tintCss(tn, 6, 0.5) : 'rgba(10,30,34,.25)'; c.fillRect(0, 0, w, h); } } });
       R3.boardId = null; R3.sizeKey = '';
       return;
     } catch (e) { /* fall back to the flat preview */ }
@@ -3276,6 +3295,7 @@ function buildCards() {
     const b = document.createElement('button'); b.className = 'card' + (shut ? ' locked' : ''); b.dataset.layout = l.id;
     b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="tags"></span><span class="cap"></span><span class="meas"></span><span class="stars"></span><span class="best"></span>';
     b.querySelector('b').textContent = l.name;
+    const tn = placeTint(l.id); if (tn) b.querySelector('canvas').style.background = 'linear-gradient(' + tintCss(tn, 14, 1) + ',' + tintCss(tn, 5, 1) + ')';
     const tags = b.querySelector('.tags'), rating = ratingOf(l);
     const rate = document.createElement('span'); rate.className = 'tag rate ' + rating.toLowerCase(); rate.textContent = rating; tags.appendChild(rate);
     if (l.portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Fits phones'; tags.appendChild(tag); }
@@ -3747,6 +3767,7 @@ window.__game = {
         return out;
       }
       case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
+      case 'table': return { id: LAYOUT.id, tint: placeTint(LAYOUT.id), slab: R3 ? R3.info.tint : null, wash: bgCache ? bgCache.key : null };
       case 'art': return { on: ART_ON, wanted: [...artWant], loaded: Object.keys(art), tileset: tileSet(), camera: cameraMode() };
     }
     throw new Error('unknown act ' + name);
