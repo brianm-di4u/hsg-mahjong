@@ -120,7 +120,7 @@ const TESTS = [
       await t.game('scene', 'layouts');
       const first = await t.page.locator('.card').first().getAttribute('data-layout');
       t.expect(first === 'terraces', 'phone layouts lead the picker (' + first + ')');
-      t.expect(await t.page.locator('.card .tag').count() === 2, 'both carry a "Fits phones" tag');
+      t.expect(await t.page.locator('.card .tag:not(.rate)').count() === 2, 'both carry a "Fits phones" tag');
       await t.shot('09-phone-picker');
     },
   },

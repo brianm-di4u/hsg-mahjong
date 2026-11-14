@@ -18,7 +18,9 @@ for (const L of E.LAYOUTS) {
     if (d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan)) ok++;
   }
   for (let s = 1; s <= 20; s++) { const d = E.deal(g, E.makeRng(1000 + s)); if (E.solve(g, new Array(g.n).fill(true), d.faces, 25000)) solved++; }
-  if (errs.length || ok !== N) bad++;
-  console.log(`${L.id.padEnd(10)} ${pos.length} tiles  errors: ${errs.join('; ') || 'none'}  deals replayed ${ok}/${N} (max ${ms.toFixed(1)} ms)  independent solver ${solved}/20`);
+  let shaped = 0; // the Relaxed (-1) and Expert (1) deal shapes must replay to an empty board too
+  for (const shape of [-1, 1]) for (let s = 1; s <= 5; s++) { const d = E.deal(g, E.makeRng(2000 + s), shape); if (d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan)) shaped++; }
+  if (errs.length || ok !== N || shaped !== 10) bad++;
+  console.log(`${L.id.padEnd(10)} ${pos.length} tiles  errors: ${errs.join('; ') || 'none'}  deals replayed ${ok}/${N} (max ${ms.toFixed(1)} ms)  independent solver ${solved}/20  Relaxed and Expert deals ${shaped}/10`);
 }
 process.exit(bad ? 1 : 0);

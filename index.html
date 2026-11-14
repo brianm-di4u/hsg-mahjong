@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bathhouse Mahjong · Hot Springs Games</title>
-<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, seven local layouts, always-solvable deals.">
+<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, seven local layouts, three difficulty levels, always-solvable deals.">
 <!--
   Bathhouse Mahjong, part of Hot Springs Games (MIT License).
   One HTML file plus painted art in assets/ (vector fallbacks built in); all sound is WebAudio, all data is inlined.
@@ -96,6 +96,13 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 .card b{font-family:var(--font-serif-victorian);font-size:1.15rem}
 .card .cap{font-size:.9rem;color:var(--color-muted)}
 .card .best{font-size:.85rem;color:var(--color-accent);font-weight:600}
+.card .tags{display:flex;gap:6px;flex-wrap:wrap}
+.card .meas{font-size:.8rem;color:var(--color-muted)}
+.tag.rate.easy{background:#2E6B4A;color:#fff}.tag.rate.medium{background:#8A6A1E;color:#fff}.tag.rate.hard{background:#8B2F2F;color:#fff}
+.levelbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);max-width:1100px;width:100%;margin:var(--space-4) auto 0;padding:0 var(--space-5);box-sizing:border-box}
+.levelbar .lbl{font-weight:700}
+.levelbar p{flex:1 1 260px;margin:0;font-size:.9rem;color:var(--color-muted)}
+.tool[aria-disabled="true"]{opacity:.45}
 .card .tag{align-self:flex-start;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--bar);color:var(--bar-text)}
 
 /* ---------- game ---------- */
@@ -201,6 +208,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   <!-- Layout picker -->
   <section class="screen" id="s-layouts" aria-labelledby="l-h">
     <div class="topbar"><button class="iconbtn" data-back aria-label="Back to title"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2 id="l-h">Choose a layout</h2></div>
+    <div class="levelbar"><span class="lbl" id="lb-level">Difficulty</span><div class="seg" role="group" aria-labelledby="lb-level" data-set="difficulty"><button class="btn small" data-v="relaxed">Relaxed</button><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="expert">Expert</button></div><p id="level-blurb"></p></div>
     <div class="cards" id="cards"></div>
   </section>
 
@@ -288,7 +296,9 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </ul>
     <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
     <h3>Scoring</h3>
-    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. Hints cost 15, shuffles 50. Winning adds 500 plus 1 point per second under ten minutes.</p>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 15 and shuffles 50. Winning adds 500 plus 1 point per second under ten minutes.</p>
+    <h3>Difficulty</h3>
+    <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
     <ul>
       <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> (or spreading two fingers) enlarges the board; drag to look around, and pinch to zoom back out.</li>
@@ -322,6 +332,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <div class="setrow"><span class="lbl">Tile set</span><div class="seg" role="group" aria-label="Tile set" data-set="tileset"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="palm">Palm</button><button class="btn small" data-v="ribbon">Ribbon</button><button class="btn small" data-v="peacock">Peacock</button></div></div>
     <div class="setrow"><span class="lbl">Tiles</span><div class="seg" role="group" aria-label="Tiles" data-set="graphics"><button class="btn small" data-v="auto">Auto</button><button class="btn small" data-v="3d">3D</button><button class="btn small" data-v="flat">Flat</button></div></div>
     <div class="setrow"><span class="lbl">Camera</span><div class="seg" role="group" aria-label="Camera" data-set="camera"><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="tilted">Tilted</button><button class="btn small" data-v="top">Top-down</button></div></div>
+    <div class="setrow"><span class="lbl">Difficulty (next game)</span><div class="seg" role="group" aria-label="Difficulty" data-set="difficulty"><button class="btn small" data-v="relaxed">Relaxed</button><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="expert">Expert</button></div></div>
     <div class="setrow"><span class="lbl" id="lb-free">Highlight free tiles</span><button class="btn small" id="se-free" aria-labelledby="lb-free" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-timer">Show timer</span><button class="btn small" id="se-timer" aria-labelledby="lb-timer" aria-pressed="true">On</button></div>
     <div class="setrow"><span class="lbl" id="lb-cap">Names on tiles (when large)</span><button class="btn small" id="se-cap" aria-labelledby="lb-cap" aria-pressed="true">On</button></div>
@@ -374,11 +385,11 @@ const ENGINE = (() => {
   }
   const LAYOUTS = [
     {
-      id: 'pyramid', name: 'Classic Pyramid', caption: 'The traditional stepped pyramid: four levels and one capstone.',
+      id: 'pyramid', measured: 37, name: 'Classic Pyramid', caption: 'The traditional stepped pyramid: four levels and one capstone.',
       build() { return L().rect(0, 0, 0, 11, 7).rect(1, 2, 2, 9, 5).rect(2, 4, 4, 7, 3).one(3, 10, 6).tiles; },
     },
     {
-      id: 'tower', name: 'Mountain Tower', caption: 'Hot Springs Mountain Tower: 216 ft of lattice steel, opened June 3, 1983.',
+      id: 'tower', measured: 29, name: 'Mountain Tower', caption: 'Hot Springs Mountain Tower: 216 ft of lattice steel, opened June 3, 1983.',
       build() {
         const b = L();
         b.row(0, 6, 0, 7).row(1, 8, 0, 5).row(2, 10, 0, 3).one(3, 12, 0);                       // observation deck
@@ -395,7 +406,7 @@ const ENGINE = (() => {
       },
     },
     {
-      id: 'arlington', name: 'Arlington Towers', caption: 'The Arlington (1924): Spanish Colonial Revival twin towers and 484 rooms at the head of Central Avenue.',
+      id: 'arlington', measured: 31, name: 'Arlington Towers', caption: 'The Arlington (1924): Spanish Colonial Revival twin towers and 484 rooms at the head of Central Avenue.',
       build() {
         const b = L();
         b.rect(0, 0, 8, 14, 3);                                                                  // main block
@@ -409,7 +420,7 @@ const ENGINE = (() => {
       },
     },
     {
-      id: 'row', name: 'Bathhouse Row', caption: 'Eight bathhouses, Superior to Lamar, above the promenade. The Row was completed in 1923.',
+      id: 'row', measured: 19, name: 'Bathhouse Row', caption: 'Eight bathhouses, Superior to Lamar, above the promenade. The Row was completed in 1923.',
       build() {
         const b = L();
         b.row(0, 0, 12, 16).row(1, 1, 12, 15);                                                  // promenade: two brick courses
@@ -429,7 +440,7 @@ const ENGINE = (() => {
       },
     },
     {
-      id: 'islands', name: 'Ouachita Islands', caption: 'Lake Ouachita has about 200 islands. Clear these one by one.',
+      id: 'islands', measured: 69, name: 'Ouachita Islands', caption: 'Lake Ouachita has about 200 islands. Clear these one by one.',
       build() {
         const b = L();
         b.rect(0, 0, 0, 5, 4).rect(1, 2, 2, 3, 2).one(2, 4, 3);                                 // big island
@@ -445,7 +456,7 @@ const ENGINE = (() => {
     },
     // Portrait-first layouts: eight tiles wide, so tiles stay large on a phone held upright.
     {
-      id: 'terraces', name: 'Tufa Terraces', portrait: true, caption: 'Thermal water leaves tufa behind as it evaporates. The Tufa Terrace Trail climbs past the Hot Water Cascade.',
+      id: 'terraces', measured: 35, name: 'Tufa Terraces', portrait: true, caption: 'Thermal water leaves tufa behind as it evaporates. The Tufa Terrace Trail climbs past the Hot Water Cascade.',
       build() {
         return L().rect(0, 0, 0, 8, 11)          // the hillside
           .rect(1, 1, 1, 7, 6)                     // terraces, offset half a tile
@@ -454,7 +465,7 @@ const ENGINE = (() => {
       },
     },
     {
-      id: 'display', name: 'Display Springs', portrait: true, caption: 'Two steaming pools. The Display Spring behind the Maurice is one of the few springs left open to the air.',
+      id: 'display', measured: 68, name: 'Display Springs', portrait: true, caption: 'Two steaming pools. The Display Spring behind the Maurice is one of the few springs left open to the air.',
       build() {
         return L().rect(0, 0, 0, 8, 11)
           .rect(1, 2, 2, 6, 4).rect(1, 2, 12, 6, 4)   // two pools
@@ -550,7 +561,36 @@ const ENGINE = (() => {
     return null;
   }
 
-  function deal(g, rng) {
+  // Difficulty shaping (S3-01). Any permutation of which pair of faces sits on which step of the plan keeps the plan valid,
+  // so a deal can be made safer (dir -1, Relaxed) or more treacherous (dir +1, Expert) without ever making it unsolvable.
+  // The four tiles of a kind can be paired three ways. A way that cannot be finished (it leaves two tiles stacked on each
+  // other, or locked behind a later pair) is a trap: it looks fine when taken and strands the rest of its kind. Swap the
+  // faces of two plan steps and keep the swap when the number of safe ways, summed over the kinds it touched, moves the
+  // right way. It runs after the deal is made, so a Classic deal is exactly what it always was.
+  const SHAPE_ITERS = 120;
+  function shapeDeal(g, faces, plan, rng, dir) {
+    const all = new Array(g.n).fill(true), SPLITS = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]];
+    const safeWays = (key) => {
+      const t = []; for (let i = 0; i < g.n; i++) if (matchKey(faces[i]) === key) t.push(i);
+      if (t.length !== 4) return 0;
+      const rest = plan.filter(([a, b]) => !t.includes(a) && !t.includes(b));
+      let n = 0;
+      for (const sp of SPLITS) if (orderPairs(g, all, rest.concat(sp.map(([x, y]) => [t[x], t[y]]))).done) n++;
+      return n;
+    };
+    const keysAt = (i, j) => [...new Set([plan[i][0], plan[i][1], plan[j][0], plan[j][1]].map((x) => matchKey(faces[x])))];
+    const swap = (i, j) => { const [a, b] = plan[i], [c, d] = plan[j]; let t = faces[a]; faces[a] = faces[c]; faces[c] = t; t = faces[b]; faces[b] = faces[d]; faces[d] = t; };
+    for (let it = 0; it < SHAPE_ITERS && plan.length > 1; it++) {
+      const i = rng.int(plan.length), j = rng.int(plan.length);
+      if (i === j || matchKey(faces[plan[i][0]]) === matchKey(faces[plan[j][0]])) continue;
+      const k0 = keysAt(i, j); let before = 0; for (const k of k0) before += safeWays(k);
+      swap(i, j);
+      let after = 0; for (const k of k0) after += safeWays(k);
+      if ((after - before) * dir > 0) swap(i, j); // it moved the wrong way: undo it
+    }
+  }
+
+  function deal(g, rng, shape) {
     if (g.n % 2 || g.n > 144) return null;
     const all = [];
     for (let i = 0; i < g.n; i++) all.push(i);
@@ -566,6 +606,7 @@ const ENGINE = (() => {
     shuffleInPlace(chosen, rng);
     const faces = new Array(g.n).fill(-1);
     order.forEach(([a, b], k) => { const pr = chosen[k]; if (rng() < 0.5) pr.reverse(); faces[a] = pr[0]; faces[b] = pr[1]; });
+    if (shape) shapeDeal(g, faces, order, rng, shape);
     return { faces, plan: order };
   }
 
@@ -844,8 +885,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
-const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, effects: true, music: true, ambience: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic' };
-const SETTING_CHOICES = { motion: ['auto', 'full', 'reduced'], theme: ['auto', 'light', 'dark'], tileset: ['auto', 'palm', 'ribbon', 'peacock'], graphics: ['auto', '3d', 'flat'], camera: ['classic', 'tilted', 'top'] };
+const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, effects: true, music: true, ambience: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic', difficulty: 'classic' };
+const SETTING_CHOICES = { motion: ['auto', 'full', 'reduced'], theme: ['auto', 'light', 'dark'], tileset: ['auto', 'palm', 'ribbon', 'peacock'], graphics: ['auto', '3d', 'flat'], camera: ['classic', 'tilted', 'top'], difficulty: ['relaxed', 'classic', 'expert'] };
 // Stored settings come from a file anyone can edit: keep only values the game can use, the defaults for the rest
 function cleanSettings(raw) {
   const o = Object.assign({}, DEFAULT_SETTINGS);
@@ -861,7 +902,16 @@ function cleanSettings(raw) {
 const SETTINGS = cleanSettings(store.get('bhm.settings.v1', {}));
 // Writes only the setting that changed over what is stored now, so another tab's changes to other settings survive
 function saveSettings(k) { const cur = cleanSettings(store.get('bhm.settings.v1', {})); if (k !== undefined) cur[k] = SETTINGS[k]; else Object.assign(cur, SETTINGS); store.set('bhm.settings.v1', cur); }
-function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, daily: { last: null, streak: 0, best: 0, done: {} } }; }
+// Difficulty levels (S3-01). Classic is the game exactly as it was. Each number lives on its own line, so a level is retuned
+// (or a retune undone) by editing that line. `shape` is the deal shape passed to ENGINE.deal: -1 safer, 0 as always, 1 trickier.
+const LEVELS = {
+  relaxed: { name: 'Relaxed', hints: true, hintCost: 0, shuffleCost: 0, shuffleCap: Infinity, freeGlow: 'player', shape: -1, blurb: 'Hints and shuffles are free, and the deals steer clear of traps.' },
+  classic: { name: 'Classic', hints: true, hintCost: 15, shuffleCost: 50, shuffleCap: Infinity, freeGlow: 'player', shape: 0, blurb: 'The standard game: a hint costs 15 points and a shuffle 50.' },
+  expert: { name: 'Expert', hints: false, hintCost: 0, shuffleCost: 100, shuffleCap: 3, freeGlow: 'off', shape: 1, blurb: 'No hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps.' },
+};
+const RATING_EASY = 50, RATING_HARD = 30; // a layout is Easy when a random player clears at least this share of its deals, Hard below the second
+function ratingOf(l) { return l.measured >= RATING_EASY ? 'Easy' : l.measured < RATING_HARD ? 'Hard' : 'Medium'; }
+function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} } }; }
 // A finite number or the default: stored stats are not trusted to hold numbers
 function num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
 function count(v) { return Math.max(0, Math.floor(num(v, 0))); }
@@ -869,12 +919,17 @@ function loadStats() {
   const f = freshStats(), s = store.get('bhm.stats.v1', {});
   if (!s || typeof s !== 'object' || Array.isArray(s)) return f;
   f.played = count(s.played); f.won = count(s.won); f.streak = count(s.streak); f.bestStreak = count(s.bestStreak);
-  const L = s.layouts && typeof s.layouts === 'object' && !Array.isArray(s.layouts) ? s.layouts : {};
-  for (const id of Object.keys(L)) {
-    const l = L[id]; if (!l || typeof l !== 'object') continue;
-    const b = num(l.bestMs, null);
-    f.layouts[id] = { played: count(l.played), won: count(l.won), bestMs: b != null && b >= 0 ? b : null, bestScore: count(l.bestScore) };
-  }
+  const readLayouts = (L, into) => {
+    if (!L || typeof L !== 'object' || Array.isArray(L)) return;
+    for (const id of Object.keys(L)) {
+      const l = L[id]; if (!l || typeof l !== 'object') continue;
+      const b = num(l.bestMs, null);
+      into[id] = { played: count(l.played), won: count(l.won), bestMs: b != null && b >= 0 ? b : null, bestScore: count(l.bestScore) };
+    }
+  };
+  readLayouts(s.layouts, f.layouts);
+  const T = s.tiers && typeof s.tiers === 'object' && !Array.isArray(s.tiers) ? s.tiers : {};
+  for (const lvl of ['relaxed', 'expert']) { const t = T[lvl]; if (t && typeof t === 'object') { f.tiers[lvl].played = count(t.played); f.tiers[lvl].won = count(t.won); readLayouts(t.layouts, f.tiers[lvl].layouts); } }
   const d = s.daily && typeof s.daily === 'object' && !Array.isArray(s.daily) ? s.daily : {};
   f.daily.last = typeof d.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.last) ? d.last : null;
   f.daily.streak = count(d.streak); f.daily.best = count(d.best);
@@ -886,7 +941,9 @@ let STATS = loadStats();
 // Another tab may have saved stats since this one loaded them: take its numbers before changing and saving ours
 function freshenStats() { let has = false; try { has = localStorage.getItem('bhm.stats.v1') !== null; } catch (e) { has = false; } if (has) STATS = loadStats(); }
 function saveStats() { store.set('bhm.stats.v1', STATS); }
-function layoutStats(id) { return STATS.layouts[id] || (STATS.layouts[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
+// Records are kept apart per level: Classic's are the original STATS.layouts, so a save from before levels existed is all Classic.
+function layoutBook(level) { return level === 'relaxed' || level === 'expert' ? STATS.tiers[level].layouts : STATS.layouts; }
+function layoutStats(id, level) { const book = layoutBook(level); return book[id] || (book[id] = { played: 0, won: 0, bestMs: null, bestScore: 0 }); }
 
 const mqReduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
@@ -1943,7 +2000,19 @@ let G = null;            // geometry of the current layout
 let S = null;            // the serializable game state (MECHANICS §3)
 let LAYOUT = E.LAYOUTS[0];
 let nextSeed = null;
-const STUCK_TEXT = 'There are no free pairs left. Shuffle the remaining tiles into a new solvable order (−50 points), undo your last moves, or start over.';
+function lv() { return LEVELS[(S && S.level) || 'classic']; }
+function freeGlow() { return lv().freeGlow === 'off' ? false : SETTINGS.highlightFree; } // Expert shows no glow on free tiles
+function toggleGlow() {
+  if (S && lv().freeGlow === 'off') { setStatus('Free tiles are not highlighted in ' + lv().name + '.', STATUS_HOLD_MS); announce('Free tiles are not highlighted in ' + lv().name); return; }
+  setSetting('highlightFree', !SETTINGS.highlightFree);
+}
+function shuffleLeft() { return !!S && S.shuffles < lv().shuffleCap; }
+function shuffleLabel() { const c = lv().shuffleCost; return c ? 'Shuffle (−' + c + ')' : 'Shuffle'; }
+function stuckText() {
+  const c = lv().shuffleCost;
+  if (!shuffleLeft()) return 'There are no free pairs left and the ' + lv().shuffleCap + ' shuffles of ' + lv().name + ' are used. Undo your last moves, or start over.';
+  return 'There are no free pairs left. Shuffle the remaining tiles into a new solvable order' + (c ? ' (−' + c + ' points)' : '') + ', undo your last moves, or start over.';
+}
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
 let pendingTap = null;   // a tap made while the deal-in or shuffle flip was still running
 const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0, dealAt: 0 };
@@ -1978,18 +2047,19 @@ function newGame(opts = {}) {
     seed = opts.seed != null ? opts.seed >>> 0 : nextSeed != null ? nextSeed >>> 0 : (Math.random() * 4294967296) >>> 0;
     nextSeed = null;
   }
+  const level = daily ? 'classic' : LEVELS[opts.level] ? opts.level : LEVELS[SETTINGS.difficulty] ? SETTINGS.difficulty : 'classic'; // the Daily Puzzle is one shared board, so it is always Classic
   LAYOUT = layout;
   G = E.buildGeometry(layout.build());
   let d = null;
-  for (let k = 0; !d && k < 8; k++) d = E.deal(G, E.makeRng((seed + Math.imul(k, 0x9E3779B1)) >>> 0)); // a failed deal retries on a derived seed
+  for (let k = 0; !d && k < 8; k++) d = E.deal(G, E.makeRng((seed + Math.imul(k, 0x9E3779B1)) >>> 0), LEVELS[level].shape); // a failed deal retries on a derived seed
   // replaying a finished Daily Puzzle is practice: it does not count as played, won or toward any streak
   const practice = !!(daily && STATS.daily.done[daily] != null);
   S = {
-    v: 1, layoutId: layout.id, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
+    v: 1, layoutId: layout.id, level, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
     history: [], redo: [], selected: -1, cursor: -1, score: 0, combo: 0, lastMatchMs: -1e9,
     elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
   };
-  if (!practice) { STATS.played++; layoutStats(layout.id).played++; saveStats(); }
+  if (!practice) { STATS.played++; if (level !== 'classic') STATS.tiers[level].played++; layoutStats(layout.id, level).played++; saveStats(); }
   anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
@@ -2027,11 +2097,12 @@ function startNewGame(opts) {
 // Validates a saved state before anything global changes; throws on a save that does not fit its layout.
 function loadState(s) {
   const layout = layoutById(s.layoutId), g = E.buildGeometry(layout.build());
-  const st = Object.assign({ score: 0, elapsedMs: 0, redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9, hints: 0, shuffles: 0, undos: 0, practice: false }, JSON.parse(JSON.stringify(s)));
+  const st = Object.assign({ score: 0, elapsedMs: 0, redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9, hints: 0, shuffles: 0, undos: 0, practice: false, level: 'classic' }, JSON.parse(JSON.stringify(s)));
   if (s.layoutId !== layout.id || !Array.isArray(st.faces) || !Array.isArray(st.present) || st.faces.length !== g.n || st.present.length !== g.n) throw new Error('state does not match layout');
   if (st.faces.some((f) => !(f >= 0 && f < E.FACES)) || st.present.filter(Boolean).length % 2) throw new Error('bad faces');
   if (st.status === 'won') throw new Error('a finished game cannot be continued');
   if (!['playing', 'stuck'].includes(st.status)) st.status = 'playing';
+  if (!LEVELS[st.level]) st.level = 'classic'; // a save from before levels existed, or a damaged one, plays as Classic
   for (const k of ['score', 'elapsedMs', 'combo', 'hints', 'shuffles', 'undos', 'lastMatchMs']) if (!Number.isFinite(st[k])) throw new Error('bad ' + k);
   if (!Array.isArray(st.history)) st.history = [];
   // saves from before scores were kept per move have no `pts`: their match entries undo to the score before the move
@@ -2056,7 +2127,7 @@ function saveGame() {
 // ---------- rules glue ----------
 function free(i) { return E.isFree(G, S.present, i); }
 function pairsAvailable() { return E.availablePairs(G, S.present, S.faces); }
-function resetStuckDialog() { $('os-shuffle').disabled = false; $('os-text').textContent = STUCK_TEXT; }
+function resetStuckDialog() { $('os-shuffle').disabled = !shuffleLeft(); $('os-shuffle').textContent = shuffleLeft() ? shuffleLabel() : 'No shuffles left'; $('os-text').textContent = stuckText(); }
 function clearSelection() { try { const sel = window.getSelection(); if (sel && sel.rangeCount) sel.removeAllRanges(); } catch (e) { /* no selection API */ } }
 // Taps wait while the board is still dealing in or flipping through a shuffle (the faces on screen are not final yet).
 function boardBusy() { const t = now(); return (use3D() && (anim.dealAt === -1 || (anim.dealAt > 0 && t - anim.dealAt < DEAL_MS))) || (anim.shuffleAt > 0 && t - anim.shuffleAt < SHUF_MS); }
@@ -2125,7 +2196,7 @@ function doMatch(a, b, rec) {
 function afterMove() {
   if (!S.plan && tilesLeft() > 0) schedulePlanSearch();
   if (tilesLeft() === 0) { win(); }
-  else if (!pairsAvailable().length) { S.status = 'stuck'; setTimeout(() => { if (S.status === 'stuck' && scene === 'game' && !paused) { AUDIO.stuck(); openOverlay('o-stuck'); } }, reduced() ? 50 : 650); announce('No more matches. Shuffle or undo.'); }
+  else if (!pairsAvailable().length) { S.status = 'stuck'; setTimeout(() => { if (S.status === 'stuck' && scene === 'game' && !paused) { AUDIO.stuck(); resetStuckDialog(); openOverlay('o-stuck'); } }, reduced() ? 50 : 650); announce('No more matches. Shuffle or undo.'); }
   updateHud(); saveGame(); markDirty();
 }
 
@@ -2182,19 +2253,20 @@ function bestFreePair() {
 function hint() {
   if (!S || S.status !== 'playing' || inputLocked()) return null;
   AUDIO.unlock();
+  if (!lv().hints) { setStatus('Hints are off in ' + lv().name + '. Undo is still free.', STATUS_HOLD_MS); announce('Hints are off in ' + lv().name); AUDIO.thud(); return null; }
   if (!S.plan && S.winnable !== false) { const r = E.solveInfo(G, S.present, S.faces, 20000); S.plan = r.plan; S.winnable = r.plan ? true : r.exhausted ? false : null; if (S.winnable == null && !planAsk) deepSearch(boardKey()); }
   let pr = null;
   if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
   let guess = false; // no known way to clear the board: the pair is only the free pair that opens the most tiles
   if (!pr) { pr = bestFreePair(); guess = !!pr; }
   if (!pr) { setStatus('No free pairs: try Shuffle.', STATUS_HOLD_MS); return null; }
-  S.hints++; S.score = Math.max(0, S.score - 15);
+  S.hints++; S.score = Math.max(0, S.score - lv().hintCost);
   anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
   AUDIO.chime();
   const m = META[S.faces[pr[0]]];
-  setStatus((guess ? 'Hint (best guess): match the two highlighted ' : 'Hint: match the two highlighted ') + m.name.split(':')[0] + ' tiles (−15).', STATUS_HOLD_MS);
+  setStatus((guess ? 'Hint (best guess): match the two highlighted ' : 'Hint: match the two highlighted ') + m.name.split(':')[0] + ' tiles' + (lv().hintCost ? ' (−' + lv().hintCost + ').' : '.'), STATUS_HOLD_MS);
   announce('Hint: ' + m.name + ' pair highlighted');
   if (S.winnable === false) noteDead();
   updateHud(); saveGame(); kick();
@@ -2204,18 +2276,19 @@ function hint() {
 function shuffle(force) {
   if (!S || (S.status !== 'playing' && S.status !== 'stuck') || paused) return null;
   AUDIO.unlock();
+  if (!force && !shuffleLeft()) { setStatus('No shuffles left in ' + lv().name + ' (' + lv().shuffleCap + ' a game). Undo instead.', STATUS_HOLD_MS); announce('No shuffles left'); resetStuckDialog(); AUDIO.thud(); return null; }
   const res = E.reshuffle(G, S.present, S.faces, rngFor(S.shuffles + S.history.length * 7));
   if (!res) { setStatus('These tiles cannot be rearranged into a solvable order. Undo instead.'); $('os-text').textContent = 'The remaining tiles cannot be rearranged into a solvable order. Undo a few moves or start a new game.'; $('os-shuffle').disabled = true; return null; }
   // penalties stay paid: undoing or redoing a shuffle never refunds it or charges again
   S.history.push({ t: 's', faces: S.faces, plan: S.plan, winnable: S.winnable, before: { status: S.status } });
   S.redo = [];
   S.faces = res.faces; S.plan = res.plan; S.winnable = true; S.selected = -1; anim.hint = null; S.deadNoted = false;
-  S.shuffles++; if (!force) S.score = Math.max(0, S.score - 50);
+  S.shuffles++; if (!force) S.score = Math.max(0, S.score - lv().shuffleCost);
   S.status = 'playing';
   closeOverlay('o-stuck'); resetStuckDialog();
   anim.shuffleAt = reduced() ? 0 : now();
   AUDIO.rattle();
-  setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared (−50).', STATUS_HOLD_MS);
+  setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared' + (lv().shuffleCost && !force ? ' (−' + lv().shuffleCost + ').' : '.'), STATUS_HOLD_MS);
   announce('Tiles shuffled');
   afterMove(); kick();
   return true;
@@ -2278,10 +2351,10 @@ function win() {
   const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
   const base = S.score;
   S.score += 500 + timeBonus;
-  const ls = layoutStats(S.layoutId);
+  const ls = layoutStats(S.layoutId, S.level);
   const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
   if (!S.practice) {
-    STATS.won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
+    STATS.won++; if (S.level !== 'classic') STATS.tiers[S.level].won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
     ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score);
   }
   if (S.daily) {
@@ -2301,7 +2374,7 @@ function win() {
   spawnWinFx();
   // fact
   const fact = FACTS.length ? FACTS[rngFor(999).int(FACTS.length)] : null;
-  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
+  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
   const rows = [['Pairs, combos and penalties', base], ['Clear bonus', 500], ['Time bonus (under 10:00)', timeBonus]];
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
@@ -2433,7 +2506,7 @@ function draw3D(t) {
   const c = ctx, dpr = view.dpr || 1;
   const pt = performance.now(), dt = Math.min(100, pt - (lastDraw3 || pt)); lastDraw3 = pt;
   c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, view.cssW, view.cssH);
-  const veil = SETTINGS.highlightFree, rm = reduced();
+  const veil = freeGlow(), rm = reduced();
   const flying = new Map(); for (const a of anim.list) for (const i of a.tiles) flying.set(i, a);
   const shuf = anim.shuffleAt && t - anim.shuffleAt < SHUF_MS ? (t - anim.shuffleAt) / SHUF_MS : -1;
   const dealWait = anim.dealAt === -1;
@@ -2714,7 +2787,7 @@ function draw(t) {
   const { W, H, D } = view;
   const flying = new Set();
   for (const a of anim.list) for (const i of a.tiles) flying.add(i);
-  const veil = SETTINGS.highlightFree;
+  const veil = freeGlow();
   const shuf = anim.shuffleAt && t - anim.shuffleAt < SHUF_MS ? (t - anim.shuffleAt) / SHUF_MS : -1;
   const sel = S.selected;
   for (const i of view.order) {
@@ -2816,7 +2889,7 @@ function tileUnder(px, py) {
 function updateHud() {
   if (!S) return;
   $('h-name').textContent = LAYOUT.name;
-  $('h-sub').textContent = S.daily ? 'Daily Puzzle · ' + S.daily : 'Classic · seed ' + S.seed;
+  $('h-sub').textContent = S.daily ? 'Daily Puzzle · ' + S.daily : lv().name + ' · seed ' + S.seed;
   $('h-time').textContent = fmtTime(S.elapsedMs);
   $('h-timebox').hidden = !SETTINGS.showTimer;
   $('h-score').textContent = S.score;
@@ -2824,7 +2897,10 @@ function updateHud() {
   $('h-pairs').textContent = pairsAvailable().length;
   $('t-undo').disabled = !S.history.length || S.status === 'won';
   $('t-redo').disabled = !S.redo.length || S.status !== 'playing';
-  $('t-free').setAttribute('aria-pressed', String(SETTINGS.highlightFree));
+  $('t-free').setAttribute('aria-pressed', String(freeGlow()));
+  const noHint = !lv().hints, noGlow = lv().freeGlow === 'off';
+  $('t-hint').setAttribute('aria-disabled', String(noHint)); $('t-hint').title = noHint ? 'Hints are off in ' + lv().name : 'Hint (H)';
+  $('t-free').setAttribute('aria-disabled', String(noGlow)); $('t-free').title = noGlow ? 'Free tiles are not highlighted in ' + lv().name : 'Highlight free tiles (F)';
   $('t-zoom').setAttribute('aria-pressed', String(view.zoom));
 }
 setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(); $('h-time').textContent = fmtTime(S.elapsedMs); if (Math.floor(S.elapsedMs / 5000) !== Math.floor((S.elapsedMs - 250) / 5000)) saveGame(); } }, 250);
@@ -2971,13 +3047,20 @@ function buildCards() {
   // portrait-first layouts lead on a phone held upright
   const portrait = window.innerWidth < window.innerHeight && window.innerWidth < 700;
   const list = portrait ? [...E.LAYOUTS.filter((l) => l.portrait), ...E.LAYOUTS.filter((l) => !l.portrait)] : E.LAYOUTS;
+  const level = SETTINGS.difficulty, book = layoutBook(level);
+  $('level-blurb').textContent = LEVELS[level].blurb;
+  syncSettingsUI(); // the Difficulty buttons above the cards share the setting with the Settings card
   for (const l of list) {
-    const ls = STATS.layouts[l.id];
+    const ls = book[l.id];
     const b = document.createElement('button'); b.className = 'card'; b.dataset.layout = l.id;
-    b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="cap"></span><span class="best"></span>';
+    b.innerHTML = '<canvas aria-hidden="true"></canvas><b></b><span class="tags"></span><span class="cap"></span><span class="meas"></span><span class="best"></span>';
     b.querySelector('b').textContent = l.name;
-    if (l.portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Fits phones'; b.querySelector('b').after(tag); } b.querySelector('.cap').textContent = l.caption;
-    b.querySelector('.best').textContent = ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : '144 tiles';
+    const tags = b.querySelector('.tags'), rating = ratingOf(l);
+    const rate = document.createElement('span'); rate.className = 'tag rate ' + rating.toLowerCase(); rate.textContent = rating; tags.appendChild(rate);
+    if (l.portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Fits phones'; tags.appendChild(tag); }
+    b.querySelector('.cap').textContent = l.caption;
+    b.querySelector('.meas').textContent = 'A random player clears about ' + l.measured + ' in 100 deals.';
+    b.querySelector('.best').textContent = (ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : l.build().length + ' tiles') + (level !== 'classic' ? ' · ' + LEVELS[level].name : '');
     b.addEventListener('click', () => { AUDIO.unlock(); startNewGame({ layout: l.id }); });
     box.appendChild(b);
     requestAnimationFrame(() => drawPreview(b.querySelector('canvas'), l));
@@ -3008,14 +3091,21 @@ function buildGuide() {
 }
 
 // ---------- stats ----------
+let statsLevel = 'classic'; // the level whose per-layout records the Stats card shows
 function buildStats() {
   const d = STATS.daily;
   let html = '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Win rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span></div>';
-  html += '<h3>By layout</h3><table class="st"><thead><tr><th>Layout</th><th>Played</th><th>Won</th><th>Best time</th><th>Best score</th></tr></thead><tbody>';
-  for (const l of E.LAYOUTS) { const s = STATS.layouts[l.id] || {}; html += '<tr><td>' + l.name + '</td><td>' + (s.played || 0) + '</td><td>' + (s.won || 0) + '</td><td>' + (s.bestMs != null ? fmtTime(s.bestMs) : '—') + '</td><td>' + (s.bestScore || '—') + '</td></tr>'; }
+  const tier = (lvl) => lvl === 'classic' ? { played: Math.max(0, STATS.played - STATS.tiers.relaxed.played - STATS.tiers.expert.played), won: Math.max(0, STATS.won - STATS.tiers.relaxed.won - STATS.tiers.expert.won) } : STATS.tiers[lvl];
+  html += '<h3>By difficulty</h3><table class="st"><thead><tr><th>Level</th><th>Played</th><th>Won</th><th>Win rate</th></tr></thead><tbody>';
+  for (const lvl of ['relaxed', 'classic', 'expert']) { const t = tier(lvl); html += '<tr><td>' + LEVELS[lvl].name + '</td><td>' + t.played + '</td><td>' + t.won + '</td><td>' + (t.played ? Math.round(t.won / t.played * 100) + '%' : '—') + '</td></tr>'; }
+  html += '</tbody></table>';
+  html += '<h3>By layout</h3><div class="seg" role="group" aria-label="Difficulty shown" id="st-level">' + ['relaxed', 'classic', 'expert'].map((lvl) => '<button class="btn small" data-v="' + lvl + '" aria-pressed="' + (lvl === statsLevel) + '">' + LEVELS[lvl].name + '</button>').join('') + '</div>';
+  html += '<table class="st"><thead><tr><th>Layout</th><th>Played</th><th>Won</th><th>Best time</th><th>Best score</th></tr></thead><tbody>';
+  for (const l of E.LAYOUTS) { const s = layoutBook(statsLevel)[l.id] || {}; html += '<tr><td>' + l.name + '</td><td>' + (s.played || 0) + '</td><td>' + (s.won || 0) + '</td><td>' + (s.bestMs != null ? fmtTime(s.bestMs) : '—') + '</td><td>' + (s.bestScore || '—') + '</td></tr>'; }
   html += '</tbody></table>';
   if (!store.ok) html += '<p style="color:var(--color-muted)">Storage is unavailable in this browser, so stats last only for this visit.</p>';
   $('ost-body').innerHTML = html;
+  for (const bt of $('st-level').querySelectorAll('button')) bt.addEventListener('click', () => { statsLevel = bt.dataset.v; buildStats(); const again = $('st-level').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
 }
 
 // ---------- settings ----------
@@ -3045,6 +3135,7 @@ function setSetting(k, v) {
   if (k === 'sound' && v) AUDIO.unlock();
   if (k !== 'sound') AUDIO.tick();
   if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
+  if (k === 'difficulty' && scene === 'layouts') buildCards();
 }
 
 // ===================== input =====================
@@ -3161,7 +3252,7 @@ function handleKey(key, ev) {
     case 's': shuffle(); return true;
     case 'u': undo(); return true;
     case 'r': redo(); return true;
-    case 'f': setSetting('highlightFree', !SETTINGS.highlightFree); return true;
+    case 'f': toggleGlow(); return true;
     case 'z': setZoom(!view.zoom); return true;
     case 'n': askNewGame(); return true;
   }
@@ -3214,7 +3305,7 @@ on('t-hint', () => hint());
 on('t-shuffle', () => shuffle());
 on('t-undo', () => undo());
 on('t-redo', () => redo());
-on('t-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
+on('t-free', () => toggleGlow());
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
 on('op-new', () => askNewGame());
@@ -3276,7 +3367,7 @@ window.__game = {
     const base = { gfx: use3D() ? '3d' : '2d', glName: GLP.name, scene, overlay: (document.querySelector('.overlay.on') || {}).id || null, settings: Object.assign({}, SETTINGS), theme: document.documentElement.dataset.theme, reduced: reduced(), zoom: view.zoom, tileW: view.W, statsPlayed: STATS.played, statsWon: STATS.won, storage: store.ok, status: $('status-text').textContent, live: $('live').textContent };
     if (!S) return base;
     return Object.assign(base, {
-      layoutId: S.layoutId, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
+      layoutId: S.layoutId, level: S.level, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
       freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
       selected: S.selected, cursor: S.cursor, score: S.score, combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
       gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
