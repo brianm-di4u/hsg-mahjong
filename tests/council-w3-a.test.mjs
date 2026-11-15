@@ -229,4 +229,27 @@ export const tests = [
       t.equal((await t.state()).selected, -1, 'and the blocked tap selected nothing');
     },
   },
+  // ------------------------------------------------------------------ S2-09
+  {
+    name: 'S2-09: the title heading stays inside its panel at 320 px wide, and at 360 and 390',
+    url: 'index.html',
+    viewports: ['mobile'],
+    async run(t) {
+      for (const [w, h] of [[320, 568], [360, 740], [390, 844]]) {
+        await t.page.setViewportSize({ width: w, height: h });
+        await t.page.evaluate(() => document.fonts.ready);
+        await t.waitFrames(3);
+        const r = await t.page.evaluate(() => {
+          const el = document.querySelector('#t-h'), panel = el.closest('.title-block'), q = document.createRange(); q.selectNodeContents(el);
+          const tr = q.getBoundingClientRect(), pr = panel.getBoundingClientRect(), ps = getComputedStyle(panel);
+          return { left: tr.left, right: tr.right, pl: pr.left + parseFloat(ps.paddingLeft), pr: pr.right - parseFloat(ps.paddingRight), over: el.scrollWidth - el.clientWidth, docOver: document.documentElement.scrollWidth - innerWidth };
+        });
+        t.log(w + ' px: text ' + Math.round(r.left) + ' to ' + Math.round(r.right) + ' in ' + Math.round(r.pl) + ' to ' + Math.round(r.pr));
+        t.expect(r.left >= r.pl - 1 && r.right <= r.pr + 1, w + ' px: the title text lies inside the panel padding');
+        t.expect(r.over <= 1, w + ' px: the heading does not overflow its box');
+        t.expect(r.docOver <= 0, w + ' px: the page does not scroll sideways');
+        if (w === 320) await t.shot('S2-09-title-320');
+      }
+    },
+  },
 ];

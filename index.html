@@ -80,6 +80,7 @@ h1{font-family:var(--font-serif-victorian);font-size:clamp(2rem,5vw,3rem);white-
 .title-block .menu .btn.primary{grid-column:span 2;min-height:54px;font-size:1.15rem;background:linear-gradient(#F2D27A,#C99A35);color:#211A08;border-color:#F7E2A0}
 html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradient(#7FD8FF,#2E9FD8);color:#0B1020;border-color:#BFEBFF}
 .title-block .menu .wide{grid-column:1 / -1}
+@media (max-width:360px){.title-block h1{font-size:clamp(1.5rem,7.4vw,2rem);white-space:normal}} /* a 320 px phone: the name fits on one line, and wraps rather than runs off the panel if a font is wider */
 @media (max-width:420px){.title-block .menu{grid-template-columns:1fr 1fr}.title-block .menu .btn.primary{grid-column:span 1}.title-block .menu .wide{grid-column:1 / -1}}
 .subtitle{font-family:var(--font-serif-victorian);font-style:italic;color:var(--color-muted);margin:var(--space-2) 0 var(--space-5);font-size:1.1rem}
 .menu{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
