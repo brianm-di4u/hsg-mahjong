@@ -181,7 +181,7 @@ export const tests = [
         let a = await stats(t.page);
         t.equal([a.played, a.won], [1, 1], 'tab A recorded the win');
         // tab B, opened before the win, starts a game
-        await B.evaluate(() => window.__game.newGame({ layout: 'tower', seed: 12 }));
+        await B.evaluate(() => { window.__game.newGame({ layout: 'tower', seed: 12 }); window.__game.act('solveStep'); }); // a game counts as played at its first match (S6-12)
         a = await stats(B);
         t.equal([a.played, a.won, a.streak], [2, 1, 1], 'tab B adds to the win instead of erasing it');
         // tab A hears about it without a reload

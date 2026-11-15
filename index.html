@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bathhouse Mahjong · Hot Springs Games</title>
+<meta name="theme-color" content="#173F47">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Bathhouse%20Mahjong%22%2C%22short_name%22%3A%22Mahjong%22%2C%22description%22%3A%22Mahjong%20solitaire%20on%20Bathhouse%20Row%20with%20Hot%20Springs%20tiles.%22%2C%22display%22%3A%22standalone%22%2C%22theme_color%22%3A%22%23173F47%22%2C%22background_color%22%3A%22%23173F47%22%2C%22categories%22%3A%5B%22games%22%5D%7D">
 <meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, eighteen local layouts, three difficulty levels, always-solvable deals.">
 <!--
   Bathhouse Mahjong, part of Hot Springs Games (MIT License).
@@ -89,6 +91,11 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 
 /* ---------- layouts ---------- */
 #s-layouts{overflow-y:auto}
+/* the painted view of Bathhouse Row stays behind the picker, under a dark wash so the cards and the words on it read (S4-05) */
+#layouts-art{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#s-layouts>:not(#layouts-art){position:relative}
+#s-layouts .levelbar .lbl{color:var(--bar-text)}
+#s-layouts .levelbar p{color:var(--chrome-muted)}
 .topbar{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);background:linear-gradient(var(--bar),var(--chrome-b));color:var(--bar-text);border-bottom:2px solid var(--brass);flex:none}
 .topbar h2{margin:0;font-family:var(--font-serif-victorian);font-size:1.3rem;flex:1}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-4);padding:var(--space-5);max-width:1100px;width:100%;margin:0 auto}
@@ -265,6 +272,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 
   <!-- Layout picker -->
   <section class="screen" id="s-layouts" aria-labelledby="l-h">
+    <canvas id="layouts-art" aria-hidden="true"></canvas>
     <div class="topbar"><button class="iconbtn" data-back aria-label="Back to title"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2 id="l-h">Choose a layout</h2></div>
     <div class="levelbar"><span class="lbl" id="lb-level">Difficulty</span><div class="seg" role="group" aria-labelledby="lb-level" data-set="difficulty"><button class="btn small" data-v="relaxed">Relaxed</button><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="expert">Expert</button></div><p id="level-blurb"></p></div>
     <div class="levelbar seedbar"><label class="lbl" for="lb-seed">Seed</label><input id="lb-seed" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="Random" aria-describedby="seed-note"><p id="seed-note">Type a seed to play that deal again, or leave it empty for a new one. The same layout, level and seed always deal the same tiles.</p></div>
@@ -1096,7 +1104,7 @@ const ACH = [
 ];
 const ACH_BY_ID = {}; for (const a of ACH) ACH_BY_ID[a.id] = a;
 const RECENT_MAX = 20; // wins kept in STATS.recent, newest first
-function freshGoals() { return { rec: false, unlocked: [], ach: {}, tiles: [], wins: [] }; }
+function freshGoals() { return { rec: false, coached: false, unlocked: [], ach: {}, tiles: [], wins: [] }; }
 function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} }, sums: { wins: 0, winMs: 0, clean: 0 }, recent: [], goals: freshGoals() }; }
 // A finite number or the default: stored stats are not trusted to hold numbers
 function num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
@@ -1136,7 +1144,7 @@ function loadStats() {
 function cleanGoals(raw) {
   const g = freshGoals();
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return g;
-  g.rec = raw.rec === true;
+  g.rec = raw.rec === true; g.coached = raw.coached === true;
   if (Array.isArray(raw.unlocked)) for (const id of raw.unlocked) if (typeof id === 'string' && (UNLOCK_BY_ID[id] || LEGACY_OPEN.includes(id)) && !g.unlocked.includes(id)) g.unlocked.push(id);
   if (raw.ach && typeof raw.ach === 'object' && !Array.isArray(raw.ach)) for (const id of Object.keys(raw.ach)) if (ACH_BY_ID[id]) g.ach[id] = typeof raw.ach[id] === 'string' ? raw.ach[id].slice(0, 10) : '';
   if (Array.isArray(raw.tiles)) for (const f of raw.tiles) if (Number.isInteger(f) && f >= 0 && f < E.FACES && !g.tiles.includes(f)) g.tiles.push(f);
@@ -1535,8 +1543,10 @@ const CUE_GAIN = 1;                   // every cue passes through this: the one 
 const MASTER_AT_70 = 0.7 * 0.5;       // the master level the game ships with (volume 70)
 
 // ----- cues: synthesized, each call a little different (detune, level and noise offset) -----
-const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve'];
+const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve', 'comboEnd'];
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+// The match note climbs the pentatonic for two octaves and a bit: combo 0 is the first entry, combo 11 the last (S5-10). It was PENTA, which stopped at combo 6.
+const COMBO_NOTES = PENTA.concat([PENTA[2], PENTA[3], PENTA[4], PENTA[5], PENTA[6]].map((f) => f * 2));
 const MATCH_BODY = [95, 120, 150, 185, 220]; // the body of a match clack, Hz, by suit
 function makeCues(c, dest, jit) {
   const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
@@ -1558,7 +1568,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.8, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.8, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
@@ -1571,7 +1581,7 @@ function makeCues(c, dest, jit) {
       const u = J.o / 1.5, w = (u * 7.13) % 1, x = (u * 3.71) % 1, c0 = t + delay;
       noise(t + 0.02, 0.7, 4800 + 1000 * x, 0.7, 0.2, 'highpass', 0.12, pan); // steam hiss, at the tap
       noise(c0, 0.06, 1900 * (0.94 + 0.12 * u), 4, 0.8, 'bandpass', 0.004, pan); noise(c0 + 0.07, 0.06 * (0.9 + 0.2 * w), 1600 * (0.94 + 0.12 * w), 4, 0.75, 'bandpass', 0.004, pan);
-      const f = PENTA[Math.min(combo, PENTA.length - 1)], k = Math.max(0, Math.min(4, kind | 0));
+      const f = COMBO_NOTES[Math.min(combo, COMBO_NOTES.length - 1)], k = Math.max(0, Math.min(4, kind | 0));
       tone(f, c0 + 0.08, 0.3 + 0.1 * w, k % 2 ? 'sine' : 'triangle', k % 2 ? 0.34 : 0.3, 0, pan); tone(f * 2, c0 + 0.1, 0.25, 'sine', 0.09, 0, pan); tone(f / 4, c0 + 0.07, 0.18, 'sine', 0.22, 0.8, pan);
       tone(MATCH_BODY[k], c0, 0.05, 'sine', 0.16, 0.85, pan); // the wooden body of the clack
     },
@@ -1602,6 +1612,8 @@ function makeCues(c, dest, jit) {
     zoomIn(t) { begin('zoomIn'); noise(t, 0.28, 500, 1.2, 0.5, 'bandpass', 0.1, 0, 2600); },
     zoomOut(t) { begin('zoomOut'); noise(t, 0.28, 2600, 1.2, 0.5, 'bandpass', 0.1, 0, 500); },
     tick(t) { begin('tick'); tone(1400, t, 0.04, 'sine', 0.28); noise(t, 0.025, 3500, 2, 0.4, 'highpass'); },
+    // a chain that ran out: two soft notes stepping down, so the player hears the combo drop (S5-10)
+    comboEnd(t) { begin('comboEnd'); tone(880, t, 0.1, 'triangle', 0.22, 0.95); tone(587.33, t + 0.09, 0.16, 'triangle', 0.2, 0.9); tone(293.66, t + 0.09, 0.14, 'sine', 0.12); },
     // two struck bells a fifth apart, the upper one a little softer: a small prize, quieter than the win
     achieve(t) { begin('achieve'); [[698.5, 0], [1046.5, 0.14]].forEach(([f, d], i) => { tone(f, t + d, 0.7, 'sine', i ? 0.22 : 0.28); tone(f * 2.76, t + d, 0.25, 'sine', 0.05); tone(f / 2, t + d, 0.3, 'triangle', 0.08); }); },
   };
@@ -1633,7 +1645,7 @@ const AUDIO = (() => {
   // Brings the buses, the music and the ambience in line with the settings, the screen and the pause card
   function apply() {
     if (!ac || !kit) return;
-    const on = SETTINGS.sound;
+    const on = audible();
     master.gain.value = masterLevel();
     sfx.gain.value = on && SETTINGS.effects ? CUE_GAIN : 0;
     if (on && SETTINGS.music && mood) kit.music.play(SCORES[mood], { fade: 1.5 }); else kit.music.stop(0.5);
@@ -1641,8 +1653,10 @@ const AUDIO = (() => {
     const hold = isPaused || isHidden;
     if (hold && !kit.held) kit.hold(); else if (!hold && kit.held) kit.release();
   }
+  // volume 0 is a mute: no context, no sources, no music or ambience scheduling (S5-12)
+  const audible = () => SETTINGS.sound && SETTINGS.volume > 0;
   function ensure() {
-    if (!SETTINGS.sound) return null;
+    if (!audible()) return null;
     if (!ac) {
       const C = window.AudioContext || window.webkitAudioContext;
       if (!C) return null;
@@ -1670,6 +1684,7 @@ const AUDIO = (() => {
     win: cue('win', () => kit.music.duck(8, 2800)),
     zoom: guard((on) => { if (!ensure()) return; const n = on ? 'zoomIn' : 'zoomOut'; played[n] = (played[n] || 0) + 1; cues[n](ac.currentTime); }),
     achieve: cue('achieve', () => kit.music.duck(4, 700)),
+    comboEnd: cue('comboEnd'),
     tick: guard(() => { const n = performance.now(); if (n - lastTick < 70) return; lastTick = n; if (!ensure()) return; played.tick = (played.tick || 0) + 1; cues.tick(ac.currentTime); }),
     // which piece the screen wants: 'title', 'play' or 'win' (null: none). Nothing sounds before the first gesture.
     setMood: guard((m) => { mood = m; apply(); }),
@@ -1688,7 +1703,7 @@ const AUDIO = (() => {
       return measureAudio((oc, dest) => {
         const ch = chain(oc, dest, volume == null ? MASTER_AT_70 : (Math.max(0, Math.min(100, volume)) / 100) * 0.5), k = makeAudioKit(oc, ch.m, { seed: seed >>> 0 || 11, music: MUSIC_LEVEL, ambience: AMB_LEVEL });
         Object.assign(k.INST, KIT_EXTRA_INST);
-        if (name.startsWith('cue:')) { const cs = makeCues(oc, ch.s, k.jit), key = name.slice(4); if (!cs[key]) throw new Error('unknown cue ' + key); cs[key](0.05); return null; }
+        if (name.startsWith('cue:')) { const cs = makeCues(oc, ch.s, k.jit), [key, ...args] = name.slice(4).split(':'); if (!cs[key]) throw new Error('unknown cue ' + key); cs[key](0.05, ...args.map(Number)); return null; }
         if (name === 'mix') { // the worst case: music, ambience and the loudest cues at once
           const cs = makeCues(oc, ch.s, k.jit); k.music.play(SCORES.win, { at: 0, fade: 0.02 }); k.amb.play(SCENES.spring, { at: 0, fade: 0.02 });
           cs.win(2); cs.match(2.05, 6); cs.row(2.1); cs.thud(2.1); k.scheduleUntil(seconds); return () => k.music.info();
@@ -1794,6 +1809,7 @@ function artChanged() {
   artTick = requestAnimationFrame(() => {
     artTick = 0; SPR.key = ''; bgCache = null; atlas.key = '';
     if (scene === 'title') drawTitleArt();
+    if (scene === 'layouts') drawLayoutsArt();
     if (guideBuilt) { guideBuilt = false; $('ot-faces').innerHTML = ''; buildGuide(); }
     if (G) { layoutBoard(); markDirty(); }
   });
@@ -2299,7 +2315,7 @@ function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E377
 function inProgress() { return !!S && (S.status === 'playing' || S.status === 'stuck') && S.history.some((h) => h.t === 'm'); }
 // First-run teaching (S1-11): the first game a profile ever starts says how a game goes, in two lines under the board, and pulses one free
 // pair (no charge). It is shown to a profile with no game played and no tile story collected, so a player with a save never sees it, and
-// it is gone at the first match, on Got it, or on leaving the board. Nothing is saved: the records say whether it has been shown.
+// it is gone at the first match, on Got it, or on leaving the board. Whether it has been shown is kept in the records (goals.coached), and a player with a game on record never sees it.
 const COACH_PULSE_MS = 10000;
 function showCoach() {
   const glow = freeGlow();
@@ -2312,11 +2328,17 @@ function showCoach() {
   if (best) { anim.hint = best; anim.hintPaid = false; anim.hintUntil = now() + COACH_PULSE_MS; kick(); }
 }
 function hideCoach() { $('coach').hidden = true; }
+// A game counts as played once its first pair is matched, so pressing New game again and again adds nothing to the records (S6-12).
+// A game saved before this change already has statsCounted set, and a practice game never counts.
+function countPlayed() {
+  if (S.statsCounted || S.practice) return;
+  S.statsCounted = true; STATS.played++; if (S.level !== 'classic') STATS.tiers[S.level].played++; layoutStats(S.layoutId, S.level).played++; saveStats();
+}
 function newGame(opts = {}) {
   freshenStats();
-  const firstRun = STATS.played === 0 && !STATS.goals.tiles.length;
+  const firstRun = STATS.played === 0 && !STATS.goals.tiles.length && !STATS.goals.coached; // coached: the first-game card has been shown (a deal no longer counts as played until its first match, S6-12)
   const lost = abandoning(); // the game this one ends: after a reload that is the saved one, so reloading does not dodge the streak
-  if (lost && !lost.practice) STATS.streak = 0;
+  if (lost && !lost.practice) { STATS.streak = 0; saveStats(); } // saved now: the deal no longer writes the records itself (S6-12)
   let layout, seed, daily = null;
   const phone = window.innerWidth < window.innerHeight && window.innerWidth < 700; // a phone held upright
   if (opts.daily) {
@@ -2337,9 +2359,8 @@ function newGame(opts = {}) {
   S = {
     v: 1, layoutId: layout.id, level, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
     history: [], redo: [], selected: -1, cursor: -1, score: 0, combo: 0, lastMatchMs: -1e9,
-    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, fee: { hint: 0, shuffle: 0, undo: 0 }, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
+    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, fee: { hint: 0, shuffle: 0, undo: 0 }, status: 'playing', rowDone: false, statsCounted: false, practice, winnable: true,
   };
-  if (!practice) { STATS.played++; if (level !== 'classic') STATS.tiers[level].played++; layoutStats(layout.id, level).played++; saveStats(); }
   anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.drop = null; anim.block = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
@@ -2350,7 +2371,7 @@ function newGame(opts = {}) {
   if (!use3D() || reduced()) AUDIO.deal(); // in 3D the deal-in starts the cue on its first frame
   // small tiles on a portrait phone: point at Zoom and landscape
   setStatus(practice ? 'Practice: already finished today. ' + layout.caption : layout.caption);
-  hideCoach(); if (firstRun && !practice) showCoach();
+  hideCoach(); if (firstRun && !practice) { showCoach(); STATS.goals.coached = true; saveStats(); }
   if (wideDaily) toast("Today's board, " + layout.name + ", is wide: Zoom is on. Tap Zoom to see it all.");
   else if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
   return { layoutId: layout.id, seed, tiles: G.n };
@@ -2508,6 +2529,7 @@ function doMatch(a, b, rec) {
   S.winnable = S.plan ? true : before.winnable === false ? false : null; // removing tiles never revives a dead board
   S.history.push({ t: 'm', a, b, pts, combo: S.combo, at: S.lastMatchMs, row: rowNow, before });
   if (!rec) S.redo = [];
+  countPlayed();
   const clack = clackDelay();
   AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2, tileKind(S.faces[a]), clack);
   if (rowNow) AUDIO.row(clack);
@@ -2641,7 +2663,8 @@ function hint() {
   AUDIO.chime();
   const m = META[S.faces[pr[0]]];
   setStatus((guess ? 'Hint (best guess): match the two highlighted ' : 'Hint: match the two highlighted ') + m.name.split(':')[0] + ' tiles' + (lv().hintCost ? ' (−' + lv().hintCost + ').' : '.'), STATUS_HOLD_MS);
-  announce('Hint: ' + m.name + ' pair highlighted');
+  S.cursor = pr[0]; // the keyboard cursor jumps to the pair, so Enter takes its first tile and the arrows find the other
+  announce('Hint: ' + m.name + ' pair. First tile: ' + spotText(pr[0]) + '. Match it with the tile at ' + spotText(pr[1]) + '.');
   if (S.winnable === false) noteDead();
   updateHud(); saveGame(); kick();
   return pr;
@@ -3348,8 +3371,10 @@ function tileUnder(px, py) {
 // ===================== HUD, status, toasts, live region =====================
 // The combo window as a thin bar under the Score: full at a match, empty COMBO_MS of play time later (S1-06)
 const COMBO_MS = 4000;
+let comboSeen = ''; // the chain whose bar was seen running; when it empties, a chain of three or more says so with a falling blip (S5-10)
 function syncCombo() {
   const el = $('h-combo'), left = S && S.status === 'playing' && S.lastMatchMs > -1e8 ? 1 - (S.elapsedMs - S.lastMatchMs) / COMBO_MS : 0;
+  if (S && S.status === 'playing') { const key = S.seed + ':' + S.lastMatchMs; if (left > 0) comboSeen = key; else if (comboSeen === key && S.combo >= 2) { comboSeen = ''; AUDIO.comboEnd(); } }
   el.classList.toggle('on', left > 0); el.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left)).toFixed(3) + ')';
 }
 function updateHud() {
@@ -3403,12 +3428,27 @@ function showScene(name) {
   AUDIO.setMood(name === 'game' ? (S && S.status === 'won' ? 'win' : 'play') : 'title');
   for (const el of document.querySelectorAll('.screen')) el.classList.toggle('on', el.id === 's-' + name);
   if (name === 'title') { syncDailyButton(); drawTitleArt(); $('b-continue').hidden = !(store.get('bhm.game.v1', null) || (S && (S.status === 'playing' || S.status === 'stuck'))); }
-  if (name === 'layouts') buildCards();
+  if (name === 'layouts') { buildCards(); drawLayoutsArt(); }
   updateRotChip();
   if (name === 'game') { requestAnimationFrame(() => { layoutBoard(); markDirty(); }); }
 }
 function anyOverlay() { return !!document.querySelector('.overlay.on'); }
 let overlayReturn = null;
+// While a dialog is open the page behind it, and any dialog under it, cannot be reached by Tab or a screen reader (S2-10)
+function syncInert() {
+  const on = [...document.querySelectorAll('.overlay.on')], top = on[on.length - 1];
+  $('app').inert = on.length > 0;
+  for (const el of document.querySelectorAll('.overlay')) el.inert = el.classList.contains('on') && el !== top;
+}
+const TABBABLE = 'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+function trapTab(e) {
+  const on = [...document.querySelectorAll('.overlay.on')], top = on[on.length - 1]; if (!top) return false;
+  const items = [...top.querySelectorAll(TABBABLE)].filter((el) => el.offsetParent !== null && !el.closest('[hidden]'));
+  if (!items.length) return true;
+  const i = items.indexOf(document.activeElement);
+  if (e.shiftKey ? i <= 0 : i === items.length - 1) { items[e.shiftKey ? items.length - 1 : 0].focus(); return true; }
+  return i < 0 ? (items[0].focus(), true) : false;
+}
 function openOverlay(id) {
   const el = $(id);
   if (id === 'o-stats') buildStats();
@@ -3421,15 +3461,16 @@ function openOverlay(id) {
     $('op-note').textContent = '';
   }
   overlayReturn = overlayReturn || document.activeElement;
-  el.classList.add('on');
+  el.classList.add('on'); syncInert();
   const f = el.querySelector('.actions .btn, button');
   if (f) f.focus({ preventScroll: true });
 }
 function closeOverlay(id) {
   const el = $(id); if (!el.classList.contains('on')) return;
-  el.classList.remove('on');
+  el.classList.remove('on'); syncInert();
   if (id === 'o-pause') { paused = false; AUDIO.setPaused(false); markDirty(); }
-  if (!anyOverlay()) { const r = overlayReturn; overlayReturn = null; if (r && r.focus && document.body.contains(r)) r.focus({ preventScroll: true }); else if (scene === 'game') canvas.focus({ preventScroll: true }); }
+  if (anyOverlay()) { const on = document.querySelectorAll('.overlay.on'), f = on[on.length - 1].querySelector('.actions .btn, button'); if (f) f.focus({ preventScroll: true }); } // back to the dialog underneath
+  else { const r = overlayReturn; overlayReturn = null; if (r && r.focus && document.body.contains(r)) r.focus({ preventScroll: true }); else if (scene === 'game') canvas.focus({ preventScroll: true }); }
 }
 function closeAll() { for (const el of document.querySelectorAll('.overlay.on')) closeOverlay(el.id); }
 function pauseGame() { if (scene !== 'game' || !S || S.status !== 'playing') return; paused = true; AUDIO.pauseCue(); AUDIO.setPaused(true); markDirty(); openOverlay('o-pause'); }
@@ -3446,6 +3487,15 @@ function gotoScene(name) {
 }
 
 // ---------- title art: Bathhouse Row skyline with steam ----------
+function drawLayoutsArt() {
+  const cv = $('layouts-art'), w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), dark = isDark();
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const im = artImg(dark ? 'backdrop-night' : 'backdrop-day');
+  if (im) { c.filter = 'blur(3px)'; coverImg(c, im, -8, -8, w + 16, h + 16); c.filter = 'none'; }
+  c.fillStyle = dark ? 'rgba(8,6,20,.72)' : 'rgba(15,44,51,.74)'; c.fillRect(0, 0, w, h);
+}
 function drawTitleArt() {
   const cv = $('title-art');
   const w = cv.clientWidth || 600, h = cv.clientHeight || 260, dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -3685,11 +3735,13 @@ for (const b of document.querySelectorAll('#ot-tabs button')) b.addEventListener
 // ---------- settings ----------
 function applyTheme() {
   document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
+  document.querySelector('meta[name=theme-color]').content = isDark() ? '#1D1A31' : '#173F47'; // the phone's browser bar follows the top bar
   AUDIO.setPlace(isDark());
   loadArt(essentialArt());
   bgCache = null; SPR.key = ''; atlas.key = '';
   if (guideBuilt) { guideBuilt = false; $('ot-faces').innerHTML = ''; buildGuide(); }
   if (scene === 'title') drawTitleArt();
+  if (scene === 'layouts') drawLayoutsArt();
   if (G) { layoutBoard(); markDirty(); }
 }
 const STORAGE_FULL = "This browser's storage is full, so your progress will not be kept. Free some space and it will save again.";
@@ -3724,7 +3776,7 @@ function setSetting(k, v) {
   if (k === 'sound' || k === 'volume' || k === 'effects' || k === 'music' || k === 'ambience') AUDIO.toggle();
   if (k === 'sound' && v) AUDIO.unlock();
   if (k === 'motion') { syncSteam(); if (scene === 'title') startTitleSteam(); }
-  if (k !== 'sound') AUDIO.tick();
+  if (k !== 'sound' || v) AUDIO.tick();
   if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
   if (k === 'difficulty' && scene === 'layouts') buildCards();
 }
@@ -3841,7 +3893,13 @@ function moveCursor(dir) {
   }
   if (best >= 0) { S.cursor = best; markDirty(); announceCursor(); }
 }
-function announceCursor() { const i = S.cursor; if (i < 0) return; const m = META[S.faces[i]]; const fr = free(i); setStatus(m.name + (fr ? '' : ' (blocked)') + ': ' + m.fact); announce(m.name + (fr ? ', free' : ', blocked')); }
+// Where a tile is on the layout, in words for a screen reader: row and column counted from the top left (a tile is two units wide), and its layer when raised (S2-11)
+function spotText(i) {
+  let mx = 1e9, my = 1e9; for (const p of G.pos) { if (p[0] < mx) mx = p[0]; if (p[1] < my) my = p[1]; }
+  const p = G.pos[i];
+  return 'row ' + (Math.round((p[1] - my) / 2) + 1) + ', column ' + (Math.round((p[0] - mx) / 2) + 1) + (p[2] ? ', layer ' + (p[2] + 1) : '');
+}
+function announceCursor() { const i = S.cursor; if (i < 0) return; const m = META[S.faces[i]]; const fr = free(i); setStatus(m.name + (fr ? '' : ' (blocked)') + ': ' + m.fact); announce(m.name + ', ' + spotText(i) + (fr ? ', free' : ', blocked')); }
 
 function handleKey(key, ev) {
   const ctrl = ev && (ev.ctrlKey || ev.metaKey);
@@ -3877,6 +3935,7 @@ function handleKey(key, ev) {
   return false;
 }
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab' && anyOverlay() && trapTab(e)) { e.preventDefault(); return; }
   if (e.target && (e.target.tagName === 'INPUT') && e.key !== 'Escape') return;
   const onButton = e.target && e.target.tagName === 'BUTTON' && (e.key === 'Enter' || e.key === ' ');
   if (onButton) return;
@@ -4012,7 +4071,7 @@ window.addEventListener('storage', (e) => {
     updateHud(); markDirty();
   }
 });
-window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
+window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (scene === 'layouts') drawLayoutsArt(); if (G) { layoutBoard(); markDirty(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && scene === 'title') startTitleSteam(); lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
 const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
 if (mqDark.addEventListener) mqDark.addEventListener('change', onScheme);

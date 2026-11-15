@@ -95,7 +95,7 @@ export const tests = [
         await t.game('newGame', { layout: 'pyramid', seed: 11 }); await t.waitIdle(15000);
         await t.game('act', 'solveTo', 0);
         await t.page.waitForFunction(() => window.__game.getState().gameStatus === 'won', null, { timeout: 10000 });
-        await B.evaluate(() => window.__game.newGame({ layout: 'tower', seed: 12 }));
+        await B.evaluate(() => { window.__game.newGame({ layout: 'tower', seed: 12 }); window.__game.act('solveStep'); }); // a game counts as played at its first match (S6-12)
         const st = await B.evaluate(() => JSON.parse(localStorage.getItem('bhm.stats.v1')));
         t.equal([st.played, st.won], [2, 1], 'played and won both kept');
       } finally { await B.close(); }
