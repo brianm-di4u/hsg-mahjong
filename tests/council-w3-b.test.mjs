@@ -220,4 +220,30 @@ export const tests = [
       t.expect(/0:00/.test(await t.page.locator('#st-recent tbody tr').innerText()), 'its damaged numbers read as zero');
     },
   },
+  // ------------------------------------------------------------------ S4-07
+  {
+    name: 'S4-07: the tile texts and the win-card facts agree on the numbers, and carry no footnote-style parentheses',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const meta = await t.game('act', 'faceMeta');
+      const facts = await t.page.evaluate(() => JSON.parse(document.getElementById('facts').textContent));
+      const win = (id) => { const f = facts.find((x) => x.id === id); return f.q + ' ' + f.a + ' ' + f.e; };
+      const fact = (name) => meta.find((m) => m.name === name).fact;
+      // the spring temperature: the tile gives today's figure and the explorers', both of which the win-card fact states
+      const springs = fact('Springs 1');
+      t.expect(springs.includes('143') && springs.includes('148–150'), 'Springs 1 gives both temperatures: ' + springs);
+      t.expect(win('hs-0114').includes('148–150') && win('hs-0114').includes('143'), 'and the win-card fact states the same two numbers');
+      // the dam and the lake: both years on the tile, as the win card has them
+      const lake = fact('Lakes 2');
+      t.expect(lake.includes('1931') && lake.includes('1932'), 'Lakes 2 gives the dam year and the lake year: ' + lake);
+      t.expect(win('hs-0121').includes('Carpenter Dam, 1931') && win('hs-0121').includes('1932'), 'and the win-card fact has the same two years');
+      // the seasons: no "(2017 figure)" footnote, no repeat of the lake's acreage
+      const spring = fact('Season: Spring'), summer = fact('Season: Summer'), winter = fact('Season: Winter');
+      t.expect(spring.includes('2017') && !/\(.*figure.*\)/.test(spring), 'Spring names its year in the sentence: ' + spring);
+      t.expect(!summer.includes('7,200') && summer.includes('Lake Hamilton'), 'Summer no longer repeats the 7,200 acres: ' + summer);
+      t.expect(winter.includes('2014') && winter.includes('4.5–5 million') && !winter.includes('later 4.5'), 'Winter reads as a sentence: ' + winter);
+      t.expect(win('hs-0174').includes('Andrew Hulsey State Fish Hatchery') && win('hs-0174').includes('Lake Hamilton'), 'the Summer anchor is a fact the game already holds');
+    },
+  },
 ];

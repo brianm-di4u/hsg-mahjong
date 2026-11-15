@@ -923,7 +923,7 @@ const SUITS = [
   { name: 'Lakes & Fish', short: 'Lakes', color: '#1E4E79' },
 ];
 const SPRING_FACTS = [
-  'The springs average about 143°F.',
+  'The springs average about 143°F today; the 1804–05 explorers measured 148–150°F.',
   'The Display Spring behind the Maurice is one of the few open-air springs.',
   'Most of the water fell as rain about 4,400 years ago.',
   'Dunbar and Hunter (1804–05) counted four principal springs and two lesser ones.',
@@ -946,7 +946,7 @@ const BATHHOUSES = [
 ];
 const LAKE_FACTS = [
   'Lake Ouachita has about 200 islands.',
-  'Lake Hamilton (7,200 acres) formed in 1932 behind Carpenter Dam.',
+  'Carpenter Dam was finished in 1931, and Lake Hamilton (about 7,200 acres) formed behind it in 1932.',
   "Lake Catherine's Remmel Dam was built in 1924.",
   'Bald eagles winter at DeGray Lake.',
   'The three Ouachita River lakes form a chain: Ouachita, Hamilton, Catherine.',
@@ -967,10 +967,10 @@ const HONORS = [
   ['2', 'Dogwood', 'Two North Mountain trails are named Upper and Lower Dogwood.'],
   ['3', 'Redbud', 'A spring bloom of the Ouachita hills.'],
   ['4', 'Sweetgum', 'A star-shaped leaf that turns orange in fall.'],
-  ['1', 'Spring', 'Garvan Woodland Gardens shows 150,000+ Dutch tulips (2017 figure).'],
-  ['2', 'Summer', 'Lake days on Lake Hamilton, 7,200 acres.'],
+  ['1', 'Spring', 'Garvan Woodland Gardens showed 150,000+ Dutch tulips in 2017.'],
+  ['2', 'Summer', 'Lake days on Lake Hamilton, home of the Andrew Hulsey State Fish Hatchery.'],
   ['3', 'Autumn', "Oak and hickory cover the park's northern slopes, pine the southern."],
-  ['4', 'Winter', 'Garvan Holiday Lights: about 4 million bulbs in 2014, later 4.5–5 million.'],
+  ['4', 'Winter', 'Garvan Holiday Lights counted about 4 million bulbs in 2014 and 4.5–5 million later.'],
 ];
 // index glyph, index color, suit shape, group label
 function faceMeta(f) {
@@ -3946,7 +3946,7 @@ window.__game = {
         for (const [fg, bg] of [['--color-text', '--color-bg'], ['--color-muted', '--color-bg'], ['--bar-text', '--bar'], ['--bar-text', '--chrome-b'], ['--chrome-muted', '--bar'], ['--status-text', '--status-bg'], ['--color-text', '--panel'], ['--color-muted', '--panel'], ['--color-on-primary', '--color-primary'], ['--color-on-accent', '--color-accent'], ['--on-pressed', '--pressed'], ['--btn-text', '--btn'], ['--color-primary', '--panel']]) out.push({ name: fg + ' on ' + bg, ratio: +contrast(v(fg), v(bg)).toFixed(2) });
         return out;
       }
-      case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name }));
+      case 'faceMeta': return META.map((m) => ({ idx: m.idx, shape: m.shape, name: m.name, fact: m.fact }));
       case 'table': return { id: LAYOUT.id, tint: placeTint(LAYOUT.id), slab: R3 ? R3.info.tint : null, wash: bgCache ? bgCache.key : null };
       case 'art': return { on: ART_ON, wanted: [...artWant], loaded: Object.keys(art), tileset: tileSet(), camera: cameraMode() };
     }
