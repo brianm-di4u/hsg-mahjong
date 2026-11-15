@@ -46,4 +46,22 @@ export const tests = [
       await t.game('act', 'animAt', null);
     },
   },
+  // ------------------------------------------------------------------ S4-26
+  {
+    name: 'S4-26: the title buttons carry their own solid colour, so their contrast is measured against the real pair',
+    url: 'index.html',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      for (const theme of ['light', 'dark']) {
+        await t.page.evaluate((th) => document.querySelector('[data-set="theme"] [data-v="' + th + '"]').click(), theme);
+        const r = await t.contrastReport({ selector: '#s-title .menu .btn' });
+        t.log(theme + ': ' + r.checked + ' title buttons checked, fails: ' + JSON.stringify(r.fails));
+        t.expect(r.checked >= 5, 'the probe saw the title buttons (' + r.checked + ')');
+        t.equal(r.fails, [], 'no title button fails contrast in the ' + theme + ' theme');
+        const solid = await t.page.evaluate(() => [...document.querySelectorAll('#s-title .menu .btn')].filter((b) => !b.hidden && b.offsetParent && !b.classList.contains('primary')).map((b) => getComputedStyle(b).backgroundColor).every((c) => /^rgb\(/.test(c)));
+        t.expect(solid, 'each title button has an opaque background colour under its gradient (' + theme + ')');
+      }
+      await t.shot('S4-26-title-buttons');
+    },
+  },
 ];
