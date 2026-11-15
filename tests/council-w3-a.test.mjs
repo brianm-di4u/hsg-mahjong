@@ -400,4 +400,41 @@ export const tests = [
       await t.shot('S1-03-touch-zoom');
     },
   },
+  // ------------------------------------------------------------------ S2-19
+  {
+    name: 'S2-19: after a match its story follows the Matched line: a Bathhouse pair brings a Did you know, any other pair its own tile story',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const facts = await t.page.evaluate(() => JSON.parse(document.getElementById('facts').textContent).map((f) => f.e));
+      t.expect(facts.length > 100, 'the game carries its sourced facts (' + facts.length + ')');
+      // a deal (the first of a fixed run of seeds) with a free Bathhouse pair and a free pair of another kind
+      let bath = null, other = null;
+      for (let seed = 1; seed < 40 && !(bath && other); seed++) {
+        await t.game('newGame', { layout: 'pyramid', seed }); await t.waitIdle(15000);
+        const s = await t.state(), f = s.tiles.filter((x) => x.present && x.free);
+        bath = null; other = null;
+        for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) { if (f[a].f >= 9 && f[a].f < 18) bath = bath || [f[a].i, f[b].i, f[a].f]; else if (f[a].f < 9) other = other || [f[a].i, f[b].i, f[a].f]; }
+      }
+      t.expect(!!(bath && other), 'found a deal with both kinds of pair');
+      await t.game('act', 'match', bath[0], bath[1]);
+      t.expect(/^Matched Bathhouse/.test((await t.state()).status), 'first the Matched line: ' + (await t.state()).status);
+      await t.page.waitForFunction(() => /^Did you know[?] /.test(window.__game.getState().status), null, { timeout: 15000 });
+      const line = (await t.state()).status;
+      t.expect(facts.includes(line.replace('Did you know? ', '')), 'then a Did you know from the sourced facts: ' + line);
+      await t.shot('S2-19-did-you-know');
+      const names = await t.game('act', 'faceMeta');
+      await t.game('act', 'match', other[0], other[1]);
+      await t.page.waitForFunction((n) => window.__game.getState().status.startsWith(n + ': '), names[other[2]].name, { timeout: 15000 });
+      t.expect(true, 'a Springs pair brings its own story: ' + (await t.state()).status);
+      // doing something else in between keeps the story back
+      const s2 = await t.state(), pr = (() => { const f = s2.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i]; return null; })();
+      await t.game('act', 'match', pr[0], pr[1]);
+      const free = (await t.state()).tiles.find((x) => x.present && x.free && x.i !== pr[0] && x.i !== pr[1]);
+      await t.game('act', 'click', free.i);
+      const picked = (await t.state()).status;
+      await t.page.waitForTimeout(3000); // longer than the Matched line is held
+      t.equal((await t.state()).status, picked, 'a tap before the story arrives keeps its own line');
+    },
+  },
 ];
