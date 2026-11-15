@@ -27,3 +27,39 @@ export const tests = [
     },
   },
 ];
+
+// S4-04 sits here so the file keeps one order: records for the item, then the next
+tests.push(
+  {
+    name: 'S4-04: the cleared board holds the screen for 1.5 s, then the card opens with a picture of the board and marks a first win',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 2);
+      const t0 = await t.page.evaluate(() => { window.__game.act('solveTo', 0); return Date.now(); });
+      t.expect(!(await t.page.evaluate(() => document.getElementById('o-win').classList.contains('on'))), 'the card is not open the moment the board clears');
+      await waitWin(t);
+      const held = (await t.page.evaluate(() => Date.now())) - t0;
+      t.expect(held >= 1450, 'the board was held for at least 1.5 s before the card (' + held + ' ms; it was 0.9 s)');
+      const strip = await t.page.evaluate(() => {
+        const cv = document.getElementById('ow-preview'), r = cv.getBoundingClientRect(), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        let lit = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) lit++;
+        return { w: r.width, h: r.height, lit, inside: r.top >= document.querySelector('#o-win .panel').getBoundingClientRect().top - 1 };
+      });
+      t.expect(strip.w > 200 && strip.h > 60 && strip.lit > 2000 && strip.inside, 'a picture of the board across the top of the card: ' + JSON.stringify(strip));
+      const first = await t.page.evaluate(() => document.getElementById('ow-earned').innerText);
+      t.expect(/First win on Classic Pyramid\./.test(first), 'the first win on a board is marked: ' + first);
+      await t.shot('S4-04-win-card');
+      await t.page.click('#ow-again'); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0); await waitWin(t);
+      const again = await t.page.evaluate(() => document.getElementById('ow-earned').innerText);
+      t.expect(!/First win on/.test(again), 'a second win on the same board is not: ' + again);
+      await t.page.click('#ow-again'); await t.waitIdle(15000);
+      await t.game('newGame', { layout: 'pyramid', seed: 22, level: 'relaxed' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0); await waitWin(t);
+      const relaxed = await t.page.evaluate(() => document.getElementById('ow-earned').innerText);
+      t.expect(/First win on Classic Pyramid \(Relaxed\)\./.test(relaxed), 'each difficulty level has its own first win: ' + relaxed);
+    },
+  },
+);
