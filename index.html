@@ -372,7 +372,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <h3>Scoring</h3>
     <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo.</p>
     <h3>Difficulty</h3>
-    <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
+    <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps; an undo is free three times, then costs 10 points. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
     <ul>
       <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> (or spreading two fingers) enlarges the board; drag to look around, and pinch to zoom back out.</li>
@@ -2644,7 +2644,7 @@ function charge(kind, amount) { const paid = Math.min(S.score, amount); S.score 
 function hint() {
   if (!S || S.status !== 'playing' || inputLocked()) return null;
   AUDIO.unlock();
-  if (!lv().hints) { setStatus('Hints are off in ' + lv().name + '. Undo is still free.', STATUS_HOLD_MS); announce('Hints are off in ' + lv().name); AUDIO.thud(); return null; }
+  if (!lv().hints) { setStatus('Hints are off in ' + lv().name + '. The first ' + lv().undoFree + ' undos are free, then ' + lv().undoCost + ' points each.', STATUS_HOLD_MS); announce('Hints are off in ' + lv().name); AUDIO.thud(); return null; }
   if (!S.plan && S.winnable !== false) { const r = E.solveInfo(G, S.present, S.faces, 20000); S.plan = r.plan; S.winnable = r.plan ? true : r.exhausted ? false : null; if (S.winnable == null && !planAsk) deepSearch(boardKey()); }
   if (anim.hint && anim.hintPaid && now() < anim.hintUntil) { // the pair is already showing and was paid for: pulse it again, free
     anim.hintUntil = now() + 8000; if (view.zoom) panTo(anim.hint);
@@ -2710,7 +2710,7 @@ function undo() {
     anim.drop = reduced() ? null : { tiles: [h.a, h.b], start: now() }; // and the pair settles back from above, so the eye finds it
   } else swapShuffle(h);
   S.redo.push(h); S.undos++; S.selected = -1;
-  const undoFee = S.undos > lv().undoFree ? lv().undoCost : 0; if (undoFee) charge('undo', undoFee); anim.hint = null; S.deadNoted = false;
+  const owed = S.undos > lv().undoFree ? lv().undoCost : 0, paid0 = S.fee.undo || 0; if (owed) charge('undo', owed); const undoFee = (S.fee.undo || 0) - paid0; /* what was really taken: the score never goes below 0 */ anim.hint = null; S.deadNoted = false;
   S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
   AUDIO.undo();
   setStatus('Undone' + (undoFee ? ' (−' + undoFee + ')' : '') + '. ' + tilesLeft() + ' tiles on the board.');

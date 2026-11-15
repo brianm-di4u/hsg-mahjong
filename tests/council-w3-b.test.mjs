@@ -51,6 +51,23 @@ export const tests = [
     },
   },
   {
+    name: 'S3-05: the Expert hint message and the help tell the undo cost, and the undo status shows a charge only when points were taken',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'expert' }); await t.waitIdle(15000);
+      await t.game('act', 'hint'); let s = await t.state();
+      t.expect(/Hints are off in Expert/.test(s.status) && /first 3 undos are free, then 10 points each/.test(s.status) && !/Undo is still free/.test(s.status), 'Expert hint message: ' + s.status);
+      const diff = await t.page.evaluate(() => { const h = [...document.querySelectorAll('#o-help h3')].find((x) => x.textContent === 'Difficulty'); return h.nextElementSibling.textContent; });
+      t.expect(/Expert:[^.]*an undo is free three times, then costs 10 points/.test(diff), 'the Difficulty help gives the Expert undo cost: ' + diff);
+      // four undos with nothing to take: each undo gives back the pair's points, so the score is 0 and the fourth undo is charged nothing
+      for (let k = 0; k < 4; k++) { await t.game('act', 'advance', 10000); await t.game('act', 'solveStep'); await t.game('act', 'undo'); }
+      s = await t.state();
+      t.equal([s.undos, s.score, s.fee.undo], [4, 0, 0], 'the fourth undo past the free three took nothing from a score of 0');
+      t.expect(/^Undone\./.test(s.status) && !/−/.test(s.status), 'so the status line shows no charge: ' + s.status);
+    },
+  },
+  {
     name: 'S3-05: the win card itemizes the penalties, adds a no-help bonus, and scales the time bonus to par',
     url: URL,
     viewports: ['desktop', 'mobile'],
