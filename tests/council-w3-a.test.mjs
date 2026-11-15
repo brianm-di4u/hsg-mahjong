@@ -286,4 +286,118 @@ export const tests = [
       t.equal((await t.state()).partners, [], 'Expert shows no free-tile help, so no rings');
     },
   },
+  // ------------------------------------------------------------------ S1-03
+  {
+    name: 'S1-03: the wheel and a trackpad pinch zoom the board in and out',
+    url: 'index.html',
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const c = await t.game('act', 'tileCenter', 40);
+      await t.page.mouse.move(c.x, c.y);
+      await t.page.mouse.wheel(0, -120);
+      await t.page.waitForFunction(() => window.__game.getState().zoom === true);
+      t.expect(true, 'wheel up zooms in');
+      await t.waitIdle(15000);
+      await t.page.mouse.wheel(0, -120);
+      t.equal((await t.state()).zoom, true, 'more wheel up changes nothing');
+      await t.page.mouse.wheel(0, 120);
+      await t.page.waitForFunction(() => window.__game.getState().zoom === false);
+      t.expect(true, 'wheel down fits the board again');
+      await t.waitIdle(15000);
+      await t.page.keyboard.down('Control'); await t.page.mouse.wheel(0, -120); await t.page.keyboard.up('Control');
+      await t.page.waitForFunction(() => window.__game.getState().zoom === true);
+      t.expect(true, 'a trackpad pinch (ctrl+wheel) zooms in too');
+      await t.game('act', 'tileCenter', 0); // the page still works
+      await t.game('scene', 'settings');
+      await t.page.mouse.wheel(0, 120);
+      t.equal((await t.state()).zoom, true, 'with a dialog open the wheel leaves the board alone');
+    },
+  },
+  {
+    name: 'S1-03: Zoom glides in 3D (over 160 ms, ending on the zoomed view) and snaps under reduced motion',
+    url: 'index.html',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      if ((await t.state()).gfx !== '3d') { t.log('no 3D here: the glide is a 3D effect'); return; }
+      // read inside one synchronous call, so nothing depends on how fast the frames come
+      const r = await t.page.evaluate(() => {
+        const g = window.__game, before = g.act('screenCenter', 0), w0 = g.getState().tileW;
+        g.act('zoom', true);
+        return { before, during: g.act('screenCenter', 0), glide: g.getState().gliding, w0 };
+      });
+      t.expect(Math.hypot(r.during[0] - r.before[0], r.during[1] - r.before[1]) < 3, 'the first instant of the glide is still the fitted view (within a pixel or two)');
+      await t.waitIdle(15000);
+      const after = await t.game('act', 'screenCenter', 0), s = await t.state();
+      t.expect(Math.hypot(after[0] - r.before[0], after[1] - r.before[1]) > 20, 'it lands on the zoomed view');
+      t.expect(s.tileW > r.w0, 'with larger tiles (' + r.w0 + ' to ' + s.tileW + ')');
+      t.equal((await t.game('act', 'screenCenter', 0)).map(Math.round), after.map(Math.round), 'and stays there');
+      await t.shot('S1-03-zoomed');
+      await t.page.evaluate(() => window.__game.act('zoom', false)); await t.waitIdle(15000);
+      const back = await t.game('act', 'screenCenter', 0);
+      t.expect(Math.hypot(back[0] - r.before[0], back[1] - r.before[1]) < 3, 'zooming out returns to the fitted view');
+    },
+  },
+  {
+    name: 'S1-03: with reduced motion Zoom snaps at once',
+    url: 'index.html',
+    reducedMotion: true,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const r = await t.page.evaluate(() => { const g = window.__game, before = g.act('screenCenter', 0); g.act('zoom', true); return { before, now: g.act('screenCenter', 0) }; });
+      t.expect(Math.hypot(r.now[0] - r.before[0], r.now[1] - r.before[1]) > 20, 'the very next read is already the zoomed view');
+    },
+  },
+  {
+    name: 'S1-03: a zoomed pan glides on after release and stops by itself; a touch or a new game stops it',
+    url: 'index.html',
+    viewports: ['mobile'], // a phone is where the board is bigger than the screen and there is room to glide
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.game('act', 'zoom', true); await t.waitIdle(15000);
+      const p0 = await t.state();
+      await t.game('act', 'coast', 0.5, 0);
+      t.equal((await t.state()).gliding, true, 'a glide is under way');
+      await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
+      const p1 = await t.state();
+      t.expect(Math.abs(p1.panX - p0.panX) > 10, 'the board moved on its own (' + Math.round(p0.panX) + ' to ' + Math.round(p1.panX) + ')');
+      t.equal(p1.gliding, false, 'and then stopped');
+      await t.game('act', 'coast', 0.5, 0);
+      await t.game('newGame', { layout: 'pyramid', seed: 22 });
+      t.equal((await t.state()).gliding, false, 'a new game ends a glide');
+      // a real drag with the mouse: release while still moving, and the board carries on (the drag is retried if the tool stalls)
+      await t.waitIdle(15000);
+      await t.game('act', 'zoom', true); await t.waitIdle(15000);
+      let moved = false;
+      for (let attempt = 0; attempt < 3 && !moved; attempt++) {
+        const c = await t.game('act', 'tileCenter', 40), p0 = (await t.state()).panX;
+        await t.page.mouse.move(c.x, c.y); await t.page.mouse.down();
+        for (let k = 1; k <= 6; k++) await t.page.mouse.move(c.x - k * 12, c.y); // 72 px to the left
+        await t.page.mouse.up();                                              // straight after the last move: still moving
+        await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
+        const p1 = (await t.state()).panX;
+        if (p0 - p1 > 72 + 5) moved = true;                                   // further than the drag itself: it glided
+        else { await t.game('act', 'zoom', false); await t.game('act', 'zoom', true); await t.waitIdle(15000); }
+      }
+      t.expect(moved, 'a quick drag released while moving carries on');
+    },
+  },
+  {
+    name: 'S1-03: a touch drag on the board and then a tap on Zoom turns Zoom on at the first tap',
+    url: 'index.html',
+    viewports: ['mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'terraces', seed: 5 }); await t.waitIdle(15000);
+      const a = await t.game('act', 'tileCenter', 20);
+      await t.touchDrag([a.x, a.y], [a.x - 60, a.y - 30], { steps: 5 });
+      const box = await t.page.locator('#t-zoom').boundingBox();
+      await t.tap([box.x + box.width / 2, box.y + box.height / 2]);
+      await t.page.waitForFunction(() => window.__game.getState().zoom === true, null, { timeout: 5000 });
+      t.expect(true, 'the first tap on Zoom after a touch drag zooms in');
+      await t.waitIdle(15000);
+      await t.shot('S1-03-touch-zoom');
+    },
+  },
 ];
