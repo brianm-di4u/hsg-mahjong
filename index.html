@@ -2197,7 +2197,7 @@ function stuckText() {
 }
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
 let pendingTap = null;   // a tap made while the deal-in or shuffle flip was still running
-const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, shuffleAt: 0, dealAt: 0 };
+const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, drop: null, shuffleAt: 0, dealAt: 0 };
 let scene = 'title';
 let hoverTile = -1;
 let lastTick = 0;
@@ -2243,7 +2243,7 @@ function newGame(opts = {}) {
     elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
   };
   if (!practice) { STATS.played++; if (level !== 'classic') STATS.tiers[level].played++; layoutStats(layout.id, level).played++; saveStats(); }
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.shuffleAt = 0;
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.drop = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
   showScene('game');
@@ -2294,7 +2294,7 @@ function loadState(s) {
   st.selected = st.selected >= 0 && st.present[st.selected] && E.isFree(g, st.present, st.selected) ? st.selected : -1;
   st.winnable = st.plan ? true : null;
   LAYOUT = layout; G = g; S = st;
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shuffleAt = 0;
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.drop = null; anim.shuffleAt = 0;
   paused = false; lastTick = 0; resetStuckDialog();
   if (!S.plan && S.status !== 'won') schedulePlanSearch();
 }
@@ -2511,6 +2511,7 @@ function undo() {
     S.combo = h.before.combo; S.lastMatchMs = h.before.lastMatchMs; S.rowDone = h.before.rowDone; S.plan = h.before.plan;
     S.winnable = S.plan ? true : h.before.winnable === false ? false : null;
     anim.list = anim.list.filter((x) => !x.tiles.includes(h.a) && !x.tiles.includes(h.b)); // the restored tiles stop flying away
+    anim.drop = reduced() ? null : { tiles: [h.a, h.b], start: now() }; // and the pair settles back from above, so the eye finds it
   } else swapShuffle(h);
   S.redo.push(h); S.undos++; S.selected = -1; anim.hint = null; S.deadNoted = false;
   S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
@@ -2618,6 +2619,9 @@ function kick() { if (!raf) raf = requestAnimationFrame(frame); }
 const GL_OFF = /[?&]gl=0\b/.test(location.search), GL_FORCE = /[?&]gl=1\b/.test(location.search);
 const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const SHUF_MS = 900, DEAL_MS = 1150, FLY_MS = 640;
+const DROP_MS = 260; // an undone pair settles back onto the board over this long
+// the short one-tile effects (a blocked tile's shake, an undone pair settling back) that keep the frame loop running while they last
+function fxLive(t) { return !!((anim.shake && t - anim.shake.start < 260) || (anim.drop && t - anim.drop.start < DROP_MS)); }
 let R3 = null, r3Dead = false, fadeBusy = false;
 // Tiles: Auto picks 3D unless the GPU is a software rasteriser or the first animations ran slowly (the watchdog
 // in frame() remembers that in bhm.gl.slow). 3D and Flat are explicit choices; ?gl=1 / ?gl=0 force either.
@@ -2757,6 +2761,7 @@ function draw3D(t) {
     else if (i === hoverTile && fr && !COARSE) { o.dy = 0.05; o.hover = 1; }
     if (hintOn && (anim.hint[0] === i || anim.hint[1] === i)) { o.hint = 0.6 + 0.4 * Math.sin(t / 160); o.dy += rm ? 0.12 : 0.12 + 0.06 * Math.sin(t / 170); }
     if (anim.shake && anim.shake.i === i && t - anim.shake.start < 260) o.dx = Math.sin((t - anim.shake.start) / 18) * 0.07 * (1 - (t - anim.shake.start) / 260);
+    if (anim.drop && t - anim.drop.start < DROP_MS && anim.drop.tiles.includes(i)) o.dy += (1 - easeOut((t - anim.drop.start) / DROP_MS)) * 1.8;
     if (shuf >= 0) {
       const d = (p[0] + p[1]) / maxSum * 0.3, k = Math.max(0, Math.min(1, (shuf - d) / 0.7)), e = ease(k);
       o.rot = e * Math.PI * 2; o.dy += Math.sin(Math.PI * k) * (0.7 + p[2] * 0.1);
@@ -2771,7 +2776,7 @@ function draw3D(t) {
   R3.update(tiles3);
   // redraw the shadow map only when tiles really move (state change, deal, fly, shuffle, shake);
   // the hint bob and the hover lift are too small to need it
-  R3.render(dirty || flying.size > 0 || shuf >= 0 || deal >= 0 || !!(anim.shake && t - anim.shake.start < 260));
+  R3.render(dirty || flying.size > 0 || shuf >= 0 || deal >= 0 || fxLive(t));
   if (dealWait) { anim.dealAt = now(); AUDIO.deal(); }
   drawOverlay3D(c, t, hintOn);
 }
@@ -3003,12 +3008,12 @@ function frame() {
   lastTick = pt;
   anim.list = anim.list.filter((a) => t - a.start < a.dur);
   anim.particles = anim.particles.filter((p) => t - p.start < p.dur);
-  const animating = anim.list.length || anim.particles.length || (anim.hint && t < anim.hintUntil) || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS)));
+  const animating = anim.list.length || anim.particles.length || (anim.hint && t < anim.hintUntil) || fxLive(t) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS)));
   if (anim.hint && t >= anim.hintUntil && anim.frozen == null) { anim.hint = null; dirty = true; }
   if (dirty || animating || !settled) { // !settled: one more draw shows the end state of an animation that just finished
     draw(t);
     // settled = nothing transitional is in flight in what was just drawn (the hint pulse is ambient, like steam)
-    settled = !(anim.list.length || anim.particles.length || (anim.shake && t - anim.shake.start < 260) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))));
+    settled = !(anim.list.length || anim.particles.length || fxLive(t) || (anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) || (use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))));
   }
   watchFrame(pt, animating);
   if (pendingTap && !boardBusy()) replayTap();
@@ -3034,6 +3039,7 @@ function draw(t) {
     let [sx, sy] = view.scr[i];
     if (i === sel) { sx -= D * 0.5; sy -= D * 0.8; }
     if (anim.shake && anim.shake.i === i && t - anim.shake.start < 260) sx += Math.sin((t - anim.shake.start) / 18) * W * 0.06 * (1 - (t - anim.shake.start) / 260);
+    if (anim.drop && t - anim.drop.start < DROP_MS && anim.drop.tiles.includes(i)) sy -= (1 - easeOut((t - anim.drop.start) / DROP_MS)) * H * 1.2;
     let spr = SPR.faces[S.faces[i]];
     if (shuf >= 0) {
       const sxScale = Math.abs(Math.cos(shuf * Math.PI));
@@ -3683,7 +3689,7 @@ window.__game = {
     });
   },
   setState(s) { closeAll(); loadState(s); resumeLoaded(); markDirty(); return true; },
-  isIdle() { const t = performance.now(); if (artPending || artTick || countBusy) return false; if (anim.frozen != null) return t >= toastBusyUntil; if (!settled) return false; return !anim.list.length && !anim.particles.length && !(anim.shake && t - anim.shake.start < 260) && !(anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) && !(use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))) && t >= toastBusyUntil; },
+  isIdle() { const t = performance.now(); if (artPending || artTick || countBusy) return false; if (anim.frozen != null) return t >= toastBusyUntil; if (!settled) return false; return !anim.list.length && !anim.particles.length && !fxLive(t) && !(anim.shuffleAt && t - anim.shuffleAt < SHUF_MS) && !(use3D() && (fadeBusy || anim.dealAt === -1 || (anim.dealAt && t - anim.dealAt < DEAL_MS))) && t >= toastBusyUntil; },
   scene(name) { return gotoScene(name); },
   newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
   audioList() { const l = AUDIO.list(); return { music: l.music, ambience: l.ambience, cues: l.cues }; },
@@ -3748,7 +3754,7 @@ window.__game = {
         let out = 0; for (let i = 0; i < G.n; i++) { const [x, y] = screenCenter(i); if (x < 0 || y < 0 || x > view.cssW || y > view.cssH) out++; }
         return { out, w: view.cssW, h: view.cssH, tileW: view.W };
       }
-      case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt };
+      case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt, drop: anim.drop && now() - anim.drop.start < DROP_MS ? anim.drop.tiles.slice() : null };
       case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
       case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
       case 'deadBoard': S.winnable = false; noteDead(); return S.winnable; // test: declare the board dead and show the dead-board line
