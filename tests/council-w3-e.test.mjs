@@ -163,16 +163,19 @@ export const tests = [
       await prime(t);
       await t.game('scene', 'settings');
       const n = async () => (await cues(t)).tick || 0;
+      // the game spaces its ticks 70 ms apart; let that pass before each step so a slow or fast machine gives the same answer
+      const gap = () => t.page.waitForTimeout(100);
+      await gap();
       let k = await n();
       await t.page.locator('#se-vol').fill('35');
       t.expect(await n() > k, 'the volume slider ticks'); k = await n();
-      await t.page.click('#se-free');
+      await gap(); await t.page.click('#se-free');
       t.expect(await n() > k, 'a switch ticks'); k = await n();
-      await t.page.click('[data-set="motion"] [data-v="full"]');
+      await gap(); await t.page.click('[data-set="motion"] [data-v="full"]');
       t.expect(await n() > k, 'a choice ticks'); k = await n();
-      await t.page.click('#se-sound');
+      await gap(); await t.page.click('#se-sound');
       t.expect(await n() === k, 'turning Sound off is silent'); k = await n();
-      await t.page.click('#se-sound');
+      await gap(); await t.page.click('#se-sound');
       t.expect(await n() > k, 'turning Sound on ticks, so the player hears that it is on');
     },
   },
