@@ -102,4 +102,39 @@ export const tests = [
       t.equal((await stored(t, 'bhm.game.v1')).history.length, 3, 'and the game is saved again');
     },
   },
+  // ------------------------------------------------------------------ P-N01
+  {
+    name: 'P-N01: reloading does not dodge the win streak: abandoning the saved game resets it',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const setStreak = (n) => t.page.evaluate((n) => { const s = JSON.parse(localStorage.getItem('bhm.stats.v1')); s.streak = n; s.bestStreak = Math.max(n, s.bestStreak || 0); localStorage.setItem('bhm.stats.v1', JSON.stringify(s)); }, n);
+      const startFromTitle = async () => { await t.page.click('#b-play'); await t.page.click('.card[data-layout="pyramid"]'); };
+      // a saved game with a match, and a streak of 4
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const pr = freePair(await t.state());
+      await t.game('act', 'match', pr[0], pr[1]); await t.waitIdle(15000);
+      await setStreak(4);
+      await reload(t);
+      t.equal((await stored(t, 'bhm.game.v1')).history.length, 1, 'the game with a match is saved');
+      await startFromTitle();
+      const text = await t.page.locator('#oc-text').innerText();
+      t.expect(await t.page.locator('#o-confirm.on').count() === 1, 'the Abandon dialog opens');
+      t.expect(/your saved game and resets your win streak of 4./.test(text), 'and it says what is at stake: ' + text);
+      t.equal((await stored(t, 'bhm.stats.v1')).streak, 4, 'asking does not change the streak');
+      await t.shot('P-N01-confirm');
+      await t.page.click('#oc-keep');
+      t.equal((await stored(t, 'bhm.stats.v1')).streak, 4, 'keeping the game keeps the streak');
+      await t.page.click('.card[data-layout="pyramid"]'); await t.page.click('#oc-new'); // still on the picker after keeping
+      t.equal((await stored(t, 'bhm.stats.v1')).streak, 0, 'abandoning it after a reload resets the streak, as the dialog said');
+      t.equal((await t.state()).scene, 'game', 'and the new game started');
+      // a saved game with no match yet has nothing to lose
+      await t.game('newGame', { layout: 'pyramid', seed: 22 }); await t.waitIdle(15000);
+      await setStreak(4);
+      await reload(t);
+      await startFromTitle();
+      t.equal(await t.page.locator('#o-confirm.on').count(), 0, 'no dialog for a game with no match');
+      t.equal((await stored(t, 'bhm.stats.v1')).streak, 4, 'and the streak is untouched');
+    },
+  },
 ];

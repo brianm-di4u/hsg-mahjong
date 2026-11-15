@@ -2221,7 +2221,8 @@ function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E377
 function inProgress() { return !!S && (S.status === 'playing' || S.status === 'stuck') && S.history.some((h) => h.t === 'm'); }
 function newGame(opts = {}) {
   freshenStats();
-  if (inProgress() && !S.practice) STATS.streak = 0;
+  const lost = abandoning(); // the game this one ends: after a reload that is the saved one, so reloading does not dodge the streak
+  if (lost && !lost.practice) STATS.streak = 0;
   let layout, seed, daily = null;
   if (opts.daily) {
     daily = opts.date || todayStr();
@@ -2262,20 +2263,23 @@ let pendingNew = null; // the new game the Abandon dialog will start when it is 
 function askNewGame() {
   pendingNew = null;
   if (!inProgress()) { closeAll(); newGame({ layout: S ? S.layoutId : undefined }); return true; }
-  $('oc-text').textContent = 'Starting a new game ends this one' + (STATS.streak > 0 && !S.practice ? ' and resets your win streak of ' + STATS.streak + '.' : '.');
+  $('oc-text').textContent = 'Starting a new game ends this one' + streakLine() + '.';
   openOverlay('o-confirm'); return false;
 }
-// A game with matches made that a new game would end: the one in play, or the saved one Continue would resume after a reload
-function hasProgress() {
-  if (S) return inProgress();
+// The game with matches made that a new game would end: the one in play, or the saved one Continue would resume after a reload (null: none)
+function abandoning() {
+  if (S) return inProgress() ? S : null;
   const s = store.get('bhm.game.v1', null);
-  return !!s && (s.status === 'playing' || s.status === 'stuck') && Array.isArray(s.history) && s.history.some((h) => h && h.t === 'm');
+  return s && (s.status === 'playing' || s.status === 'stuck') && Array.isArray(s.history) && s.history.some((h) => h && h.t === 'm') ? s : null;
 }
+function hasProgress() { return !!abandoning(); }
+// what the Abandon dialog says about the win streak, which only a real (not practice) game can lose
+function streakLine() { const g = abandoning(); return g && !g.practice && STATS.streak > 0 ? ' and resets your win streak of ' + STATS.streak : ''; }
 // Layout cards and the Daily button start a game here, so a thumb slip cannot silently end the one in progress
 function startNewGame(opts) {
   if (!hasProgress()) { newGame(opts); return; }
   pendingNew = opts;
-  $('oc-text').textContent = 'Starting a new game ends ' + (S ? 'this one' : 'your saved game') + (S && STATS.streak > 0 && !S.practice ? ' and resets your win streak of ' + STATS.streak + '.' : '.');
+  $('oc-text').textContent = 'Starting a new game ends ' + (S ? 'this one' : 'your saved game') + streakLine() + '.';
   openOverlay('o-confirm');
 }
 
