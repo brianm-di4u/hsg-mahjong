@@ -164,10 +164,10 @@ export const tests = [
       await t.game('scene', 'layouts');
       await t.page.click('.levelbar [data-v="relaxed"]');
       let best = await t.page.locator('#cards .card[data-layout="pyramid"] .best').innerText();
-      t.expect(/Won 1 · best 1:0\d · Relaxed/.test(best), 'Pyramid card under Relaxed: ' + best);
+      t.expect(/Won 1 · best 1:0\d · score [\d,]+ · Relaxed/.test(best), 'Pyramid card under Relaxed: ' + best);
       await t.page.click('.levelbar [data-v="classic"]');
       best = await t.page.locator('#cards .card[data-layout="pyramid"] .best').innerText();
-      t.equal(best, 'Won 3 · best 5:03', 'Pyramid card under Classic keeps the old record');
+      t.equal(best, 'Won 3 · best 5:03 · score 1,190', 'Pyramid card under Classic keeps the old record (wave 3, S3-07: the card also shows the best score)');
     },
   },
   {
