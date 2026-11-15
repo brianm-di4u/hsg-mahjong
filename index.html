@@ -105,6 +105,12 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 .levelbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-3);max-width:1100px;width:100%;margin:var(--space-4) auto 0;padding:0 var(--space-5);box-sizing:border-box}
 .levelbar .lbl{font-weight:700}
 .levelbar p{flex:1 1 260px;margin:0;font-size:.9rem;color:var(--color-muted)}
+.seedbar{margin-top:var(--space-2)}
+.seedbar input{min-height:44px;width:11ch;box-sizing:content-box;padding:0 var(--space-3);border-radius:var(--radius-md);border:2px solid var(--color-border);background:var(--panel);color:var(--color-text);font:inherit;font-variant-numeric:tabular-nums}
+.seedbar input:focus-visible{outline:3px solid var(--color-highlight);outline-offset:2px}
+.deal{margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--color-border);text-align:center}
+.deal p{margin:0 0 var(--space-2);font-size:.9rem;color:var(--color-muted)}
+.deal .seg{justify-content:center;margin-bottom:var(--space-3)}
 .tool[aria-disabled="true"]{opacity:.45}
 .card .tag{align-self:flex-start;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--bar);color:var(--bar-text)}
 
@@ -257,6 +263,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   <section class="screen" id="s-layouts" aria-labelledby="l-h">
     <div class="topbar"><button class="iconbtn" data-back aria-label="Back to title"><svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2 id="l-h">Choose a layout</h2></div>
     <div class="levelbar"><span class="lbl" id="lb-level">Difficulty</span><div class="seg" role="group" aria-labelledby="lb-level" data-set="difficulty"><button class="btn small" data-v="relaxed">Relaxed</button><button class="btn small" data-v="classic">Classic</button><button class="btn small" data-v="expert">Expert</button></div><p id="level-blurb"></p></div>
+    <div class="levelbar seedbar"><label class="lbl" for="lb-seed">Seed</label><input id="lb-seed" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="Random" aria-describedby="seed-note"><p id="seed-note">Type a seed to play that deal again, or leave it empty for a new one. The same layout, level and seed always deal the same tiles.</p></div>
     <div class="cards" id="cards"></div>
   </section>
 
@@ -296,7 +303,8 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 <!-- Overlays -->
 <div class="overlay" id="o-pause" role="dialog" aria-modal="true" aria-labelledby="op-h"><div class="panel">
   <header><h2 id="op-h">Paused</h2></header>
-  <div class="body"><p class="big" id="op-time">0:00</p><p style="text-align:center">The clock is stopped and the board is hidden.</p></div>
+  <div class="body"><p class="big" id="op-time">0:00</p><p style="text-align:center">The clock is stopped and the board is hidden.</p>
+    <div class="deal" id="op-deal"><p id="op-seed"></p><div class="seg"><button class="btn small" id="op-replay">Replay this deal</button><button class="btn small" id="op-link">Copy link</button></div><p id="op-note" role="status"></p></div></div>
   <div class="actions"><button class="btn primary" id="op-resume">Resume</button><button class="btn" id="op-new">New game</button><button class="btn" id="op-help">How to Play</button><button class="btn" id="op-settings">Settings</button><button class="btn" id="op-title">Title screen</button></div>
 </div></div>
 
@@ -3348,7 +3356,12 @@ function openOverlay(id) {
   if (id === 'o-stats') buildStats();
   if (id === 'o-tiles') { buildGuide(); if (guideTab === 'coll') buildCollection(); }
   if (id === 'o-settings') syncSettingsUI();
-  if (id === 'o-pause') $('op-time').textContent = S ? fmtTime(S.elapsedMs) : '0:00';
+  if (id === 'o-pause') {
+    $('op-time').textContent = S ? fmtTime(S.elapsedMs) : '0:00';
+    $('op-deal').hidden = !S || !!S.daily; // the Daily Puzzle is one shared board already
+    if (S) $('op-seed').textContent = LAYOUT.name + ' · ' + lv().name + ' · seed ' + S.seed;
+    $('op-note').textContent = '';
+  }
   overlayReturn = overlayReturn || document.activeElement;
   el.classList.add('on');
   const f = el.querySelector('.actions .btn, button');
@@ -3470,6 +3483,11 @@ function drawPreview(cv, layout, flat) {
     const l = 97 - (zmax - z) * 6; c.fillStyle = 'hsl(45,25%,' + l + '%)'; c.fillRect(sx, sy, s * 2 - 1, s * 2.6 - 1);
   }
 }
+// A seed is a whole number from 0 to 4294967295; the layout picker and a shared link both take one (S1-17)
+const SEED_NOTE = 'Type a seed to play that deal again, or leave it empty for a new one. The same layout, level and seed always deal the same tiles.';
+const SEED_RULE = 'A seed is a whole number up to 4294967295.';
+function seedFromText(v) { v = String(v == null ? '' : v).trim(); if (!v) return null; return /^[0-9]{1,10}$/.test(v) && Number(v) <= 4294967295 ? Number(v) : false; }
+function dealLink() { return location.href.split(/[?#]/)[0] + '?layout=' + S.layoutId + '&seed=' + S.seed + (S.level !== 'classic' ? '&level=' + S.level : ''); }
 function buildCards() {
   const box = $('cards'); box.innerHTML = '';
   // portrait-first layouts lead on a phone held upright
@@ -3499,7 +3517,13 @@ function buildCards() {
       b.querySelector('.best').textContent = unlockCondition(u) + ' to unlock' + (u.wins ? '' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ')');
       b.querySelector('.meas').hidden = true; sp.hidden = true;
     }
-    b.addEventListener('click', () => { AUDIO.unlock(); if (shut) { AUDIO.thud(); announce(l.name + ' is locked. ' + unlockCondition(u) + ' to unlock it.'); return; } startNewGame({ layout: l.id }); });
+    b.addEventListener('click', () => {
+      AUDIO.unlock();
+      if (shut) { AUDIO.thud(); announce(l.name + ' is locked. ' + unlockCondition(u) + ' to unlock it.'); return; }
+      const sd = seedFromText($('lb-seed').value);
+      if (sd === false) { AUDIO.thud(); $('seed-note').textContent = SEED_RULE; $('lb-seed').focus(); announce(SEED_RULE); return; }
+      $('lb-seed').value = ''; startNewGame(sd == null ? { layout: l.id } : { layout: l.id, seed: sd });
+    });
     box.appendChild(b);
     requestAnimationFrame(() => drawPreview(b.querySelector('canvas'), l));
   }
@@ -3865,6 +3889,14 @@ on('t-free', () => toggleGlow());
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
 on('op-new', () => askNewGame());
+on('op-replay', () => { const o = { layout: S.layoutId, seed: S.seed, level: S.level }; if (!hasProgress()) closeAll(); startNewGame(o); });
+$('lb-seed').addEventListener('input', (e) => { const v = e.target.value.replace(/[^0-9]/g, ''); if (v !== e.target.value) e.target.value = v; $('seed-note').textContent = SEED_NOTE; });
+on('op-link', () => {
+  const url = dealLink(), note = $('op-note');
+  const shown = () => { note.textContent = 'Link copied. Anyone who opens it plays this deal.'; };
+  const manual = () => { note.textContent = 'Copy this link to share the deal: ' + url; };
+  try { navigator.clipboard.writeText(url).then(shown, manual); } catch (e) { manual(); }
+});
 on('oc-new', () => { if (confirmKind === 'shuffle') { closeOverlay('o-confirm'); shuffle(); return; } const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
 on('oc-keep', () => { pendingNew = null; closeOverlay('o-confirm'); });
 on('op-help', () => openOverlay('o-help'));
@@ -4036,6 +4068,17 @@ if (HAS_BACKDROP) setTimeout(() => loadArt(['backdrop-day', 'backdrop-night']), 
 (window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => { if (R3 && !G) { try { buildAtlas(false); R3.warm(); } catch (e) { /* only a head start */ } } });
 applyTheme();
 showScene('title');
+// A shared link (?layout=pyramid&seed=123&level=expert) opens that deal; a game in progress is asked about first (S1-17)
+{
+  const q = new URLSearchParams(location.search), id = q.get('layout'), seed = seedFromText(q.get('seed'));
+  if (id !== null && seed !== null && seed !== false && E.LAYOUTS.some((l) => l.id === id)) {
+    const level = LEVELS[q.get('level')] ? q.get('level') : undefined;
+    for (const k of ['layout', 'seed', 'level']) q.delete(k);
+    try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) { /* a reload would offer the deal again */ }
+    if (isOpen('layout', id)) startNewGame({ layout: id, seed, level });
+    else { showScene('layouts'); $('lb-seed').value = String(seed); }
+  }
+}
 })();
 </script>
 </body>

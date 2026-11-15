@@ -180,3 +180,94 @@ tests.push(
     },
   },
 );
+
+const faces = async (t) => (await t.state()).tiles.map((x) => x.f);
+tests.push(
+  // ------------------------------------------------------------------ S1-17
+  {
+    name: 'S1-17: the layout picker takes a seed; the same seed deals the same tiles, and a bad one is refused',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 12345, level: 'classic' }); await t.waitIdle(15000);
+      const want = await faces(t);
+      await t.game('newGame', { layout: 'terraces', seed: 1 }); await t.waitIdle(15000); // any other game first, so the picker starts from the title
+      await t.page.evaluate(() => document.getElementById('b-menu').click());
+      await t.page.click('#op-title'); await t.page.click('#b-play');
+      await t.page.waitForSelector('#s-layouts.on');
+      await t.page.fill('#lb-seed', 'a1b2');
+      t.equal(await t.page.inputValue('#lb-seed'), '12', 'only digits stay in the seed field');
+      await t.page.fill('#lb-seed', '9999999999');
+      await t.page.click('.card[data-layout="pyramid"]');
+      t.expect(await t.page.evaluate(() => document.getElementById('s-layouts').classList.contains('on')) && /whole number up to 4294967295/.test(await t.page.textContent('#seed-note')), 'a seed over 4294967295 is refused and the rule is shown');
+      await t.shot('S1-17-seed-field');
+      await t.page.fill('#lb-seed', '12345');
+      await t.page.click('.card[data-layout="pyramid"]');
+      if (await t.page.evaluate(() => document.getElementById('o-confirm').classList.contains('on'))) await t.page.click('#oc-new');
+      await t.page.waitForFunction(() => window.__game.getState().scene === 'game' && window.__game.getState().seed === 12345);
+      await t.waitIdle(15000);
+      const s = await t.state();
+      t.equal([s.layoutId, s.seed], ['pyramid', 12345], 'the game starts on that layout and seed');
+      t.equal(await faces(t), want, 'and deals exactly the tiles of that seed');
+      t.equal(await t.page.inputValue('#lb-seed'), '', 'the field is emptied once used, so the next card is a new deal');
+    },
+  },
+  {
+    name: 'S1-17: the pause menu shows the seed, copies a link for the deal and replays it',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (x) => { window.__copied.push(x); return Promise.resolve(); } } }); });
+      await t.game('newGame', { layout: 'pyramid', seed: 777, level: 'relaxed' }); await t.waitIdle(15000);
+      const want = await faces(t);
+      await play(t, 3);
+      await t.page.evaluate(() => document.getElementById('b-menu').click());
+      await t.page.waitForSelector('#o-pause.on');
+      t.equal(await t.page.textContent('#op-seed'), 'Classic Pyramid · Relaxed · seed 777', 'the pause menu names the deal');
+      await t.page.click('#op-link');
+      await t.page.waitForFunction(() => /Link copied/.test(document.getElementById('op-note').textContent));
+      const url = await t.page.evaluate(() => window.__copied[0]);
+      t.expect(/index\.html\?layout=pyramid&seed=777&level=relaxed$/.test(url) && !/gl=0/.test(url), 'the link carries layout, seed and level and nothing else: ' + url);
+      await t.shot('S1-17-pause-share');
+      await t.page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('no')) } }); });
+      await t.page.click('#op-link');
+      await t.page.waitForFunction(() => /Copy this link to share the deal: /.test(document.getElementById('op-note').textContent));
+      t.expect((await t.page.textContent('#op-note')).includes(url), 'when the browser refuses, the link is shown to copy by hand');
+      await t.page.click('#op-replay');
+      await t.page.waitForSelector('#o-confirm.on');
+      t.expect(/ends this one/.test(await t.page.textContent('#oc-text')), 'a game with moves asks before it is replaced');
+      await t.page.click('#oc-new');
+      await t.page.waitForFunction(() => window.__game.getState().tilesLeft === window.__game.getState().total);
+      const s = await t.state();
+      t.equal([s.seed, s.level, s.scene, s.overlay], [777, 'relaxed', 'game', null], 'Replay starts the same deal again at the same level');
+      t.equal(await faces(t), want, 'with the same tiles');
+    },
+  },
+  {
+    name: 'S1-17: a shared link opens the deal it names',
+    url: 'index.html?gl=0&layout=row&seed=424242&level=expert',
+    viewports: ['desktop'],
+    async run(t) {
+      await t.page.waitForFunction(() => window.__game.getState().scene === 'game');
+      const s = await t.state();
+      t.equal([s.layoutId, s.seed, s.level], ['row', 424242, 'expert'], 'layout, seed and level come from the link');
+      const search = await t.page.evaluate(() => location.search);
+      t.equal(search, '?gl=0', 'the link is taken out of the address afterwards, so a reload does not offer it again; other settings stay');
+    },
+  },
+  {
+    name: 'S1-17: a damaged link is ignored, and a link to a board still locked opens the picker with its seed in the field',
+    url: 'index.html?gl=0&layout=nowhere&seed=5',
+    viewports: ['desktop'],
+    async run(t) {
+      let s = await t.state();
+      t.equal(s.scene, 'title', 'an unknown layout leaves the title screen alone');
+      await t.page.goto(t.page.url().replace(/\?.*$/, '') + '?gl=0&layout=pyramid&seed=12abc');
+      await t.page.waitForFunction(() => !!window.__game);
+      t.equal((await t.state()).scene, 'title', 'a seed that is not a number leaves it alone');
+      await t.page.goto(t.page.url().replace(/\?.*$/, '') + '?gl=0&layout=westmtn&seed=99');
+      await t.page.waitForFunction(() => !!window.__game && window.__game.getState().scene === 'layouts');
+      t.equal([(await t.state()).scene, await t.page.inputValue('#lb-seed')], ['layouts', '99'], 'a locked board opens the picker with the seed filled in');
+    },
+  },
+);
