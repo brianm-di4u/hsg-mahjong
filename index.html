@@ -3987,7 +3987,7 @@ window.__game = {
       layoutId: S.layoutId, level: S.level, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
       freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
       selected: S.selected, cursor: S.cursor, score: S.score, fee: Object.assign({}, S.fee), combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
-      partners: partnerRing(), gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
+      partners: partnerRing(), gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint, hintPaid: !!anim.hintPaid,
       tiles: G.pos.map(([x, y, z], i) => ({ i, x, y, z, f: S.faces[i], key: E.matchKey(S.faces[i]), present: S.present[i], free: free(i) })),
     });
   },

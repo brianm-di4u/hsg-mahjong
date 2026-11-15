@@ -62,7 +62,8 @@ function fuzz({ layout, seed, steps }) {
       if (pr) {
         const [a, b] = pr, ta = B.s.tiles[a], tb = B.s.tiles[b];
         if (!ta.free || !tb.free || ta.key !== tb.key || a === b) fail(`hint ${a},${b} is not a free matching pair`);
-        if (B.score !== Math.max(0, A.score - 40) || B.s.hints !== A.hints + 1) fail(`hint charged ${A.score - B.score}`);
+        const again = !!(A.s.hint && A.s.hintPaid); // a press while the pair of a paid hint still shows pulses it again for nothing (S1-05)
+        if (B.score !== (again ? A.score : Math.max(0, A.score - 40)) || B.s.hints !== A.hints + (again ? 0 : 1)) fail(`hint charged ${A.score - B.score}`);
         if (B.s.winnable === true && !B.s.planValid) fail('winnable without a valid plan');
         // following the hint from a winnable board must keep it winnable
         if (B.s.winnable === true && rnd() < 0.6) { const wasW = true; g.act('match', a, b); const C = snap(); A.score = B.score; matchCheck(a, b, C); if (wasW && C.s.tilesLeft && C.s.winnable !== true) fail(`following a hint left the board ${C.s.winnable}`); }
