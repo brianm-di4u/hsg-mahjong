@@ -985,7 +985,9 @@ try { FACTS = JSON.parse($('facts').textContent || '[]'); } catch (e) { FACTS = 
 const store = {
   ok: (() => { try { const k = '__bhm_t'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; } catch (e) { return false; } })(),
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  failed: false, // the last write was refused (storage full): progress is not being kept
+  onFail: null,  // told on a refused write, once the screen code exists (set below)
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); this.failed = false; return true; } catch (e) { this.failed = true; if (this.ok && this.onFail) this.onFail(); return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
 const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, effects: true, music: true, ambience: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic', difficulty: 'classic' };
@@ -3364,6 +3366,7 @@ function buildStats() {
   html += '</tbody></table>';
   }
   if (!store.ok) html += '<p style="color:var(--color-muted)">Storage is unavailable in this browser, so stats last only for this visit.</p>';
+  else if (store.failed) html += '<p style="color:var(--color-muted)">' + STORAGE_FULL + '</p>';
   $('ost-body').innerHTML = html;
   for (const bt of $('st-tabs').querySelectorAll('button')) bt.addEventListener('click', () => { statsTab = bt.dataset.tab; buildStats(); const again = $('st-tabs').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
   if (statsTab === 'records') for (const bt of $('st-level').querySelectorAll('button')) bt.addEventListener('click', () => { statsLevel = bt.dataset.v; buildStats(); const again = $('st-level').querySelector('[aria-pressed="true"]'); if (again) again.focus(); });
@@ -3419,6 +3422,10 @@ function applyTheme() {
   if (scene === 'title') drawTitleArt();
   if (G) { layoutBoard(); markDirty(); }
 }
+const STORAGE_FULL = "This browser's storage is full, so your progress will not be kept. Free some space and it will save again.";
+function showStorageNote() { $('se-storage').textContent = !store.ok ? "Storage is unavailable, so settings and stats won't be saved." : store.failed ? STORAGE_FULL : 'Settings, stats and your current game are saved in this browser.'; }
+let storageWarned = false; // a full disk is said once with a toast, then the Settings and Stats notes carry it
+store.onFail = () => { showStorageNote(); if (storageWarned) return; storageWarned = true; toast("Your progress could not be saved: this browser's storage is full."); announce(STORAGE_FULL); };
 function syncSettingsUI() {
   const onoff = (id, v) => { const b = $(id); b.setAttribute('aria-pressed', String(v)); b.textContent = v ? 'On' : 'Off'; };
   onoff('se-sound', SETTINGS.sound); onoff('se-sfx', SETTINGS.effects); onoff('se-music', SETTINGS.music); onoff('se-amb', SETTINGS.ambience); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions);
@@ -3433,7 +3440,7 @@ function syncSettingsUI() {
     const h = $('lh-' + kind); h.hidden = !shut.length;
     h.textContent = shut.map((u) => unlockLabel(u).replace(/ (tile set|camera)$/, '') + ': ' + unlockCondition(u).toLowerCase() + (u.wins ? '' : ' (' + unlockProgress(u) + ' of ' + u.cleared + ')')).join('. ') + (shut.length ? '.' : '');
   }
-  $('se-storage').textContent = store.ok ? 'Settings, stats and your current game are saved in this browser.' : "Storage is unavailable, so settings and stats won't be saved.";
+  showStorageNote();
 }
 function setSetting(k, v) {
   SETTINGS[k] = v; saveSettings(k); syncSettingsUI();

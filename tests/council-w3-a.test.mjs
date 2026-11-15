@@ -64,4 +64,42 @@ export const tests = [
       await t.shot('S4-26-title-buttons');
     },
   },
+  // ------------------------------------------------------------------ S6-05
+  {
+    name: 'S6-05: a refused write (storage full) is said once in a toast and kept in the Settings and Stats notes',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    // the page's storage refuses every bhm.* write while window.__full is set, as a full disk does
+    initScript: () => {
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) { if (window.__full && String(k).startsWith('bhm.')) { const e = new Error('full'); e.name = 'QuotaExceededError'; throw e; } return set.call(this, k, v); };
+    },
+    async run(t) {
+      const toastText = () => t.page.evaluate(() => (document.getElementById('toast').classList.contains('on') ? document.getElementById('toast').textContent : ''));
+      const note = async () => { await t.game('scene', 'settings'); const x = await t.page.locator('#se-storage').innerText(); await t.page.evaluate(() => document.querySelector('#o-settings [data-close]').click()); return x; };
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      t.expect(/saved in this browser/.test(await note()), 'with room to write, the note says it is saved');
+      t.equal(await toastText(), '', 'and there is no warning');
+      await t.page.evaluate(() => { window.__full = true; });
+      let s = await t.state(); const pr = freePair(s);
+      await t.game('act', 'match', pr[0], pr[1]); await t.waitIdle(15000);
+      t.expect(/storage is full/.test(await toastText()), 'the first refused write says so in a toast: ' + await toastText());
+      await t.shot('S6-05-toast', { wait: false });
+      t.expect(/will not be kept/.test(await note()), 'and Settings says progress will not be kept');
+      await t.game('scene', 'stats');
+      t.expect(/storage is full/.test(await t.page.locator('#ost-body').innerText()), 'and so does Stats');
+      await t.page.evaluate(() => document.querySelector('#o-stats [data-close]').click());
+      await t.page.evaluate(() => { document.getElementById('toast').classList.remove('on'); document.getElementById('toast').textContent = ''; });
+      s = await t.state(); const pr2 = freePair(s);
+      await t.game('act', 'match', pr2[0], pr2[1]); await t.waitIdle(15000);
+      t.equal(await toastText(), '', 'a second refused write does not toast again');
+      await t.game('scene', 'settings'); await t.page.locator('#se-storage').scrollIntoViewIfNeeded(); await t.shot('S6-05-settings-note');
+      await t.page.evaluate(() => document.querySelector('#o-settings [data-close]').click());
+      await t.page.evaluate(() => { window.__full = false; });
+      s = await t.state(); const pr3 = freePair(s);
+      await t.game('act', 'match', pr3[0], pr3[1]); await t.waitIdle(15000);
+      t.expect(/saved in this browser/.test(await note()), 'once a write succeeds the note goes back to normal');
+      t.equal((await stored(t, 'bhm.game.v1')).history.length, 3, 'and the game is saved again');
+    },
+  },
 ];
