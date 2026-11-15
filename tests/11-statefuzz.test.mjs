@@ -29,7 +29,7 @@ function fuzz({ layout, seed, steps }) {
     const matchCheck = (a, b, B) => {
       const nc = s.elapsedMs - lastMatch <= 4000 ? combo + 1 : 0, rowNow = !A.rowDone && B.rowDone;
       let pts = 10 + Math.min(25, 5 * nc) + (rowNow ? 100 : 0);
-      if (B.s.tilesLeft === 0) pts += 500 + Math.max(0, 600 - Math.floor(B.s.elapsedMs / 1000)); // clear and time bonus
+      if (B.s.tilesLeft === 0) pts += 500 + Math.max(0, Math.round(600 * (1 - B.s.elapsedMs / (2 * (B.s.total / 2 * 6000))))) + (!B.s.hints && !B.s.shuffles && !B.s.undos ? 250 : 0); // clear bonus, time bonus (to twice par) and no-help bonus
       if (B.combo !== nc) fail(`combo ${B.combo}, want ${nc}`);
       if (B.score - A.score !== pts) fail(`match scored ${B.score - A.score}, want ${pts}`);
       if (rowNow && B.s.tiles.some((x) => x.present && x.f >= 9 && x.f < 18)) fail('Row bonus with bathhouse tiles left');
@@ -62,7 +62,7 @@ function fuzz({ layout, seed, steps }) {
       if (pr) {
         const [a, b] = pr, ta = B.s.tiles[a], tb = B.s.tiles[b];
         if (!ta.free || !tb.free || ta.key !== tb.key || a === b) fail(`hint ${a},${b} is not a free matching pair`);
-        if (B.score !== Math.max(0, A.score - 15) || B.s.hints !== A.hints + 1) fail(`hint charged ${A.score - B.score}`);
+        if (B.score !== Math.max(0, A.score - 40) || B.s.hints !== A.hints + 1) fail(`hint charged ${A.score - B.score}`);
         if (B.s.winnable === true && !B.s.planValid) fail('winnable without a valid plan');
         // following the hint from a winnable board must keep it winnable
         if (B.s.winnable === true && rnd() < 0.6) { const wasW = true; g.act('match', a, b); const C = snap(); A.score = B.score; matchCheck(a, b, C); if (wasW && C.s.tilesLeft && C.s.winnable !== true) fail(`following a hint left the board ${C.s.winnable}`); }
@@ -83,7 +83,8 @@ function fuzz({ layout, seed, steps }) {
         const h = hist.pop(); redo.push(h);
         if (!same(B.present, h.before.present) || !same(B.faces, h.before.faces)) fail(`undo of ${h.t} did not restore the board`);
         if (B.combo !== h.before.combo || B.rowDone !== h.before.rowDone) fail('undo did not restore combo/row');
-        if (B.score !== Math.max(0, A.score - h.d)) fail(`undo score ${B.score}, want ${Math.max(0, A.score - h.d)} (penalties stay paid)`);
+        const undoWant = Math.max(0, Math.max(0, A.score - h.d) - (A.s.undos + 1 > 3 ? 10 : 0)); // the first three undos of a game are free, then 10 each (Classic)
+        if (B.score !== undoWant) fail(`undo score ${B.score}, want ${undoWant} (penalties stay paid)`);
         if (B.shuffles !== A.shuffles || B.hints !== A.hints) fail('undo changed hint/shuffle counts');
         if (B.s.selected !== -1) fail('undo left a selection');
         combo = B.combo; lastMatch = h.t === 'm' ? (hist.length ? findLast(hist) : -1e9) : lastMatch;

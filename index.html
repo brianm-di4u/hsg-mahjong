@@ -335,7 +335,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </ul>
     <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
     <h3>Scoring</h3>
-    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 15 and shuffles 50. Winning adds 500 plus 1 point per second under ten minutes.</p>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo.</p>
     <h3>Difficulty</h3>
     <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
@@ -1023,11 +1023,15 @@ const SETTINGS = cleanSettings(store.get('bhm.settings.v1', {}));
 function saveSettings(k) { if (typeof STATS !== 'undefined' && !STATS.goals.rec) saveStats(); const cur = cleanSettings(store.get('bhm.settings.v1', {})); if (k !== undefined) cur[k] = SETTINGS[k]; else Object.assign(cur, SETTINGS); store.set('bhm.settings.v1', cur); }
 // Difficulty levels (S3-01). Classic is the game exactly as it was. Each number lives on its own line, so a level is retuned
 // (or a retune undone) by editing that line. `shape` is the deal shape passed to ENGINE.deal: -1 safer, 0 as always, 1 trickier.
+// Wave 3 (S3-05) scoring: Classic hints cost 40 (were 15); Undo is free for the first undoFree of a game, then costs undoCost
+// (Relaxed stays free; before this, Undo was always free); a win with no hint, shuffle or undo earns noHelp (new).
 const LEVELS = {
-  relaxed: { name: 'Relaxed', hints: true, hintCost: 0, shuffleCost: 0, shuffleCap: Infinity, freeGlow: 'player', shape: -1, blurb: 'Hints and shuffles are free, and the deals steer clear of traps.' },
-  classic: { name: 'Classic', hints: true, hintCost: 15, shuffleCost: 50, shuffleCap: Infinity, freeGlow: 'player', shape: 0, blurb: 'The standard game: a hint costs 15 points and a shuffle 50.' },
-  expert: { name: 'Expert', hints: false, hintCost: 0, shuffleCost: 100, shuffleCap: 3, freeGlow: 'off', shape: 1, blurb: 'No hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps.' },
+  relaxed: { name: 'Relaxed', hints: true, hintCost: 0, shuffleCost: 0, shuffleCap: Infinity, undoFree: Infinity, undoCost: 0, noHelp: 0, freeGlow: 'player', shape: -1, blurb: 'Hints, shuffles and undos are free, and the deals steer clear of traps.' },
+  classic: { name: 'Classic', hints: true, hintCost: 40 /* was 15 */, shuffleCost: 50, shuffleCap: Infinity, undoFree: 3, undoCost: 10, noHelp: 250, freeGlow: 'player', shape: 0, blurb: 'The standard game: a hint costs 40 points, a shuffle 50, and an undo 10 after the first three.' },
+  expert: { name: 'Expert', hints: false, hintCost: 0, shuffleCost: 100, shuffleCap: 3, undoFree: 3, undoCost: 10, noHelp: 250, freeGlow: 'off', shape: 1, blurb: 'No hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps.' },
 };
+// The time bonus runs from TIME_BONUS_MAX at no time down to nothing at TIME_BONUS_PARS times the layout's par (was 600 minus the seconds taken, for every layout).
+const TIME_BONUS_MAX = 600, TIME_BONUS_PARS = 2;
 const RATING_EASY = 50, RATING_HARD = 30; // a layout is Easy when a random player clears at least this share of its deals, Hard below the second
 function ratingOf(l) { return l.measured >= RATING_EASY ? 'Easy' : l.measured < RATING_HARD ? 'Hard' : 'Medium'; }
 // ---------- goals and collection (S3-02) ----------
@@ -2257,7 +2261,7 @@ function newGame(opts = {}) {
   S = {
     v: 1, layoutId: layout.id, level, seed, daily, faces: d.faces, present: new Array(G.n).fill(true), plan: d.plan,
     history: [], redo: [], selected: -1, cursor: -1, score: 0, combo: 0, lastMatchMs: -1e9,
-    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
+    elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, fee: { hint: 0, shuffle: 0, undo: 0 }, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
   };
   if (!practice) { STATS.played++; if (level !== 'classic') STATS.tiers[level].played++; layoutStats(layout.id, level).played++; saveStats(); }
   anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.drop = null; anim.block = null; anim.shuffleAt = 0;
@@ -2301,6 +2305,7 @@ function startNewGame(opts) {
 function loadState(s) {
   const layout = layoutById(s.layoutId), g = E.buildGeometry(layout.build());
   const st = Object.assign({ score: 0, elapsedMs: 0, redo: [], cursor: -1, rowDone: false, combo: 0, lastMatchMs: -1e9, hints: 0, shuffles: 0, undos: 0, practice: false, level: 'classic' }, JSON.parse(JSON.stringify(s)));
+  const fee = st.fee && typeof st.fee === 'object' ? st.fee : {}; st.fee = {}; for (const k of ['hint', 'shuffle', 'undo']) st.fee[k] = Math.max(0, num(fee[k], 0)); // penalties paid so far (a game saved before this had none itemized)
   if (s.layoutId !== layout.id || !Array.isArray(st.faces) || !Array.isArray(st.present) || st.faces.length !== g.n || st.present.length !== g.n) throw new Error('state does not match layout');
   if (st.faces.some((f) => !(f >= 0 && f < E.FACES)) || st.present.filter(Boolean).length % 2) throw new Error('bad faces');
   if (st.status === 'won') throw new Error('a finished game cannot be continued');
@@ -2499,6 +2504,8 @@ function bestFreePair() {
   return best;
 }
 
+// Takes a penalty off the score (never below 0) and keeps what was actually paid, so the win card can itemize it
+function charge(kind, amount) { const paid = Math.min(S.score, amount); S.score -= paid; S.fee[kind] = (S.fee[kind] || 0) + paid; }
 function hint() {
   if (!S || S.status !== 'playing' || inputLocked()) return null;
   AUDIO.unlock();
@@ -2509,7 +2516,7 @@ function hint() {
   let guess = false; // no known way to clear the board: the pair is only the free pair that opens the most tiles
   if (!pr) { pr = bestFreePair(); guess = !!pr; }
   if (!pr) { setStatus('No free pairs: try Shuffle.', STATUS_HOLD_MS); return null; }
-  S.hints++; S.score = Math.max(0, S.score - lv().hintCost);
+  S.hints++; charge('hint', lv().hintCost);
   anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
@@ -2532,7 +2539,7 @@ function shuffle(force) {
   S.history.push({ t: 's', faces: S.faces, plan: S.plan, winnable: S.winnable, before: { status: S.status } });
   S.redo = [];
   S.faces = res.faces; S.plan = res.plan; S.winnable = true; S.selected = -1; anim.hint = null; S.deadNoted = false;
-  S.shuffles++; if (!force) S.score = Math.max(0, S.score - lv().shuffleCost);
+  S.shuffles++; if (!force) charge('shuffle', lv().shuffleCost);
   S.status = 'playing';
   closeOverlay('o-stuck'); resetStuckDialog();
   anim.shuffleAt = reduced() ? 0 : now();
@@ -2561,10 +2568,11 @@ function undo() {
     anim.list = anim.list.filter((x) => !x.tiles.includes(h.a) && !x.tiles.includes(h.b)); // the restored tiles stop flying away
     anim.drop = reduced() ? null : { tiles: [h.a, h.b], start: now() }; // and the pair settles back from above, so the eye finds it
   } else swapShuffle(h);
-  S.redo.push(h); S.undos++; S.selected = -1; anim.hint = null; S.deadNoted = false;
+  S.redo.push(h); S.undos++; S.selected = -1;
+  const undoFee = S.undos > lv().undoFree ? lv().undoCost : 0; if (undoFee) charge('undo', undoFee); anim.hint = null; S.deadNoted = false;
   S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
   AUDIO.undo();
-  setStatus('Undone. ' + tilesLeft() + ' tiles on the board.');
+  setStatus('Undone' + (undoFee ? ' (−' + undoFee + ')' : '') + '. ' + tilesLeft() + ' tiles on the board.');
   announce('Undo');
   afterMove();
   return true;
@@ -2598,9 +2606,10 @@ function countUp(el, to) {
 function win() {
   S.status = 'won';
   freshenStats();
-  const timeBonus = Math.max(0, 600 - Math.floor(S.elapsedMs / 1000));
-  const base = S.score;
-  S.score += 500 + timeBonus;
+  const par = parMs(LAYOUT), timeBonus = Math.max(0, Math.round(TIME_BONUS_MAX * (1 - S.elapsedMs / (TIME_BONUS_PARS * par))));
+  const noHelp = !S.hints && !S.shuffles && !S.undos ? lv().noHelp : 0;
+  const fees = S.fee.hint + S.fee.shuffle + S.fee.undo, base = S.score + fees; // the pairs and combos, before the penalties came off
+  S.score += 500 + timeBonus + noHelp;
   const ls = layoutStats(S.layoutId, S.level);
   const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
   const stars = starsEarned(S), starsBefore = starsOf(ls);
@@ -2633,7 +2642,10 @@ function win() {
   spawnWinFx();
   $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
-  const rows = [['Pairs, combos and penalties', base], ['Clear bonus', 500], ['Time bonus (under 10:00)', timeBonus]];
+  const rows = [['Pairs and combos', base]];
+  for (const [k, n] of [['hint', 'Hints'], ['shuffle', 'Shuffles'], ['undo', 'Undos after the first ' + lv().undoFree]]) if (S.fee[k]) rows.push([n, '−' + S.fee[k]]);
+  rows.push(['Clear bonus', 500], ['Time bonus (par ' + fmtTime(par) + ')', timeBonus]);
+  if (noHelp) rows.push(['No-help bonus', noHelp]);
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
   $('ow-grid').innerHTML = rows.map(([k, v]) => '<span>' + k + '</span><span>' + v + '</span>').join('') + '<span class="tot">Total</span><span class="tot">' + S.score + '</span>'
     + '<span style="grid-column:1/-1;font-size:.85rem;color:var(--color-muted)">' + plural(S.hints, 'hint') + ' · ' + plural(S.shuffles, 'shuffle') + ' · ' + plural(S.undos, 'undo') + '</span>';
@@ -3825,7 +3837,7 @@ window.__game = {
     return Object.assign(base, {
       layoutId: S.layoutId, level: S.level, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
       freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
-      selected: S.selected, cursor: S.cursor, score: S.score, combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
+      selected: S.selected, cursor: S.cursor, score: S.score, fee: Object.assign({}, S.fee), combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
       partners: partnerRing(), gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
       tiles: G.pos.map(([x, y, z], i) => ({ i, x, y, z, f: S.faces[i], key: E.matchKey(S.faces[i]), present: S.present[i], free: free(i) })),
     });

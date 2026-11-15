@@ -61,9 +61,9 @@ export const tests = [
       t.equal([s.level, s.hints], ['classic', 0], 'a game says its level');
       const sc0 = s.score;
       await t.game('act', 'hint'); s = await t.state();
-      t.equal([s.hints, s.score], [1, Math.max(0, sc0 - 15)], 'Classic: a hint costs 15');
+      t.equal([s.hints, s.score], [1, Math.max(0, sc0 - 40)], 'Classic: a hint costs 40');
       await t.game('act', 'shuffle'); s = await t.state();
-      t.equal([s.shuffles, s.score], [1, Math.max(0, sc0 - 15 - 50)], 'Classic: a shuffle costs 50');
+      t.equal([s.shuffles, s.score], [1, Math.max(0, sc0 - 40 - 50)], 'Classic: a shuffle costs 50');
       t.expect(await t.page.locator('#os-shuffle').textContent() === 'Shuffle (−50)', 'the stuck dialog button says Shuffle (−50)');
       // Relaxed: free
       s = await play('relaxed');
