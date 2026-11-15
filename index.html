@@ -117,6 +117,9 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 .hud .name span{font-size:.8rem;color:var(--chrome-muted)}
 .stats{display:flex;gap:6px;font-variant-numeric:tabular-nums;font-weight:700;font-size:1rem}
 .stats div{display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:48px;padding:3px 8px;border-radius:10px;background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 1px rgba(217,178,76,.35)}
+.stats div{position:relative}
+.combo{position:absolute;left:6px;right:6px;bottom:-5px;height:3px;border-radius:2px;background:var(--brass);transform-origin:left center;transform:scaleX(0);opacity:0;transition:transform .26s linear,opacity .2s}
+.combo.on{opacity:1}
 .stats small{font-weight:600;font-size:.72rem;color:var(--chrome-muted);text-transform:uppercase;letter-spacing:.06em}
 #board-wrap{position:relative;flex:1;min-height:0;overflow:hidden;background:linear-gradient(var(--table-a),var(--table-b))}
 #board{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:pointer}
@@ -225,7 +228,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   .tool{font-size:.68rem}
   .panel .body{padding:var(--space-3) var(--space-4)}
 }
-@media (prefers-reduced-motion:reduce){.toast,.banner{transition:none}}
+@media (prefers-reduced-motion:reduce){.toast,.banner,.combo{transition:none}}
 </style>
 </head>
 <body>
@@ -264,7 +267,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <div class="name"><b id="h-name">Classic Pyramid</b><span id="h-sub">Classic</span></div>
       <div class="stats" aria-live="off">
         <div id="h-timebox"><span id="h-time">0:00</span><small>Time</small></div>
-        <div><span id="h-score">0</span><small>Score</small></div>
+        <div><span id="h-score">0</span><small>Score</small><i class="combo" id="h-combo" aria-hidden="true"></i></div>
         <div><span id="h-left">144</span><small>Tiles</small></div>
         <div><span id="h-pairs">0</span><small>Pairs</small></div>
       </div>
@@ -2429,7 +2432,7 @@ function doMatch(a, b, rec) {
   else {
     // combo
     const t = S.elapsedMs;
-    S.combo = t - S.lastMatchMs <= 4000 ? S.combo + 1 : 0;
+    S.combo = t - S.lastMatchMs <= COMBO_MS ? S.combo + 1 : 0;
     S.lastMatchMs = t;
     pts = 10 + Math.min(25, 5 * S.combo);
     // Bathhouse Row bonus
@@ -3277,13 +3280,19 @@ function tileUnder(px, py) {
 }
 
 // ===================== HUD, status, toasts, live region =====================
+// The combo window as a thin bar under the Score: full at a match, empty COMBO_MS of play time later (S1-06)
+const COMBO_MS = 4000;
+function syncCombo() {
+  const el = $('h-combo'), left = S && S.status === 'playing' && S.lastMatchMs > -1e8 ? 1 - (S.elapsedMs - S.lastMatchMs) / COMBO_MS : 0;
+  el.classList.toggle('on', left > 0); el.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left)).toFixed(3) + ')';
+}
 function updateHud() {
   if (!S) return;
   $('h-name').textContent = LAYOUT.name;
   $('h-sub').textContent = S.daily ? 'Daily Puzzle · ' + S.daily : lv().name + ' · seed ' + S.seed;
   $('h-time').textContent = fmtTime(S.elapsedMs);
   $('h-timebox').hidden = !SETTINGS.showTimer;
-  $('h-score').textContent = S.score;
+  $('h-score').textContent = S.score; syncCombo();
   $('h-left').textContent = tilesLeft();
   $('h-pairs').textContent = pairsAvailable().length;
   $('t-undo').disabled = !S.history.length || S.status === 'won';
@@ -3294,7 +3303,7 @@ function updateHud() {
   $('t-free').setAttribute('aria-disabled', String(noGlow)); $('t-free').title = noGlow ? 'Free tiles are not highlighted in ' + lv().name : 'Highlight free tiles (F)';
   $('t-zoom').setAttribute('aria-pressed', String(view.zoom));
 }
-setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(); $('h-time').textContent = fmtTime(S.elapsedMs); if (Math.floor(S.elapsedMs / 5000) !== Math.floor((S.elapsedMs - 250) / 5000)) saveGame(); } }, 250);
+setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(); $('h-time').textContent = fmtTime(S.elapsedMs); syncCombo(); if (Math.floor(S.elapsedMs / 5000) !== Math.floor((S.elapsedMs - 250) / 5000)) saveGame(); } }, 250);
 // Results (match, hint, shuffle) stay on the strip for a moment: hovering a tile must not wipe them at once.
 const STATUS_HOLD_MS = 2500;
 let statusHoldUntil = 0;

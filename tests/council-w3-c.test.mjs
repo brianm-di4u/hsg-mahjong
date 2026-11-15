@@ -141,3 +141,42 @@ tests.push(
     },
   },
 );
+
+tests.push(
+  // ------------------------------------------------------------------ S1-06
+  {
+    name: 'S1-06: a thin bar under the Score shows the 4 s combo window running out, and clears when it is over',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const bar = () => t.page.evaluate(() => { const e = document.getElementById('h-combo'), r = e.getBoundingClientRect(), p = document.getElementById('h-score').parentElement.getBoundingClientRect(); return { on: e.classList.contains('on'), scale: +(/scaleX\(([\d.]+)\)/.exec(e.style.transform) || [0, -1])[1], w: r.width, inside: r.top >= p.bottom - 1 && r.bottom <= document.querySelector('.hud').getBoundingClientRect().bottom && p.width > 30 }; });
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      let b = await bar();
+      t.equal(b.on, false, 'no bar before the first match');
+      await t.game('act', 'solveStep');
+      await t.game('pause'); // the real clock stops here, so only the moves of the game clock below change the bar
+      b = await bar();
+      t.expect(b.on && b.scale > 0.8, 'a match fills the bar: ' + JSON.stringify(b));
+      await t.game('act', 'advance', 2000);
+      await t.page.waitForFunction(() => { const m = /scaleX\(([\d.]+)\)/.exec(document.getElementById('h-combo').style.transform); return m && +m[1] < 0.7; }, null, { timeout: 15000 });
+      b = await bar();
+      t.expect(b.on && b.scale > 0.3 && b.scale < 0.65 && b.inside, 'two seconds on, about half the window is left, drawn just under the Score box, inside the bar of the HUD: ' + JSON.stringify(b));
+      await t.game('resume');
+      await t.shot('S1-06-combo-bar');
+      await t.game('act', 'solveStep');
+      b = await bar();
+      t.expect(b.scale > 0.8, 'a quick next pair refills it: ' + b.scale);
+      await t.game('act', 'advance', 4100);
+      await t.page.waitForFunction(() => !document.getElementById('h-combo').classList.contains('on'), null, { timeout: 15000 });
+      t.equal((await bar()).on, false, 'past four seconds the bar is gone');
+      await t.game('act', 'solveStep');
+      t.equal((await t.state()).combo, 0, 'and the next pair starts the count again, as the bar said');
+      await t.game('act', 'undo');
+      t.equal((await bar()).on, false, 'undoing it brings back the earlier window, which had run out');
+      await t.game('act', 'solveStep'); await t.game('act', 'solveStep');
+      await t.game('act', 'undo');
+      b = await bar();
+      t.expect(b.on && b.scale > 0.5, 'undoing a quick pair puts back the window of the pair before it, still open: ' + JSON.stringify(b));
+    },
+  },
+);
