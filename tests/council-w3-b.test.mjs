@@ -115,4 +115,52 @@ export const tests = [
       t.equal((await t.state()).fee, { hint: 0, shuffle: 0, undo: 0 }, 'a damaged fee record is read as zeros');
     },
   },
+  // ------------------------------------------------------------------ S3-07
+  {
+    name: 'S3-07: the win card names a new best score as well as a new best time, and the layout card shows the best score',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      // a first win sets both records
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      let c = await winCard(t);
+      t.expect(c.sub.endsWith('new best time and score!'), 'a first win is a new best time and score: ' + c.sub);
+      const first = (await stored(t, 'bhm.stats.v1')).layouts.pyramid;
+      await t.page.click('#ow-title');
+      // a slower, lower win: no new best of either kind
+      await t.game('newGame', { layout: 'pyramid', seed: 22, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 2); await t.game('act', 'advance', 3000000); await t.game('act', 'solveTo', 0);
+      c = await winCard(t);
+      t.expect(!/new best/.test(c.sub), 'a slower, lower win claims no record: ' + c.sub);
+      await t.page.click('#ow-title');
+      // both records beaten, then only the score
+      const st = await stored(t, 'bhm.stats.v1'); st.layouts.pyramid.bestMs = 100000000; st.layouts.pyramid.bestScore = 1; await put(t, 'bhm.stats.v1', st); await reload(t);
+      await t.game('newGame', { layout: 'pyramid', seed: 23, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      c = await winCard(t);
+      t.expect(c.sub.endsWith('new best time and score!'), 'beating both stored records says so: ' + c.sub);
+      await t.page.click('#ow-title');
+      const st2 = await stored(t, 'bhm.stats.v1'); st2.layouts.pyramid.bestMs = 0; st2.layouts.pyramid.bestScore = 1; await put(t, 'bhm.stats.v1', st2); await reload(t);
+      await t.game('newGame', { layout: 'pyramid', seed: 24, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      c = await winCard(t);
+      t.expect(c.sub.endsWith(' · new best score!'), 'a higher score that is not a faster time is a best score only: ' + c.sub);
+      await t.page.click('#ow-title');
+      const st3 = await stored(t, 'bhm.stats.v1'); st3.layouts.pyramid.bestMs = 100000000; st3.layouts.pyramid.bestScore = 999999; await put(t, 'bhm.stats.v1', st3); await reload(t);
+      await t.game('newGame', { layout: 'pyramid', seed: 25, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      c = await winCard(t);
+      t.expect(c.sub.endsWith(' · new best time!'), 'a faster time with a lower score is a best time only: ' + c.sub);
+      await t.page.click('#ow-title');
+      // the layout card carries the best score beside the best time
+      const best = (await stored(t, 'bhm.stats.v1')).layouts.pyramid.bestScore;
+      await t.game('scene', 'layouts'); await t.waitIdle(15000);
+      const card = await t.page.locator('.card[data-layout="pyramid"] .best').innerText();
+      t.expect(card.includes('score ' + best.toLocaleString('en-US')), 'the Pyramid card says "score ' + best + '": ' + card);
+      await t.page.locator('.card[data-layout="pyramid"]').scrollIntoViewIfNeeded();
+      await t.shot('S3-07-card-best-score');
+      t.equal(first.bestScore > 0, true, 'the first win saved a best score');
+    },
+  },
 ];

@@ -2611,7 +2611,7 @@ function win() {
   const fees = S.fee.hint + S.fee.shuffle + S.fee.undo, base = S.score + fees; // the pairs and combos, before the penalties came off
   S.score += 500 + timeBonus + noHelp;
   const ls = layoutStats(S.layoutId, S.level);
-  const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs;
+  const newBest = ls.bestMs == null || S.elapsedMs < ls.bestMs, newBestScore = S.score > ls.bestScore;
   const stars = starsEarned(S), starsBefore = starsOf(ls);
   if (!S.practice) {
     STATS.won++; if (S.level !== 'classic') STATS.tiers[S.level].won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
@@ -2637,10 +2637,10 @@ function win() {
   if (!S.practice) earned.unlocks = evaluateUnlocks();
   saveStats(); store.del('bhm.game.v1');
   AUDIO.win(); AUDIO.setMood('win');
-  if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), newBest && !S.practice ? 2600 : 2100);
-  if (newBest && !S.practice) setTimeout(() => AUDIO.best(), 1500);
+  if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), (newBest || newBestScore) && !S.practice ? 2600 : 2100);
+  if ((newBest || newBestScore) && !S.practice) setTimeout(() => AUDIO.best(), 1500);
   spawnWinFx();
-  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest ? ' · new best time!' : '');
+  $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest && newBestScore ? ' · new best time and score!' : newBest ? ' · new best time!' : newBestScore ? ' · new best score!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
   const rows = [['Pairs and combos', base]];
   for (const [k, n] of [['hint', 'Hints'], ['shuffle', 'Shuffles'], ['undo', 'Undos after the first ' + lv().undoFree]]) if (S.fee[k]) rows.push([n, '−' + S.fee[k]]);
@@ -3406,7 +3406,7 @@ function buildCards() {
     else if (portrait) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Best in landscape'; tags.appendChild(tag); }
     b.querySelector('.cap').textContent = l.caption;
     b.querySelector('.meas').textContent = 'A random player clears about ' + l.measured + ' in 100 deals.';
-    b.querySelector('.best').textContent = (ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) : l.build().length + ' tiles') + (level !== 'classic' ? ' · ' + LEVELS[level].name : '');
+    b.querySelector('.best').textContent = (ls && ls.won ? 'Won ' + ls.won + ' · best ' + fmtTime(ls.bestMs) + (ls.bestScore ? ' · score ' + ls.bestScore.toLocaleString('en-US') : '') : l.build().length + ' tiles') + (level !== 'classic' ? ' · ' + LEVELS[level].name : '');
     const st = starsOf(ls), sp = b.querySelector('.stars');
     sp.innerHTML = '<b aria-hidden="true">' + '★'.repeat(st) + '☆'.repeat(3 - st) + '</b> <span class="sr-only">' + st + ' of 3 stars. </span>' + starGoalText(l);
     if (shut) {
