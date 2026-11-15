@@ -252,4 +252,38 @@ export const tests = [
       }
     },
   },
+  // ------------------------------------------------------------------ S3-17
+  {
+    name: 'S3-17: selecting a tile rings its free partners, and Highlight free tiles (or Expert) turns that off',
+    url: 'index.html',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      let s = await t.state();
+      const free = s.tiles.filter((x) => x.present && x.free), byKey = {};
+      for (const x of free) (byKey[x.key] = byKey[x.key] || []).push(x.i);
+      const group = Object.values(byKey).find((g) => g.length >= 3), lone = Object.values(byKey).find((g) => g.length === 1);
+      t.expect(!!group, 'the board has a face with three or more free tiles');
+      t.equal((await t.state()).partners, [], 'nothing is ringed until a tile is selected');
+      await t.game('act', 'click', group[0]);
+      s = await t.state();
+      t.equal(s.selected, group[0], 'the tile is selected');
+      t.equal(s.partners, group.slice(1), 'its free partners are ringed, and nothing else');
+      await t.shot('S3-17-partners');
+      if (lone) { await t.game('act', 'click', group[0]); await t.game('act', 'click', lone[0]); t.equal((await t.state()).partners, [], 'a tile with no free partner rings nothing'); await t.game('act', 'click', lone[0]); }
+      else await t.game('act', 'click', group[0]);
+      t.equal((await t.state()).partners, [], 'deselecting clears the rings');
+      await t.game('act', 'click', group[0]);
+      t.equal((await t.state()).partners.length, group.length - 1, 'selected again, the rings return');
+      await t.page.evaluate(() => document.getElementById('se-free').click());
+      t.equal((await t.state()).partners, [], 'with Highlight free tiles off there are no rings');
+      await t.page.evaluate(() => document.getElementById('se-free').click());
+      t.equal((await t.state()).partners.length, group.length - 1, 'and back on they return');
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'expert' }); await t.waitIdle(15000);
+      s = await t.state();
+      const g2 = s.tiles.filter((x) => x.present && x.free).filter((x) => s.tiles.filter((y) => y.present && y.free && y.key === x.key).length >= 2);
+      await t.game('act', 'click', g2[0].i);
+      t.equal((await t.state()).partners, [], 'Expert shows no free-tile help, so no rings');
+    },
+  },
 ];

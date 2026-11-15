@@ -2345,6 +2345,14 @@ function blockersOf(i) {
   if (up.length) return { tiles: up, text: up.length > 1 ? 'Covered: the tiles on top of it must go first.' : 'Covered: the tile on top of it must go first.' };
   return { tiles: G.left[i].concat(G.right[i]).filter((j) => S.present[j]), text: 'Hemmed in: it has a tile on its left and one on its right.' };
 }
+// The free tiles that would match the selected one, ringed softly while it is selected. It follows the Highlight free tiles
+// setting (and Expert, which shows no free-tile help at all), so it can be switched off.
+function partnerRing() {
+  if (!S || S.selected < 0 || !S.present[S.selected] || !freeGlow()) return [];
+  const k = E.matchKey(S.faces[S.selected]), out = [];
+  for (let j = 0; j < G.n; j++) if (j !== S.selected && S.present[j] && E.matchKey(S.faces[j]) === k && free(j)) out.push(j);
+  return out;
+}
 function selectTile(i) {
   if (!S || S.status !== 'playing' || inputLocked()) return { selected: S ? S.selected : -1, removed: false };
   AUDIO.unlock();
@@ -2839,6 +2847,10 @@ function drawOverlay3D(c, t, hintOn) {
     quadPath(c, q, 3); c.lineWidth = Math.max(4, W * 0.1); c.strokeStyle = '#FFB21E'; c.stroke(); c.restore();
     quadPath(c, q, -1); c.lineWidth = Math.max(1.5, W * 0.025); c.strokeStyle = '#1F2A24'; c.stroke();
   }
+  for (const i of partnerRing()) { // the free tiles that would match the selected one: a soft mint ring, no motion
+    c.save(); c.shadowColor = 'rgba(76,208,138,.9)'; c.shadowBlur = W * 0.2;
+    quadPath(c, R3.project(i).quad, 2); c.lineWidth = Math.max(2.5, W * 0.055); c.strokeStyle = '#4CD08A'; c.stroke(); c.restore();
+  }
   if (hintOn) { // a spring-water ripple: a solid ring plus a second one spreading out (selection is one thick gold ring)
     const col = dark ? '46,230,214' : '24,178,160', ph = (t % 1100) / 1100;
     for (const i of anim.hint) {
@@ -3069,7 +3081,7 @@ function draw(t) {
   for (const a of anim.list) for (const i of a.tiles) flying.add(i);
   const veil = freeGlow();
   const shuf = anim.shuffleAt && t - anim.shuffleAt < SHUF_MS ? (t - anim.shuffleAt) / SHUF_MS : -1;
-  const sel = S.selected;
+  const sel = S.selected, partners = partnerRing();
   for (const i of view.order) {
     if (!S.present[i] || flying.has(i)) continue;
     let [sx, sy] = view.scr[i];
@@ -3087,6 +3099,7 @@ function draw(t) {
     const isFreeT = free(i);
     if (veil && !isFreeT) { c.fillStyle = isDark() ? 'rgba(10,8,20,.46)' : 'rgba(40,52,48,.30)'; rr(c, sx, sy, W, H, W * 0.09); c.fill(); }
     if (i === sel) { c.save(); c.shadowColor = isDark() ? 'rgba(79,195,255,.9)' : 'rgba(217,162,58,.95)'; c.shadowBlur = W * 0.25 * dpr; c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = isDark() ? '#4FC3FF' : '#D9A23A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.restore(); c.lineWidth = Math.max(1.5, W * 0.03); c.strokeStyle = '#1F2A24'; rr(c, sx + 2, sy + 2, W - 4, H - 4, W * 0.08); c.stroke(); }
+    if (partners.includes(i)) { c.save(); c.shadowColor = 'rgba(76,208,138,.9)'; c.shadowBlur = W * 0.2 * dpr; c.lineWidth = Math.max(2.5, W * 0.055); c.strokeStyle = '#4CD08A'; rr(c, sx - 1, sy - 1, W + 2, H + 2, W * 0.1); c.stroke(); c.restore(); }
     if (anim.hint && (anim.hint[0] === i || anim.hint[1] === i)) {
       const col = isDark() ? '46,230,214' : '24,178,160', ph = (t % 1100) / 1100;
       c.save(); c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = 'rgb(' + col + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke();
@@ -3746,7 +3759,7 @@ window.__game = {
       layoutId: S.layoutId, level: S.level, seed: S.seed, daily: S.daily, total: G.n, tilesLeft: tilesLeft(),
       freeCount: S.present.filter((p, i) => p && free(i)).length, pairsAvailable: pairsAvailable().length,
       selected: S.selected, cursor: S.cursor, score: S.score, combo: S.combo, elapsedMs: Math.round(S.elapsedMs), hints: S.hints, shuffles: S.shuffles, undos: S.undos,
-      gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
+      partners: partnerRing(), gameStatus: S.status, winnable: S.winnable, deepSearch: !!planAsk, practice: !!S.practice, paused, historyLen: S.history.length, redoLen: S.redo.length, planValid: E.planValid(G, S.present, S.faces, S.plan), rowDone: S.rowDone, hint: anim.hint,
       tiles: G.pos.map(([x, y, z], i) => ({ i, x, y, z, f: S.faces[i], key: E.matchKey(S.faces[i]), present: S.present[i], free: free(i) })),
     });
   },
