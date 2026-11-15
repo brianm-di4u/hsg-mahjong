@@ -3595,7 +3595,7 @@ function drawPreview(cv, layout, flat) {
 const SEED_NOTE = 'Type a seed to play that deal again, or leave it empty for a new one. The same layout, level and seed always deal the same tiles.';
 const SEED_RULE = 'A seed is a whole number up to 4294967295.';
 function seedFromText(v) { v = String(v == null ? '' : v).trim(); if (!v) return null; return /^[0-9]{1,10}$/.test(v) && Number(v) <= 4294967295 ? Number(v) : false; }
-function dealLink() { return location.href.split(/[?#]/)[0] + '?layout=' + S.layoutId + '&seed=' + S.seed + (S.level !== 'classic' ? '&level=' + S.level : ''); }
+function dealLink() { return location.href.split(/[?#]/)[0] + '?layout=' + S.layoutId + '&seed=' + S.seed + '&level=' + S.level; }
 function buildCards() {
   const box = $('cards'); box.innerHTML = '';
   // portrait-first layouts lead on a phone held upright

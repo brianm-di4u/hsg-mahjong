@@ -244,6 +244,30 @@ tests.push(
     },
   },
   {
+    name: 'S1-17: a Classic link carries its level, so a viewer set to another Difficulty gets the same deal',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.page.evaluate(() => { window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (x) => { window.__copied.push(x); return Promise.resolve(); } } }); });
+      await t.game('newGame', { layout: 'pyramid', seed: 31337, level: 'classic' }); await t.waitIdle(15000);
+      const want = await faces(t);
+      await t.page.evaluate(() => document.getElementById('b-menu').click());
+      await t.page.waitForSelector('#o-pause.on');
+      await t.page.click('#op-link');
+      await t.page.waitForFunction(() => /Link copied/.test(document.getElementById('op-note').textContent));
+      const link = await t.page.evaluate(() => window.__copied[0]);
+      t.expect(/\?layout=pyramid&seed=31337&level=classic$/.test(link), 'a Classic game links its level too: ' + link);
+      // the viewer plays on Expert: the link must still open the Classic deal
+      await t.page.evaluate(() => localStorage.setItem('bhm.settings.v1', JSON.stringify({ difficulty: 'expert' })));
+      await t.page.goto(link + '&gl=0');
+      await t.page.waitForFunction(() => window.__game && window.__game.getState().scene === 'game');
+      await t.waitIdle(15000);
+      const s = await t.state();
+      t.equal([s.layoutId, s.seed, s.level], ['pyramid', 31337, 'classic'], 'the viewer\'s own Expert setting does not change the shared level');
+      t.equal(await faces(t), want, 'and the tiles are the same deal');
+    },
+  },
+  {
     name: 'S1-17: a shared link opens the deal it names',
     url: 'index.html?gl=0&layout=row&seed=424242&level=expert',
     viewports: ['desktop'],
