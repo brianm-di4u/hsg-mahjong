@@ -2212,7 +2212,7 @@ function stuckText() {
 }
 const view = { W: 40, H: 52, D: 5, ox: 0, oy: 0, scale: 1, zoom: false, panX: 0, panY: 0, cssW: 0, cssH: 0, order: [], scr: [] };
 let pendingTap = null;   // a tap made while the deal-in or shuffle flip was still running
-const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, drop: null, shuffleAt: 0, dealAt: 0 };
+const anim = { list: [], particles: [], frozen: null, hintUntil: 0, hint: null, shake: null, drop: null, block: null, shuffleAt: 0, dealAt: 0 };
 let scene = 'title';
 let hoverTile = -1;
 let lastTick = 0;
@@ -2259,7 +2259,7 @@ function newGame(opts = {}) {
     elapsedMs: 0, hints: 0, shuffles: 0, undos: 0, status: 'playing', rowDone: false, statsCounted: !practice, practice, winnable: true,
   };
   if (!practice) { STATS.played++; if (level !== 'classic') STATS.tiers[level].played++; layoutStats(layout.id, level).played++; saveStats(); }
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.drop = null; anim.shuffleAt = 0;
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.shake = null; anim.drop = null; anim.block = null; anim.shuffleAt = 0;
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
   showScene('game');
@@ -2313,7 +2313,7 @@ function loadState(s) {
   st.selected = st.selected >= 0 && st.present[st.selected] && E.isFree(g, st.present, st.selected) ? st.selected : -1;
   st.winnable = st.plan ? true : null;
   LAYOUT = layout; G = g; S = st;
-  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.drop = null; anim.shuffleAt = 0;
+  anim.list.length = 0; anim.particles.length = 0; anim.hint = null; anim.drop = null; anim.block = null; anim.shuffleAt = 0;
   paused = false; lastTick = 0; resetStuckDialog();
   if (!S.plan && S.status !== 'won') schedulePlanSearch();
 }
@@ -2338,14 +2338,21 @@ function inputLocked() { return !S || paused || anyOverlay(); }
 
 // Left to right across the board, kept off the extreme edges
 function tilePan(i) { try { const x = screenCenter(i)[0]; return Math.max(-0.7, Math.min(0.7, (x / Math.max(1, view.cssW) - 0.5) * 1.4)); } catch (e) { return 0; } }
+// What stops tile i being taken: the tiles on top of it, or else the tiles on both its sides (a tile is free with one side open)
+function blockersOf(i) {
+  const up = G.top[i].filter((j) => S.present[j]);
+  if (up.length) return { tiles: up, text: up.length > 1 ? 'Covered: the tiles on top of it must go first.' : 'Covered: the tile on top of it must go first.' };
+  return { tiles: G.left[i].concat(G.right[i]).filter((j) => S.present[j]), text: 'Hemmed in: it has a tile on its left and one on its right.' };
+}
 function selectTile(i) {
   if (!S || S.status !== 'playing' || inputLocked()) return { selected: S ? S.selected : -1, removed: false };
   AUDIO.unlock();
   if (!S.present[i]) return { selected: S.selected, removed: false };
   if (!free(i)) {
     anim.shake = { i, start: now() }; AUDIO.thud(tilePan(i));
-    setStatus('Blocked: ' + META[S.faces[i]].name + '. A tile is on top of it, or on both its sides.');
-    announce('Blocked tile');
+    const why = blockersOf(i); anim.block = { tiles: why.tiles, start: now() };
+    setStatus('Blocked: ' + META[S.faces[i]].name + '. ' + why.text, STATUS_HOLD_MS);
+    announce('Blocked tile. ' + why.text);
     markDirty(); return { selected: S.selected, removed: false, blocked: true };
   }
   if (S.selected === i) { S.selected = -1; AUDIO.deselect(tilePan(i)); setStatus('Selection cleared.'); markDirty(); return { selected: -1, removed: false }; }
@@ -2639,8 +2646,9 @@ const GL_OFF = /[?&]gl=0\b/.test(location.search), GL_FORCE = /[?&]gl=1\b/.test(
 const COARSE = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
 const SHUF_MS = 900, DEAL_MS = 1150, FLY_MS = 640;
 const DROP_MS = 260; // an undone pair settles back onto the board over this long
-// the short one-tile effects (a blocked tile's shake, an undone pair settling back) that keep the frame loop running while they last
-function fxLive(t) { return !!((anim.shake && t - anim.shake.start < 260) || (anim.drop && t - anim.drop.start < DROP_MS)); }
+const BLOCK_MS = 700; // the tiles that block a tapped tile are ringed for this long
+// the short one-tile effects (a blocked tile's shake, the ring on what blocks it, an undone pair settling back) that keep the frame loop running while they last
+function fxLive(t) { return !!((anim.shake && t - anim.shake.start < 260) || (anim.drop && t - anim.drop.start < DROP_MS) || (anim.block && t - anim.block.start < BLOCK_MS)); }
 let R3 = null, r3Dead = false, fadeBusy = false;
 // Tiles: Auto picks 3D unless the GPU is a software rasteriser or the first animations ran slowly (the watchdog
 // in frame() remembers that in bhm.gl.slow). 3D and Flat are explicit choices; ?gl=1 / ?gl=0 force either.
@@ -2838,6 +2846,14 @@ function drawOverlay3D(c, t, hintOn) {
       c.save(); c.shadowColor = 'rgba(' + col + ',.9)'; c.shadowBlur = W * 0.25;
       quadPath(c, q, 3); c.lineWidth = Math.max(3, W * 0.07); c.strokeStyle = 'rgb(' + col + ')'; c.stroke(); c.restore();
       if (!reduced()) { c.save(); quadPath(c, q, 4 + ph * W * 0.35); c.lineWidth = Math.max(1.5, W * 0.035); c.strokeStyle = 'rgba(' + col + ',' + (1 - ph).toFixed(2) + ')'; c.stroke(); c.restore(); }
+    }
+  }
+  if (anim.block && t - anim.block.start < BLOCK_MS) { // the tiles that stop a tapped tile: a coral ring that fades out
+    const k = (t - anim.block.start) / BLOCK_MS;
+    for (const i of anim.block.tiles) {
+      if (!S.present[i]) continue;
+      c.save(); c.globalAlpha = 1 - k * k; c.shadowColor = 'rgba(255,110,80,.9)'; c.shadowBlur = W * 0.25;
+      quadPath(c, R3.project(i).quad, 3); c.lineWidth = Math.max(3, W * 0.07); c.strokeStyle = '#FF6E50'; c.stroke(); c.restore();
     }
   }
   if (view.zoom) { // chevrons on the edges where more of the board lies off screen
@@ -3075,6 +3091,9 @@ function draw(t) {
       c.save(); c.lineWidth = Math.max(3, W * 0.08); c.strokeStyle = 'rgb(' + col + ')'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke();
       if (!reduced()) { const g = 4 + ph * W * 0.3; c.lineWidth = Math.max(1.5, W * 0.035); c.strokeStyle = 'rgba(' + col + ',' + (1 - ph).toFixed(2) + ')'; rr(c, sx - g, sy - g, W + g * 2, H + g * 2, W * 0.12 + g); c.stroke(); }
       c.restore();
+    }
+    if (anim.block && t - anim.block.start < BLOCK_MS && anim.block.tiles.includes(i)) {
+      c.save(); c.globalAlpha = 1 - ((t - anim.block.start) / BLOCK_MS) ** 2; c.lineWidth = Math.max(3, W * 0.07); c.strokeStyle = '#FF6E50'; rr(c, sx - 2, sy - 2, W + 4, H + 4, W * 0.12); c.stroke(); c.restore();
     }
     if (i === S.cursor && kbActive) { // keyboard cursor: solid double ring (the hint ring is dashed)
       c.save(); c.lineWidth = Math.max(5, W * 0.11); c.strokeStyle = '#14121F'; rr(c, sx - 4, sy - 4, W + 8, H + 8, W * 0.13); c.stroke();
@@ -3796,7 +3815,7 @@ window.__game = {
         let out = 0; for (let i = 0; i < G.n; i++) { const [x, y] = screenCenter(i); if (x < 0 || y < 0 || x > view.cssW || y > view.cssH) out++; }
         return { out, w: view.cssW, h: view.cssH, tileW: view.W };
       }
-      case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt, drop: anim.drop && now() - anim.drop.start < DROP_MS ? anim.drop.tiles.slice() : null };
+      case 'animInfo': return { list: anim.list.map((x) => ({ type: x.type, dur: x.dur })), particles: anim.particles.length, dealAt: anim.dealAt, shuffleAt: anim.shuffleAt, drop: anim.drop && now() - anim.drop.start < DROP_MS ? anim.drop.tiles.slice() : null, block: anim.block && now() - anim.block.start < BLOCK_MS ? anim.block.tiles.slice() : null };
       case 'gl': return R3 ? Object.assign({ on: use3D() }, R3.info) : { on: false };
       case 'loseContext': { if (!R3) return false; R3.renderer.forceContextLoss(); return true; }
       case 'deadBoard': S.winnable = false; noteDead(); return S.winnable; // test: declare the board dead and show the dead-board line

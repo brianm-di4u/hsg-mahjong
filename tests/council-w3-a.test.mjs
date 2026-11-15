@@ -199,4 +199,34 @@ export const tests = [
       t.expect(await t.page.evaluate(() => document.getElementById('board-steam').classList.contains('still')), 'and the table steam is marked still');
     },
   },
+  // ------------------------------------------------------------------ S1-10
+  {
+    name: 'S1-10: a blocked tap rings the tiles that block it and says whether it is covered or hemmed in',
+    url: 'index.html',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const s = await t.state(), P = s.tiles.filter((x) => x.present);
+      const above = (a) => P.filter((b) => b.z === a.z + 1 && Math.abs(b.x - a.x) < 2 && Math.abs(b.y - a.y) < 2).map((b) => b.i);
+      const sides = (a) => P.filter((b) => b.z === a.z && Math.abs(b.y - a.y) < 2 && Math.abs(b.x - a.x) === 2).map((b) => b.i);
+      const covered = P.find((a) => !a.free && above(a).length), hemmed = P.find((a) => !a.free && !above(a).length);
+      t.expect(!!covered && !!hemmed, 'the board has both kinds of blocked tile');
+      await t.game('act', 'animAt', 'now');                         // hold the clock: the ring is read as state, not caught on a frame
+      await t.game('act', 'click', covered.i);
+      let info = await t.game('act', 'animInfo');
+      t.equal([...info.block].sort((a, b) => a - b), above(covered).sort((a, b) => a - b), 'the ring is on the tiles above the covered tile');
+      t.expect(/^Blocked: .*Covered: the tiles? on top of it must go first.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      await t.shot('S1-10-covered');
+      await t.game('act', 'click', hemmed.i);
+      info = await t.game('act', 'animInfo');
+      t.equal([...info.block].sort((a, b) => a - b), sides(hemmed).sort((a, b) => a - b), 'for a tile hemmed in, the ring is on the tiles at its sides');
+      t.equal(info.block.length, 2, 'one each side');
+      t.expect(/Hemmed in: it has a tile on its left and one on its right.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      await t.shot('S1-10-hemmed');
+      await t.game('act', 'animAt', null);
+      await t.waitIdle(15000);
+      t.equal((await t.game('act', 'animInfo')).block, null, 'the ring is gone after a moment');
+      t.equal((await t.state()).selected, -1, 'and the blocked tap selected nothing');
+    },
+  },
 ];
