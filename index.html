@@ -2358,8 +2358,8 @@ function newGame(opts = {}) {
 // New game from inside a game asks first when there is progress to lose
 // The one confirm dialog asks two things: whether to end this game (the default), or whether to shuffle while pairs are still free (S1-05)
 let confirmKind = 'new';
-function setConfirm(kind, text, heading, go) {
-  confirmKind = kind; $('oc-text').textContent = text; $('oc-h').textContent = heading || 'Abandon this game?'; $('oc-new').textContent = go || 'New game';
+function setConfirm(kind, text, heading, go, keep) {
+  confirmKind = kind; $('oc-text').textContent = text; $('oc-h').textContent = heading || 'Abandon this game?'; $('oc-new').textContent = go || 'New game'; $('oc-keep').textContent = keep || 'Keep playing';
 }
 let pendingNew = null; // the new game the Abandon dialog will start when it is confirmed (null: restart this layout)
 function askNewGame() {
@@ -2454,6 +2454,7 @@ function partnerRing() {
   for (let j = 0; j < G.n; j++) if (j !== S.selected && S.present[j] && E.matchKey(S.faces[j]) === k && free(j)) out.push(j);
   return out;
 }
+let mismatchSaid = 0; const MISMATCH_SAID_MAX = 5; // how many times this visit the game has said "Not a match"
 function selectTile(i) {
   if (!S || S.status !== 'playing' || inputLocked()) return { selected: S ? S.selected : -1, removed: false };
   AUDIO.unlock();
@@ -2469,10 +2470,17 @@ function selectTile(i) {
   if (S.selected >= 0 && E.matchKey(S.faces[S.selected]) === E.matchKey(S.faces[i])) {
     const a = S.selected; doMatch(a, i); return { selected: -1, removed: true };
   }
+  const prev = S.selected;
   S.selected = i; AUDIO.click(tilePan(i));
   const m = META[S.faces[i]];
-  setStatus(m.name + ': ' + m.fact);
-  announce('Selected ' + m.name);
+  if (prev >= 0 && mismatchSaid < MISMATCH_SAID_MAX) { // a free tile that does not match the selected one: say so, the first few times, while the selection moves (S2-08)
+    mismatchSaid++; const was = META[S.faces[prev]].name;
+    setStatus('Not a match: ' + was + ' and ' + m.name + '. ' + m.name + ' is selected now.', STATUS_HOLD_MS);
+    announce('Not a match. ' + m.name + ' selected.');
+  } else {
+    setStatus(m.name + ': ' + m.fact);
+    announce('Selected ' + m.name);
+  }
   markDirty();
   return { selected: i, removed: false };
 }
@@ -3379,7 +3387,7 @@ function announce(txt) { const el = $('live'); el.textContent = ''; clearTimeout
 // ===================== scenes and overlays =====================
 let paused = false;
 // The Daily button says when today's puzzle is done, and in what time
-function syncDailyButton() { const ms = STATS.daily.done[todayStr()], b = $('b-daily'); b.textContent = 'Daily Puzzle'; if (ms != null) { const s = document.createElement('span'); s.className = 'sub'; s.textContent = 'done ' + fmtTime(ms); b.append(' ', s); } }
+function syncDailyButton() { const ms = STATS.daily.done[todayStr()], b = $('b-daily'); b.textContent = 'Daily Puzzle'; const s = document.createElement('span'); s.className = 'sub'; s.textContent = ms != null ? 'done ' + fmtTime(ms) : 'Same board for all'; b.append(' ', s); }
 // The last 30 days of the Daily Puzzle: the day, and the time where it was finished
 function dailyCalendarHtml() {
   const today = new Date(); let h = '<h3>Daily Puzzle, last 30 days</h3><div class="cal" id="st-cal" role="list">';
@@ -3779,9 +3787,12 @@ canvas.addEventListener('wheel', (e) => {
   if (i >= 0) panTo([i]);
 }, { passive: false });
 const pinchEnd = (e) => { pinch.delete(e.pointerId); if (pinch.size < 2) pinchD0 = 0; };
+// How far (px) from the tapped tile a tap may reach for a free one: a finger is a wide pointer; a mouse points exactly, so a click on a covered
+// tile stays on that tile and shakes it (it was 4 px for the mouse, S1-08).
+const TAP_REACH_MOUSE = 2, TAP_REACH_TOUCH = 9;
 function tapAt(x, y, touch) {
   kbActive = false;
-  const i = tileAt(x, y, touch ? 9 : 4);
+  const i = tileAt(x, y, touch ? TAP_REACH_TOUCH : TAP_REACH_MOUSE);
   if (i >= 0) { S.cursor = i; selectTile(i); }
   else if (S && S.selected >= 0) { S.selected = -1; markDirty(); }
 }
@@ -3914,7 +3925,13 @@ function setZoom(on) {
 // ---------- buttons ----------
 const on = (id, fn) => $(id).addEventListener('click', (e) => { try { AUDIO.unlock(); } catch (err) { /* a sound problem must not kill the button */ } fn(e); });
 on('b-play', () => showScene('layouts'));
-on('b-daily', () => startNewGame({ daily: true }));
+// Today's puzzle once finished is only practice: ask first, and say what practice means (S2-12)
+on('b-daily', () => {
+  if (STATS.daily.done[todayStr()] == null) { startNewGame({ daily: true }); return; }
+  pendingNew = { daily: true };
+  setConfirm('practice', 'You finished today\'s puzzle. Play it again as practice? A practice game does not count toward your records or streaks.', 'Play it again?', 'Practice', 'Not now');
+  openOverlay('o-confirm'); $('oc-keep').focus({ preventScroll: true });
+});
 function resumeLoaded() {
   paused = false; lastTick = 0; clearSelection();
   showScene('game'); updateHud();
@@ -3949,7 +3966,7 @@ on('op-link', () => {
   const manual = () => { note.textContent = 'Copy this link to share the deal: ' + url; };
   try { navigator.clipboard.writeText(url).then(shown, manual); } catch (e) { manual(); }
 });
-on('oc-new', () => { if (confirmKind === 'shuffle') { closeOverlay('o-confirm'); shuffle(); return; } const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
+on('oc-new', () => { if (confirmKind === 'shuffle') { closeOverlay('o-confirm'); shuffle(); return; } if (confirmKind === 'practice') { pendingNew = null; closeOverlay('o-confirm'); startNewGame({ daily: true }); return; } const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
 on('oc-keep', () => { pendingNew = null; closeOverlay('o-confirm'); });
 on('op-help', () => openOverlay('o-help'));
 on('op-settings', () => openOverlay('o-settings'));

@@ -319,7 +319,7 @@ export const tests = [
       await put(t, 'bhm.stats.v1', { played: 5, won: 3, streak: 0, bestStreak: 0, layouts: {}, daily: { last: yday, streak: 2, best: 2, done: { [yday]: 252000, [d2]: 300000, [old]: 111000 } } });
       await reload(t);
       const dailyLabel = async () => (await t.page.locator('#b-daily').innerText()).replace(/\s+/g, ' ').trim(); // two lines on a phone
-      t.equal(await dailyLabel(), 'Daily Puzzle', 'before the puzzle is played the button is plain');
+      t.equal(await dailyLabel(), 'Daily Puzzle Same board for all', 'before the puzzle is played the button says it is one board for all (S2-12)');
       // a faster win than any before: day 3 of the streak and the best daily time
       await t.game('newGame', { daily: true }); await t.waitIdle(15000);
       await t.game('act', 'solveTo', 0);

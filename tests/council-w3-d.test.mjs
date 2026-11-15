@@ -163,3 +163,83 @@ tests.push({
     t.expect(ticks >= 5 && ticks <= 14, 'about a dozen ticks (one every 70 ms for 0.9 s) as the score counts up: ' + ticks);
   },
 });
+
+// ---------------------------------------------------------------------- S1-08, S2-08, S2-12
+const reload = async (t) => { await t.page.reload(); await t.page.waitForFunction(() => !!window.__game); await t.waitIdle(15000); };
+tests.push(
+  {
+    name: 'S1-08: a mouse click on a covered tile stays on that tile and shakes it; a finger still reaches a free neighbour',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const box = await t.page.evaluate(() => { const r = document.getElementById('board').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+      // a point on a covered tile, 3 px from the edge of a free one: raw lookups (tolerance 0) at x and at x + 3
+      const state = await t.state();
+      const spot = await t.page.evaluate(([box, tiles]) => {
+        const at = (x, y) => window.__game.act('tileAt', x, y, 0);
+        for (let y = 0; y < box.h; y += 2) for (let x = 0; x < box.w - 3; x++) {
+          const a = at(box.x + x, box.y + y), b = at(box.x + x + 3, box.y + y);
+          if (a >= 0 && b >= 0 && a !== b && !tiles[a].free && tiles[b].free && at(box.x + x + 1, box.y + y) === a) return { x: box.x + x, y: box.y + y, a, b };
+        }
+        return null;
+      }, [box, state.tiles]);
+      t.expect(!!spot, 'the deal has a covered tile 3 px from a free one');
+      await t.page.mouse.click(spot.x, spot.y);
+      let s = await t.state();
+      t.expect(s.selected === -1 && /^Blocked/.test(s.status), 'the click on the covered tile does not select its free neighbour: selected ' + s.selected + ', "' + s.status + '"');
+      t.equal(await t.game('act', 'tileAt', spot.x, spot.y, 9), spot.b, 'the finger-wide reach still finds the free neighbour (so a thumb near a seam works)');
+    },
+  },
+  {
+    name: 'S2-08: a free tile that does not match says so, the first five times, and still moves the selection',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const s = await t.state(), seen = new Set(), run = [];
+      for (const x of s.tiles) if (x.present && x.free && !seen.has(x.key)) { seen.add(x.key); run.push(x); }
+      t.expect(run.length >= 8, 'the deal has at least 8 free tiles that differ (' + run.length + ')');
+      await t.game('act', 'click', run[0].i);
+      const said = [];
+      for (let k = 1; k <= 7; k++) { await t.game('act', 'click', run[k].i); const st = await t.state(); said.push(/^Not a match: .* and .*\. .* is selected now\.$/.test(st.status)); t.equal(st.selected, run[k].i, 'the selection moves to the new tile'); if (k === 1) await t.shot('S2-08-not-a-match'); }
+      t.equal(said, [true, true, true, true, true, false, false], 'the first five mismatches say so, the rest go back to the tile\'s own line');
+      await t.game('newGame', { layout: 'pyramid', seed: 21 });
+      const a = (await t.state()).tiles.find((x) => x.present && x.free);
+      await t.game('act', 'click', a.i);
+      t.expect(!/Not a match/.test((await t.state()).status), 'a first tap, with nothing selected, never says it');
+    },
+  },
+  {
+    name: 'S2-12: the Daily Puzzle button says what it is, and a second go at a finished puzzle asks first',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const label = async () => (await t.page.locator('#b-daily').innerText()).replace(/\s+/g, ' ').trim();
+      t.equal(await label(), 'Daily Puzzle Same board for all', 'before today\'s puzzle the button says it is one board for all');
+      await t.shot('S2-12-daily-button');
+      await t.game('newGame', { daily: true }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0); await t.page.waitForSelector('#o-win.on', { timeout: 15000 });
+      await t.page.click('#ow-title');
+      t.expect(/^Daily Puzzle done \d+:\d\d$/.test(await label()), 'after it, the button says done and the time: ' + await label());
+      await t.page.click('#b-daily');
+      let s = await t.state();
+      t.equal([s.scene, s.overlay], ['title', 'o-confirm'], 'pressing it again asks first');
+      const d = await t.page.evaluate(() => ({ h: document.getElementById('oc-h').textContent, text: document.getElementById('oc-text').textContent, go: document.getElementById('oc-new').textContent, keep: document.getElementById('oc-keep').textContent }));
+      t.equal([d.h, d.go, d.keep], ['Play it again?', 'Practice', 'Not now'], 'in its own words');
+      t.expect(/finished today's puzzle/.test(d.text) && /practice/.test(d.text) && /records or streaks/.test(d.text), 'and says what practice means: ' + d.text);
+      await t.shot('S2-12-practice-dialog');
+      await t.page.click('#oc-keep');
+      s = await t.state();
+      t.equal([s.scene, s.overlay], ['title', null], 'Not now leaves the title as it was');
+      await t.page.click('#b-daily'); await t.page.click('#oc-new'); await t.waitIdle(15000);
+      s = await t.state();
+      t.equal([s.scene, s.daily !== null, s.practice], ['game', true, true], 'Practice deals the same board as a practice game');
+      // the dialog goes back to its own words when it asks the next question
+      await t.game('newGame', { layout: 'pyramid', seed: 5 }); await t.waitIdle(15000);
+      const pr = freePair(await t.state()); await t.game('act', 'match', pr[0], pr[1]);
+      await t.game('scene', 'layouts'); await t.page.click('#cards .card[data-layout="tower"]');
+      t.equal(await t.page.evaluate(() => [document.getElementById('oc-h').textContent, document.getElementById('oc-keep').textContent]), ['Abandon this game?', 'Keep playing'], 'a game in progress gets the usual question afterwards');
+    },
+  },
+);
