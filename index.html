@@ -2234,10 +2234,12 @@ let zoomTipShown = false;
 function layoutById(id) { return E.LAYOUTS.find((l) => l.id === id) || E.LAYOUTS[0]; }
 function todayStr(d = new Date()) { const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
 const DAILY_POOL = 7; // the Daily Puzzle rotates through the first seven boards, as it always did; the newer boards are for choosing
+// S3-03: the week runs from the board a random player clears most often on Monday to the one it clears least on Sunday (it was one board after another by day number, so a streak depended on which day it was)
+const DAILY_WEEK = E.LAYOUTS.slice(0, DAILY_POOL).sort((a, b) => b.measured - a.measured);
 function dailyInfo(date) {
   const seed = E.hashStr('BHM-' + date);
   const days = Math.floor(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86400000);
-  return { seed, layout: E.LAYOUTS[((days % DAILY_POOL) + DAILY_POOL) % DAILY_POOL] };
+  return { seed, layout: DAILY_WEEK[(((days + 3) % 7) + 7) % 7] }; // 1 January 1970 was a Thursday, so (days + 3) % 7 counts from Monday
 }
 // a long span of time as hours and minutes: 42 min, 3 h 12 min
 function fmtSpan(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; }
@@ -2252,11 +2254,11 @@ function newGame(opts = {}) {
   const lost = abandoning(); // the game this one ends: after a reload that is the saved one, so reloading does not dodge the streak
   if (lost && !lost.practice) STATS.streak = 0;
   let layout, seed, daily = null;
+  const phone = window.innerWidth < window.innerHeight && window.innerWidth < 700; // a phone held upright
   if (opts.daily) {
     daily = opts.date || todayStr();
     const d = dailyInfo(daily); layout = d.layout; seed = d.seed;
   } else {
-    const phone = window.innerWidth < window.innerHeight && window.innerWidth < 700;
     layout = layoutById(opts.layout || (S && S.layoutId) || (phone ? 'terraces' : 'pyramid')); // phones start on a layout that fits them
     seed = opts.seed != null ? opts.seed >>> 0 : nextSeed != null ? nextSeed >>> 0 : (Math.random() * 4294967296) >>> 0;
     nextSeed = null;
@@ -2278,12 +2280,14 @@ function newGame(opts = {}) {
   anim.dealAt = reduced() ? 0 : -1; // -1: starts when the first 3D frame is on screen (after any shader compile)
   paused = false; lastTick = 0; pendingTap = null; resetStuckDialog(); clearSelection();
   showScene('game');
-  view.zoom = false; view.panX = 0; view.panY = 0; coast = null; // a new board starts unzoomed, whatever the last one was
+  const wideDaily = !!daily && phone && !layout.portrait; // the day's board is not chosen, so on an upright phone a wide one starts zoomed in (P-N02)
+  view.zoom = wideDaily; view.panX = 0; view.panY = 0; coast = null; // a new board starts unzoomed (whatever the last one was), unless it is a wide Daily Puzzle on a phone
   layoutBoard(); markDirty(); updateHud(); saveGame();
   if (!use3D() || reduced()) AUDIO.deal(); // in 3D the deal-in starts the cue on its first frame
   // small tiles on a portrait phone: point at Zoom and landscape
   setStatus(practice ? 'Practice: already finished today. ' + layout.caption : layout.caption);
-  if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
+  if (wideDaily) toast("Today's board, " + layout.name + ", is wide: Zoom is on. Tap Zoom to see it all.");
+  else if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
   return { layoutId: layout.id, seed, tiles: G.n };
 }
 // New game from inside a game asks first when there is progress to lose

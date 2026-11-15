@@ -7,6 +7,7 @@ const E = loadEngine();
 const NEW = ['hale', 'lamar', 'quapaw', 'lake', 'promenade', 'central', 'valley', 'northmtn', 'westmtn', 'sugarloaf', 'cascade'];
 const ORIGINAL = ['pyramid', 'tower', 'arlington', 'row', 'islands', 'terraces', 'display'];
 const SIZE = { hale: 72, lamar: 72, quapaw: 96, lake: 96, sugarloaf: 96, cascade: 96, promenade: 120, central: 120, valley: 120, northmtn: 120, westmtn: 120 };
+const WEEK = ['islands', 'display', 'pyramid', 'terraces', 'arlington', 'tower', 'row']; // Monday to Sunday, by the balance probe's win rate; it was ORIGINAL by day number
 const band = (m) => (m >= 50 ? 'Easy' : m < 30 ? 'Hard' : 'Medium');
 
 export const tests = [
@@ -101,7 +102,7 @@ export const tests = [
     },
   },
   {
-    name: 'S3-04: the Daily Puzzle still rotates through the original seven boards only',
+    name: 'S3-04: the Daily Puzzle still uses the original seven boards only',
     url: URL,
     viewports: ['desktop'],
     async run(t) {
@@ -110,7 +111,7 @@ export const tests = [
         const date = '2026-12-' + String(d).padStart(2, '0');
         const days = Math.floor(Date.UTC(2026, 11, d) / 86400000);
         const r = await t.game('newGame', { daily: true, date });
-        t.equal(r.layoutId, ORIGINAL[((days % 7) + 7) % 7], date + ' picks the same board as before this wave');
+        t.equal(r.layoutId, WEEK[(days + 3) % 7], date + ' picks the board of its weekday (wave 3, S3-03: easiest on Monday to hardest on Sunday)');
         seen.add(r.layoutId);
       }
       t.equal(seen.size, 7, 'all seven original boards come up in three weeks');

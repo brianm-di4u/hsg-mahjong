@@ -246,4 +246,65 @@ export const tests = [
       t.expect(win('hs-0174').includes('Andrew Hulsey State Fish Hatchery') && win('hs-0174').includes('Lake Hamilton'), 'the Summer anchor is a fact the game already holds');
     },
   },
+  // ------------------------------------------------------------------ S3-03
+  {
+    name: 'S3-03: the Daily Puzzle follows a weekly curve from the easiest board on Monday to the hardest on Sunday',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const MEASURED = { islands: 69, display: 68, pyramid: 37, terraces: 35, arlington: 31, tower: 29, row: 19 };
+      const byWeekday = {};
+      for (let d = 0; d < 21; d++) {
+        const date = new Date(Date.UTC(2026, 10, 9 + d)).toISOString().slice(0, 10); // 9 November 2026 is a Monday
+        const r = await t.game('newGame', { daily: true, date });
+        const wd = d % 7; // 0 Monday .. 6 Sunday
+        t.expect(MEASURED[r.layoutId] !== undefined, date + ' is one of the original seven boards (' + r.layoutId + ')');
+        if (byWeekday[wd] === undefined) byWeekday[wd] = r.layoutId; else t.equal(r.layoutId, byWeekday[wd], date + ' has the same board as the same weekday a week before');
+      }
+      const week = [0, 1, 2, 3, 4, 5, 6].map((d) => byWeekday[d]);
+      t.equal(new Set(week).size, 7, 'each of the seven boards comes once a week: ' + week.join(', '));
+      for (let d = 1; d < 7; d++) t.expect(MEASURED[week[d]] <= MEASURED[week[d - 1]], 'the board gets no easier from ' + week[d - 1] + ' to ' + week[d]);
+      t.equal([week[0], week[6]], ['islands', 'row'], 'Monday is the easiest board, Sunday the hardest');
+    },
+  },
+  // ------------------------------------------------------------------ P-N02
+  {
+    name: 'P-N02: on a phone held upright a wide Daily Puzzle starts zoomed in and says so; a portrait one does not',
+    url: URL,
+    viewports: ['mobile'],
+    async run(t) {
+      const toastText = () => t.page.evaluate(() => (document.getElementById('toast').classList.contains('on') ? document.getElementById('toast').textContent : ''));
+      const PORTRAIT = ['terraces', 'display', 'sugarloaf', 'cascade'];
+      let wide = null, tall = null;
+      for (let d = 0; d < 7 && !(wide && tall); d++) {
+        const date = new Date(Date.UTC(2026, 10, 9 + d)).toISOString().slice(0, 10);
+        await t.page.evaluate(() => { const e = document.getElementById('toast'); e.classList.remove('on'); e.textContent = ''; }); // the last board's note must not be read as this one's
+        const r = await t.game('newGame', { daily: true, date }); await t.waitIdle(15000);
+        const s = await t.state();
+        if (PORTRAIT.includes(r.layoutId)) { if (!tall) tall = { r, s, toast: await toastText() }; } else if (!wide) wide = { r, s, toast: await toastText(), date };
+      }
+      t.expect(wide && tall, 'the week has both kinds of board');
+      t.equal(wide.s.zoom, true, wide.r.layoutId + ' (wide) starts zoomed');
+      t.expect(wide.toast.includes('is wide: Zoom is on') && wide.toast.includes(wide.s.layoutId === 'islands' ? 'Ouachita Islands' : ''), 'and the toast names the board: ' + wide.toast);
+      await t.game('newGame', { daily: true, date: wide.date }); await t.waitIdle(15000); // the wide board again, for the picture
+      await t.shot('P-N02-wide-daily-zoomed');
+      t.equal([tall.s.zoom, tall.toast.includes('is wide')], [false, false], tall.r.layoutId + ' (made for phones) starts as before');
+      // Zoom still turns off, and the same board on a later new game by choice is not zoomed
+      await t.game('newGame', { daily: true, date: wide.date }); await t.waitIdle(15000);
+      t.equal((await t.game('act', 'zoom', false)), false, 'Zoom can be turned off');
+      await t.game('newGame', { layout: wide.r.layoutId, seed: 5 }); await t.waitIdle(15000);
+      t.equal((await t.state()).zoom, false, 'and a board chosen from the layouts is not zoomed');
+    },
+  },
+  {
+    name: 'P-N02: on a desktop the Daily Puzzle starts as it always did',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { daily: true, date: '2026-11-09' }); await t.waitIdle(15000);
+      const s = await t.state();
+      t.equal(s.zoom, false, 'no automatic Zoom on a wide screen');
+      t.expect(!/is wide/.test(await t.page.evaluate(() => document.getElementById('toast').textContent)), 'and no wide-board note');
+    },
+  },
 ];
