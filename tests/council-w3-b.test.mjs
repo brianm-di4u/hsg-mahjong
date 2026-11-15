@@ -307,4 +307,60 @@ export const tests = [
       t.expect(!/is wide/.test(await t.page.evaluate(() => document.getElementById('toast').textContent)), 'and no wide-board note');
     },
   },
+  // ------------------------------------------------------------------ S3-06
+  {
+    name: 'S3-06: the Daily button shows the result of the day, the win card shows the streak and best, and Stats has a 30-day calendar',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      // local dates as the game computes them: n days before today
+      const day = (n) => t.page.evaluate((n) => { const d = new Date(); d.setDate(d.getDate() - n); const p = (x) => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }, n);
+      const [today, yday, d2, old] = [await day(0), await day(1), await day(2), await day(40)];
+      await put(t, 'bhm.stats.v1', { played: 5, won: 3, streak: 0, bestStreak: 0, layouts: {}, daily: { last: yday, streak: 2, best: 2, done: { [yday]: 252000, [d2]: 300000, [old]: 111000 } } });
+      await reload(t);
+      const dailyLabel = async () => (await t.page.locator('#b-daily').innerText()).replace(/\s+/g, ' ').trim(); // two lines on a phone
+      t.equal(await dailyLabel(), 'Daily Puzzle', 'before the puzzle is played the button is plain');
+      // a faster win than any before: day 3 of the streak and the best daily time
+      await t.game('newGame', { daily: true }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      let c = await winCard(t);
+      t.expect(c.earned.includes('Daily streak: day 3.') && c.earned.includes('Your best daily time yet.'), 'the win card gives the streak day and the best: ' + c.earned);
+      await t.shot('S3-06-daily-win');
+      await t.page.click('#ow-title');
+      const ms = (await stored(t, 'bhm.stats.v1')).daily.done[today];
+      const m = Math.floor(ms / 60000), s = Math.floor(ms / 1000) % 60;
+      t.equal(await dailyLabel(), 'Daily Puzzle done ' + m + ':' + String(s).padStart(2, '0'), 'the button now says done and the time');
+      await t.shot('S3-06-daily-button-done');
+      // the calendar: 30 days, finished days carry their time, the old one is outside it
+      await t.game('scene', 'stats');
+      const cells = await t.page.evaluate(() => [...document.querySelectorAll('#st-cal > div')].map((d) => [d.dataset.date, d.className, d.getAttribute('aria-label')]));
+      t.equal(cells.length, 30, 'thirty days are shown');
+      t.equal([cells[29][0], cells[29][1].includes('today'), cells[29][1].includes('done')], [today, true, true], 'the last is today, finished');
+      t.equal(cells.filter((x) => x[1].includes('done')).map((x) => x[0]), [d2, yday, today], 'the finished days are the ones on record, and a puzzle from 40 days ago is outside the 30');
+      t.expect(cells[28][2].endsWith('finished in 4:12'), 'a finished day says its time to a screen reader: ' + cells[28][2]);
+      t.expect(cells[0][2].endsWith('not played'), 'and an empty one says so: ' + cells[0][2]);
+      await t.shot('S3-06-daily-calendar');
+      await t.page.evaluate(() => document.querySelector('#o-stats [data-close]').click());
+      // replaying today's finished puzzle is practice and says nothing about the streak
+      await t.game('newGame', { daily: true }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      c = await winCard(t);
+      t.expect(!c.earned.includes('Daily streak'), 'a practice replay shows no streak line');
+      await t.page.click('#ow-title');
+    },
+  },
+  {
+    name: 'S3-06: a slower daily win says what the best time is',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const yday = await t.page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() - 1); const p = (x) => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); });
+      await put(t, 'bhm.stats.v1', { played: 5, won: 3, streak: 0, bestStreak: 0, layouts: {}, daily: { last: yday, streak: 2, best: 2, done: { [yday]: 5000 } } });
+      await reload(t);
+      await t.game('newGame', { daily: true }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 2); await t.game('act', 'advance', 60000); await t.game('act', 'solveTo', 0);
+      const c = await winCard(t);
+      t.expect(c.earned.includes('Daily streak: day 3.') && c.earned.includes('Your best daily time is 0:05.'), 'a slower win names the best: ' + c.earned);
+    },
+  },
 ];

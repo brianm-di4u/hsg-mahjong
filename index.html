@@ -172,6 +172,13 @@ html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
 .coll .row.off{color:var(--color-muted)}
 .coll .row b{display:block}
 .coll .src{font-size:.8rem;color:var(--color-muted)}
+#b-daily{flex-direction:column;line-height:1.15}
+#b-daily .sub{font-size:.78em;font-weight:600}
+.cal{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:4px;margin:var(--space-2) 0}
+.cal div{border:1px solid var(--color-border);border-radius:6px;padding:3px 2px;text-align:center;font-size:.78rem;line-height:1.2;color:var(--color-muted);font-variant-numeric:tabular-nums}
+.cal div b{display:block;font-size:.8rem;font-weight:700}
+.cal div.done{border:2px solid var(--color-success);padding:2px 1px;color:var(--color-text)}
+.cal div.today b{text-decoration:underline}
 .goal{display:flex;gap:var(--space-3);align-items:baseline;padding:var(--space-2) 0;border-bottom:1px solid var(--color-border);font-size:.92rem}
 .goal .mk{flex:none;width:1.3em;text-align:center;font-weight:800}
 .goal.off{color:var(--color-muted)}
@@ -2633,8 +2640,9 @@ function win() {
     STATS.recent.unshift({ d: todayStr(), l: S.layoutId, v: S.level, ms: Math.round(S.elapsedMs), h: S.hints, s: S.score }); STATS.recent.length = Math.min(STATS.recent.length, RECENT_MAX);
     ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score); ls.stars = Math.max(ls.stars || 0, stars);
   }
+  let dailyLine = null;
   if (S.daily) {
-    const dd = STATS.daily;
+    const dd = STATS.daily, prevBest = Math.min(Infinity, ...Object.values(dd.done)); // the best daily time before today's
     if (dd.done[S.daily] == null) {
       // the daily streak counts consecutive days; finishing an older puzzle later never moves it backwards
       const prev = dd.last ? new Date(dd.last + 'T12:00:00') : null, cur = new Date(S.daily + 'T12:00:00');
@@ -2643,6 +2651,7 @@ function win() {
       dd.best = Math.max(dd.best, dd.streak);
     }
     dd.done[S.daily] = Math.min(dd.done[S.daily] == null ? Infinity : dd.done[S.daily], S.elapsedMs);
+    if (!S.practice) dailyLine = 'Daily streak: day ' + dd.streak + '. ' + (S.elapsedMs <= prevBest ? 'Your best daily time yet.' : 'Your best daily time is ' + fmtTime(prevBest) + '.');
   }
   // the fact on the card: one the player has not read yet, while any is left
   const unread = FACTS.filter((f) => !STATS.goals.wins.includes(f.id)), pool = unread.length ? unread : FACTS;
@@ -2669,6 +2678,7 @@ function win() {
   if (!S.practice) {
     lines.push(['<b>' + '★'.repeat(stars) + '☆'.repeat(3 - stars) + '</b> ' + (stars > starsBefore ? 'New best: ' + stars + (stars === 1 ? ' star' : ' stars') + ' on ' + LAYOUT.name + '.' : stars === 3 ? 'Three stars.' : stars === 2 ? 'Three stars needs under ' + fmtTime(parMs(LAYOUT)) + '.' : 'Two stars needs a win without a hint.'), stars + ' of 3 stars']);
   }
+  if (dailyLine) lines.push([dailyLine, dailyLine]);
   for (const a of earned.ach) lines.push(['Achievement: <b>' + a.name + '</b>. ' + a.text, 'Achievement earned: ' + a.name]);
   for (const u of earned.unlocks) lines.push(['Unlocked: <b>' + unlockLabel(u) + '</b>', 'Unlocked: ' + unlockLabel(u)]);
   $('ow-earned').hidden = !lines.length;
@@ -3264,11 +3274,23 @@ function announce(txt) { const el = $('live'); el.textContent = ''; clearTimeout
 
 // ===================== scenes and overlays =====================
 let paused = false;
+// The Daily button says when today's puzzle is done, and in what time
+function syncDailyButton() { const ms = STATS.daily.done[todayStr()], b = $('b-daily'); b.textContent = 'Daily Puzzle'; if (ms != null) { const s = document.createElement('span'); s.className = 'sub'; s.textContent = 'done ' + fmtTime(ms); b.append(' ', s); } }
+// The last 30 days of the Daily Puzzle: the day, and the time where it was finished
+function dailyCalendarHtml() {
+  const today = new Date(); let h = '<h3>Daily Puzzle, last 30 days</h3><div class="cal" id="st-cal" role="list">';
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i), key = todayStr(d), ms = STATS.daily.done[key];
+    const name = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    h += '<div role="listitem" data-date="' + key + '" class="' + (ms != null ? 'done' : '') + (i === 0 ? ' today' : '') + '" aria-label="' + name + (ms != null ? ': finished in ' + fmtTime(ms) : ': not played') + '"><b aria-hidden="true">' + d.getDate() + '</b><span aria-hidden="true">' + (ms != null ? fmtTime(ms) : '·') + '</span></div>';
+  }
+  return h + '</div>';
+}
 function showScene(name) {
   scene = name;
   AUDIO.setMood(name === 'game' ? (S && S.status === 'won' ? 'win' : 'play') : 'title');
   for (const el of document.querySelectorAll('.screen')) el.classList.toggle('on', el.id === 's-' + name);
-  if (name === 'title') { drawTitleArt(); $('b-continue').hidden = !(store.get('bhm.game.v1', null) || (S && (S.status === 'playing' || S.status === 'stuck'))); }
+  if (name === 'title') { syncDailyButton(); drawTitleArt(); $('b-continue').hidden = !(store.get('bhm.game.v1', null) || (S && (S.status === 'playing' || S.status === 'stuck'))); }
   if (name === 'layouts') buildCards();
   updateRotChip();
   if (name === 'game') { requestAnimationFrame(() => { layoutBoard(); markDirty(); }); }
@@ -3471,6 +3493,7 @@ function buildStats() {
     + '<span>Average win time</span><span>' + (sm.wins ? fmtTime(sm.winMs / sm.wins) : '—') + '</span><span>Time in won games</span><span>' + fmtSpan(sm.winMs) + '</span><span>Hint-free wins</span><span>' + sm.clean + '</span></div>'
     + (STATS.won > sm.wins ? '<p style="font-size:.85rem;color:var(--color-muted)">Average time, time in won games and hint-free wins count the wins since they were added; earlier wins are in the totals above.</p>' : '');
   const tier = (lvl) => lvl === 'classic' ? { played: Math.max(0, STATS.played - STATS.tiers.relaxed.played - STATS.tiers.expert.played), won: Math.max(0, STATS.won - STATS.tiers.relaxed.won - STATS.tiers.expert.won) } : STATS.tiers[lvl];
+  html += dailyCalendarHtml();
   html += '<h3>By difficulty</h3><table class="st"><thead><tr><th>Level</th><th>Played</th><th>Won</th><th>Completion</th></tr></thead><tbody>';
   for (const lvl of ['relaxed', 'classic', 'expert']) { const t = tier(lvl); html += '<tr><td>' + LEVELS[lvl].name + '</td><td>' + t.played + '</td><td>' + t.won + '</td><td>' + (t.played ? Math.round(t.won / t.played * 100) + '%' : '—') + '</td></tr>'; }
   html += '</tbody></table>';
@@ -3833,7 +3856,7 @@ window.addEventListener('error', onStrayError);
 window.addEventListener('unhandledrejection', onStrayError);
 // Another tab changed settings or stats: follow it instead of overwriting it later
 window.addEventListener('storage', (e) => {
-  if (e.key === 'bhm.stats.v1' || e.key === null) { STATS = loadStats(); if ($('o-stats').classList.contains('on')) buildStats(); if (scene === 'layouts') buildCards(); }
+  if (e.key === 'bhm.stats.v1' || e.key === null) { STATS = loadStats(); if ($('o-stats').classList.contains('on')) buildStats(); if (scene === 'layouts') buildCards(); if (scene === 'title') syncDailyButton(); }
   if (e.key === 'bhm.settings.v1' || e.key === null) {
     const old = Object.assign({}, SETTINGS); Object.assign(SETTINGS, cleanSettings(store.get('bhm.settings.v1', {})));
     syncSettingsUI(); applyTheme(); AUDIO.toggle();
