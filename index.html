@@ -65,7 +65,8 @@ svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;strok
 
 /* ---------- title ---------- */
 #s-title{align-items:center;justify-content:flex-end;overflow-y:auto;background:var(--color-bg)}
-#title-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+#title-art,#title-steam{position:absolute;inset:0;width:100%;height:100%;display:block}
+#title-steam{pointer-events:none}
 .title-block{position:relative;text-align:center;margin:0 var(--space-4) max(3vh,16px);padding:var(--space-5) var(--space-5) var(--space-4);max-width:470px;width:calc(100% - 24px);display:flex;flex-direction:column;justify-content:center;
   background:linear-gradient(rgba(23,63,71,.9),rgba(15,44,51,.94));color:var(--bar-text);border:1px solid var(--brass);border-radius:18px;box-shadow:0 0 0 4px rgba(15,44,51,.45),0 0 0 5px rgba(217,178,76,.5),0 18px 50px rgba(10,20,22,.5);backdrop-filter:blur(6px)}
 html[data-theme="dark"] .title-block{background:linear-gradient(rgba(29,26,49,.9),rgba(17,15,30,.94));box-shadow:0 0 0 4px rgba(17,15,30,.45),0 0 0 5px rgba(79,195,255,.45),0 18px 50px rgba(0,0,0,.6)}
@@ -123,6 +124,16 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #s-game{touch-action:manipulation}
 #board-bg,#board3d{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
 .gl #board-bg,.gl #board3d{display:block}
+/* three slow banks of steam drifting across the table, between the painted backdrop and the tiles (3D only: flat tiles draw their own table) */
+#board-steam{position:absolute;inset:0;overflow:hidden;display:none;pointer-events:none}
+.gl #board-steam{display:block}
+#board-steam i{position:absolute;left:-30%;width:60%;height:38%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.3),rgba(255,255,255,0));animation:steam-drift 78s linear infinite}
+#board-steam i:nth-child(2){top:44%;animation-duration:96s;animation-delay:-41s;opacity:.8}
+#board-steam i:nth-child(3){top:70%;animation-duration:66s;animation-delay:-22s;opacity:.65}
+#board-steam i:nth-child(1){top:6%}
+html[data-theme="dark"] #board-steam i{background:radial-gradient(closest-side,rgba(170,205,255,.22),rgba(170,205,255,0))}
+#board-steam.still i{animation:none}
+@keyframes steam-drift{from{transform:translateX(0)}to{transform:translateX(260%)}}
 .status{flex:none;min-height:38px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px var(--space-4);background:var(--status-bg);color:var(--status-text);border-top:1px solid rgba(217,178,76,.45);font-size:.9rem;line-height:1.25;font-style:italic;font-family:var(--font-serif-victorian)}
 .status{flex-wrap:wrap;gap:2px 10px}
 .status .chip{display:inline-block;-webkit-line-clamp:unset;flex-basis:auto;font-style:normal;font-weight:700;font-size:.8rem;letter-spacing:.02em;padding:2px 10px;margin:2px 0;border-radius:999px;border:1px solid var(--brass);background:var(--bar);color:var(--bar-text);font-family:var(--font-ui,inherit)}
@@ -212,6 +223,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
   <!-- Title -->
   <section class="screen on" id="s-title" aria-labelledby="t-h">
     <canvas id="title-art" aria-hidden="true"></canvas>
+    <canvas id="title-steam" aria-hidden="true"></canvas>
     <div class="title-block">
       <h1 id="t-h">Bathhouse Mahjong</h1>
       <p class="subtitle">Tile matching in the Valley of Vapors</p>
@@ -250,6 +262,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </div>
     <div id="board-wrap">
       <canvas id="board-bg" aria-hidden="true"></canvas>
+      <div id="board-steam" aria-hidden="true"><i></i><i></i><i></i></div>
       <canvas id="board3d" aria-hidden="true"></canvas>
       <canvas id="board"tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
       <div class="toast" id="toast" role="status"></div>
@@ -3224,10 +3237,7 @@ function drawTitleArt() {
     coverImg(c, hero, 0, 0, w, h);
     if (dark) { c.fillStyle = 'rgba(20,18,31,.4)'; c.fillRect(0, 0, w, h); }
   } else drawTitleBackdrop(c, w, h, dark);
-  // steam
-  const st = getSteamSprite();
-  for (let k = 0; k < 16; k++) { const x = (k * 97) % w, y = h * (0.35 + ((k * 53) % 40) / 100), r = 20 + (k * 13) % 30; c.globalAlpha = dark ? 0.18 : (hero ? 0.3 : 0.5); c.drawImage(st, x - r, y - r, r * 2, r * 2); }
-  c.globalAlpha = 1;
+  startTitleSteam(); // the steam over the roofs and the spring is its own layer, so it can drift
   // a fan of tiles
   const fade = c.createLinearGradient(0, h * 0.45, 0, h);
   fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, dark ? 'rgba(20,18,31,.75)' : 'rgba(23,63,71,.45)');
@@ -3243,6 +3253,23 @@ function drawTitleArt() {
     c.restore();
   }
 }
+// Title steam (S4-01): the sixteen puffs the painting always had, now drifting slowly sideways over the roofs and the spring.
+// Under reduced motion (or in a hidden tab) it is one still frame, where the puffs always sat.
+let steamRaf = 0;
+function drawTitleSteam(ts) {
+  const cv = $('title-steam'), w = cv.clientWidth || 600, h = cv.clientHeight || 260;
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; } // one pixel per CSS pixel: steam is soft anyway
+  const c = cv.getContext('2d'), st = getSteamSprite(), s = reduced() ? 0 : ts / 1000, a0 = isDark() ? 0.18 : (artImg('title-hero') ? 0.3 : 0.5);
+  c.clearRect(0, 0, w, h);
+  for (let k = 0; k < 16; k++) {
+    const r = 20 + (k * 13) % 30, span = w + r * 2;
+    const x = (((k * 97) % w + r + s * (2 + k % 4)) % span) - r, y = h * (0.35 + ((k * 53) % 40) / 100) + Math.sin(s * 0.2 + k * 1.7) * 10;
+    c.globalAlpha = a0 * (0.8 + 0.2 * Math.sin(s * 0.3 + k)); c.drawImage(st, x - r, y - r, r * 2, r * 2);
+  }
+  c.globalAlpha = 1;
+}
+function titleSteamLoop(ts) { steamRaf = 0; if (scene !== 'title' || document.hidden) return; drawTitleSteam(ts); if (!reduced()) steamRaf = requestAnimationFrame(titleSteamLoop); }
+function startTitleSteam() { if (steamRaf) return; steamRaf = requestAnimationFrame(titleSteamLoop); }
 // Vector fallback for the title painting: Hot Springs Mountain and the Row.
 function drawTitleBackdrop(c, w, h, dark) {
   const sky = c.createLinearGradient(0, 0, 0, h);
@@ -3446,6 +3473,9 @@ function syncSettingsUI() {
   }
   showStorageNote();
 }
+// the table's steam banks stand still under reduced motion
+function syncSteam() { $('board-steam').classList.toggle('still', reduced()); }
+if (mqReduce.addEventListener) mqReduce.addEventListener('change', () => { syncSteam(); if (scene === 'title') startTitleSteam(); });
 function setSetting(k, v) {
   SETTINGS[k] = v; saveSettings(k); syncSettingsUI();
   if (k === 'theme' || k === 'tileset') applyTheme();
@@ -3454,6 +3484,7 @@ function setSetting(k, v) {
   if (k === 'captions') { SPR.key = ''; layoutBoard(); markDirty(); }
   if (k === 'sound' || k === 'volume' || k === 'effects' || k === 'music' || k === 'ambience') AUDIO.toggle();
   if (k === 'sound' && v) AUDIO.unlock();
+  if (k === 'motion') { syncSteam(); if (scene === 'title') startTitleSteam(); }
   if (k !== 'sound') AUDIO.tick();
   if (k === 'highlightFree' || k === 'showTimer') { updateHud(); markDirty(); }
   if (k === 'difficulty' && scene === 'layouts') buildCards();
@@ -3677,7 +3708,7 @@ window.addEventListener('storage', (e) => {
   }
 });
 window.addEventListener('resize', () => { if (scene === 'title') drawTitleArt(); if (G) { layoutBoard(); markDirty(); } });
-document.addEventListener('visibilitychange', () => { lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && scene === 'title') startTitleSteam(); lastTick = performance.now(); AUDIO.setActive(!document.hidden); if (document.hidden) saveGame(); });
 const onScheme = () => { if (SETTINGS.theme === 'auto') applyTheme(); };
 if (mqDark.addEventListener) mqDark.addEventListener('change', onScheme);
 
@@ -3792,6 +3823,7 @@ window.__game = {
 };
 
 // boot
+syncSteam();
 setGraphics();
 // the other theme's backdrop follows a little later, so switching themes is instant
 if (HAS_BACKDROP) setTimeout(() => loadArt(['backdrop-day', 'backdrop-night']), 1500);

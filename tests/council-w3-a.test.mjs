@@ -137,4 +137,66 @@ export const tests = [
       t.equal((await stored(t, 'bhm.stats.v1')).streak, 4, 'and the streak is untouched');
     },
   },
+  // ------------------------------------------------------------------ S4-01
+  {
+    name: 'S4-01: the title steam drifts; the table has banks of steam in 3D; both stand still under reduced motion',
+    url: 'index.html',
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const hash = () => t.page.evaluate(() => { const c = document.getElementById('title-steam'); if (!c.width) return ''; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 3; i < d.length; i += 4) h = (h * 31 + d[i]) | 0; return String(h); });
+      await t.page.waitForFunction(() => { const c = document.getElementById('title-steam'); return c.width > 0; });
+      // six changes in a row: one-off redraws (art arriving) cannot give that, only a running loop can
+      let h = await hash();
+      t.expect(h !== '', 'the title has a steam layer with puffs drawn');
+      for (let k = 0; k < 6; k++) {
+        await t.page.waitForFunction((prev) => { const c = document.getElementById('title-steam'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x = 0; for (let i = 3; i < d.length; i += 4) x = (x * 31 + d[i]) | 0; return String(x) !== prev; }, h, { timeout: 15000 });
+        h = await hash();
+      }
+      await t.shot('S4-01-title');
+      // the table: three banks of steam, animated, between the backdrop and the tiles
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const gl = (await t.state()).gfx === '3d';
+      const info = () => t.page.evaluate(() => { const w = document.getElementById('board-steam'); const i = [...w.children]; return { shown: getComputedStyle(w).display !== 'none', n: i.length, anim: i.map((e) => getComputedStyle(e).animationName), tf: getComputedStyle(i[0]).transform, order: [...document.getElementById('board-wrap').children].map((e) => e.id).filter(Boolean).slice(0, 4) }; });
+      let b = await info();
+      t.equal(b.n, 3, 'three steam banks');
+      if (gl) {
+        t.expect(b.shown && b.anim.every((a) => a === 'steam-drift'), 'in 3D the banks are shown and animated');
+        t.equal(b.order.slice(0, 3), ['board-bg', 'board-steam', 'board3d'], 'they sit between the backdrop and the tiles');
+        await t.page.waitForFunction((tf) => getComputedStyle(document.querySelector('#board-steam i')).transform !== tf, b.tf, { timeout: 15000 });
+        t.expect(true, 'and they drift');
+        await t.shot('S4-01-table');
+      } else t.log('no 3D here: the table check ran on the flat renderer');
+      // turning Reduced on stops them at once
+      await t.page.evaluate(() => document.querySelector('[data-set="motion"] [data-v="reduced"]').click());
+      b = await info();
+      t.expect(b.anim.every((a) => a === 'none'), 'Reduced motion stops the banks: ' + b.anim);
+      await t.game('scene', 'title');
+      await t.waitIdle(15000); await t.waitFrames(5);
+      const r0 = await hash(); await t.waitFrames(20);
+      t.equal(await hash(), r0, 'and the title steam holds still');
+    },
+  },
+  {
+    name: 'S4-01: with flat tiles the table draws its own backdrop, so there is no steam layer over it',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      t.equal(await t.page.evaluate(() => getComputedStyle(document.getElementById('board-steam')).display), 'none', 'hidden on the flat renderer');
+    },
+  },
+  {
+    name: 'S4-01: a player who asked for reduced motion starts with the steam still',
+    url: 'index.html',
+    reducedMotion: true,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.page.waitForFunction(() => document.getElementById('title-steam').width > 0);
+      const hash = () => t.page.evaluate(() => { const c = document.getElementById('title-steam'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let h = 0; for (let i = 3; i < d.length; i += 4) h = (h * 31 + d[i]) | 0; return h; });
+      await t.waitIdle(15000); await t.waitFrames(5);
+      const a = await hash(); await t.waitFrames(30);
+      t.equal(await hash(), a, 'the title steam does not move');
+      t.expect(await t.page.evaluate(() => document.getElementById('board-steam').classList.contains('still')), 'and the table steam is marked still');
+    },
+  },
 ];
