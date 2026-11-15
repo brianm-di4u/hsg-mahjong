@@ -1537,6 +1537,7 @@ const MASTER_AT_70 = 0.7 * 0.5;       // the master level the game ships with (v
 // ----- cues: synthesized, each call a little different (detune, level and noise offset) -----
 const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve'];
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+const MATCH_BODY = [95, 120, 150, 185, 220]; // the body of a match clack, Hz, by suit
 function makeCues(c, dest, jit) {
   const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
   let s = 12345; for (let i = 0; i < nd.length; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; nd[i] = s / 2147483648 - 1; }
@@ -1557,19 +1558,24 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 2.3, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.8, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
     deselect(t, pan = 0) { begin('deselect'); noise(t, 0.04, 900, 2, 0.5, 'bandpass', 0.004, pan); tone(420, t, 0.07, 'sine', 0.25, 0.8, pan); },
-    match(t, combo = 0, pan = 0) {
+    // The steam hiss starts at the tap; the clack, the body and the note wait `delay` seconds so they land with the clack on screen (S1-02).
+    // `kind` is the tile's suit (0 to 4): it sets the pitch of the wooden body and the colour of the note. The clack pitch, the hiss band and the
+    // note's length differ on every pair, drawn from the kit's own jitter so a seeded render repeats (S2-23, S5-04).
+    match(t, combo = 0, pan = 0, kind = 0, delay = 0) {
       begin('match');
-      noise(t, 0.06, 1900, 4, 0.8, 'bandpass', 0.004, pan); noise(t + 0.07, 0.06, 1600, 4, 0.75, 'bandpass', 0.004, pan);
-      noise(t + 0.1, 0.7, 5200, 0.7, 0.2, 'highpass', 0.12, pan); // steam hiss
-      const f = PENTA[Math.min(combo, PENTA.length - 1)];
-      tone(f, t + 0.08, 0.35, 'triangle', 0.3, 0, pan); tone(f * 2, t + 0.1, 0.25, 'sine', 0.09, 0, pan); tone(f / 4, t + 0.07, 0.18, 'sine', 0.22, 0.8, pan);
+      const u = J.o / 1.5, w = (u * 7.13) % 1, x = (u * 3.71) % 1, c0 = t + delay;
+      noise(t + 0.02, 0.7, 4800 + 1000 * x, 0.7, 0.2, 'highpass', 0.12, pan); // steam hiss, at the tap
+      noise(c0, 0.06, 1900 * (0.94 + 0.12 * u), 4, 0.8, 'bandpass', 0.004, pan); noise(c0 + 0.07, 0.06 * (0.9 + 0.2 * w), 1600 * (0.94 + 0.12 * w), 4, 0.75, 'bandpass', 0.004, pan);
+      const f = PENTA[Math.min(combo, PENTA.length - 1)], k = Math.max(0, Math.min(4, kind | 0));
+      tone(f, c0 + 0.08, 0.3 + 0.1 * w, k % 2 ? 'sine' : 'triangle', k % 2 ? 0.34 : 0.3, 0, pan); tone(f * 2, c0 + 0.1, 0.25, 'sine', 0.09, 0, pan); tone(f / 4, c0 + 0.07, 0.18, 'sine', 0.22, 0.8, pan);
+      tone(MATCH_BODY[k], c0, 0.05, 'sine', 0.16, 0.85, pan); // the wooden body of the clack
     },
-    row(t) { begin('row'); [0, 2, 3, 5].forEach((k, i) => { tone(PENTA[k], t + i * 0.1, 0.55, 'triangle', 0.22); tone(PENTA[k] * 2, t + i * 0.1 + 0.02, 0.4, 'sine', 0.08); }); noise(t + 0.1, 1.1, 5600, 0.7, 0.22, 'highpass', 0.25); },
+    row(t, delay = 0) { begin('row'); t += delay; [0, 2, 3, 5].forEach((k, i) => { tone(PENTA[k], t + i * 0.1, 0.55, 'triangle', 0.22); tone(PENTA[k] * 2, t + i * 0.1 + 0.02, 0.4, 'sine', 0.08); }); noise(t + 0.1, 1.1, 5600, 0.7, 0.22, 'highpass', 0.25); },
     thud(t, pan = 0) { begin('thud'); tone(140, t, 0.16, 'sine', 0.6, 0.6, pan); noise(t, 0.08, 400, 1, 0.45, 'lowpass', 0.004, pan); },
     chime(t) { begin('chime'); tone(880, t, 0.4, 'sine', 0.34); tone(1318.5, t + 0.12, 0.5, 'sine', 0.28); tone(1760, t + 0.12, 0.3, 'sine', 0.06); },
     rattle(t) { begin('rattle'); for (let i = 0; i < 10; i++) noise(t + i * 0.035 + (i * 0.37 % 1) * 0.02, 0.04, 1500 + ((i * 0.618) % 1) * 1500, 3, 0.7, 'bandpass', 0.004, ((i * 0.618) % 1) - 0.5); },
@@ -1582,9 +1588,13 @@ function makeCues(c, dest, jit) {
     stuck(t) { begin('stuck'); tone(220, t, 0.5, 'sine', 0.38, 0.92); tone(165, t + 0.28, 0.85, 'sine', 0.36, 0.88); tone(330, t, 0.4, 'triangle', 0.06, 0.92); },
     dead(t) { begin('dead'); tone(120, t, 0.18, 'sine', 0.55, 0.7); noise(t, 0.09, 350, 1, 0.4, 'lowpass'); tone(100, t + 0.17, 0.22, 'sine', 0.5, 0.7); noise(t + 0.17, 0.09, 300, 1, 0.35, 'lowpass'); },
     best(t) { begin('best'); [784, 987.8, 1175, 1568].forEach((f, i) => { tone(f, t + i * 0.07, 0.5, 'triangle', 0.2); tone(f * 2, t + i * 0.07, 0.3, 'sine', 0.05); }); },
-    win(t) {
-      begin('win');
-      [0, 2, 4, 5, 6].forEach((k, i) => { tone(PENTA[k] / 2, t + i * 0.13, 0.9, 'triangle', 0.3); tone(PENTA[k], t + i * 0.13 + 0.01, 0.6, 'sine', 0.1); });
+    // The arpeggio with a bell on each note, then a held chord and two soft echoes of the last notes for a tail. `delay` waits for the last clack (S5-07).
+    win(t, delay = 0) {
+      begin('win'); t += delay;
+      [0, 2, 4, 5, 6].forEach((k, i) => { tone(PENTA[k] / 2, t + i * 0.13, 0.9, 'triangle', 0.3); tone(PENTA[k], t + i * 0.13 + 0.01, 0.6, 'sine', 0.1); tone(PENTA[k] * 2.76, t + i * 0.13, 0.3, 'sine', 0.04); });
+      [PENTA[0], PENTA[2], PENTA[3], PENTA[5]].forEach((f) => tone(f, t + 0.6, 1.6, 'sine', 0.1));
+      tone(PENTA[0] / 2, t + 0.6, 1.6, 'triangle', 0.14);
+      tone(PENTA[5], t + 0.86, 0.7, 'sine', 0.06); tone(PENTA[6], t + 1.12, 0.7, 'sine', 0.04);
       noise(t + 0.2, 1.8, 4800, 0.6, 0.2, 'highpass', 0.4);
     },
     pause(t) { begin('pause'); tone(520, t, 0.14, 'sine', 0.3, 0.75); noise(t, 0.05, 1200, 2, 0.3); },
@@ -1598,6 +1608,15 @@ function makeCues(c, dest, jit) {
   return cues;
 }
 
+// A soft ceiling after the limiter. Below 0.8 it changes nothing (the sound at the default volume is untouched); above, it rounds off
+// towards CEILING_MAX, which no sample can pass. The busiest moment at maximum volume measured 0.954 without it.
+const CEILING_KNEE = 0.8, CEILING_MAX = 0.918;
+const CEILING = (() => {
+  const n = 2049, a = new Float32Array(n), r = CEILING_MAX - CEILING_KNEE;
+  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1, m = Math.abs(x); a[i] = Math.sign(x) * (m <= CEILING_KNEE ? m : CEILING_KNEE + r * Math.tanh((m - CEILING_KNEE) / r)); }
+  return a;
+})();
+
 const AUDIO = (() => {
   let ac = null, master = null, sfx = null, kit = null, cues = null;
   let mood = null, place = 'spring', isPaused = false, isHidden = false, lastTick = -1;
@@ -1605,7 +1624,8 @@ const AUDIO = (() => {
   function chain(c, dest, vol) {
     const m = c.createGain(); m.gain.value = vol;
     const lim = c.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.2;
-    m.connect(lim); lim.connect(dest);
+    const cl = c.createWaveShaper(); cl.curve = CEILING; // the last stage: nothing leaves above CEILING_MAX, whatever the limiter let through (CL-01)
+    m.connect(lim); lim.connect(cl); cl.connect(dest);
     const s = c.createGain(); s.gain.value = CUE_GAIN; s.connect(m);
     return { m, s };
   }
@@ -1663,9 +1683,10 @@ const AUDIO = (() => {
     toggle: guard(() => { apply(); }),
     // tests: the names that can be rendered, and a render of one on its own offline context (the live audio is untouched)
     list() { return { music: Object.keys(SCORES), ambience: Object.keys(SCENES), cues: CUE_NAMES }; },
-    render(name, seconds, wav, seed) {
+    // volume: the Volume setting to render at, 0 to 100 (omitted: 70, what the game ships with)
+    render(name, seconds, wav, seed, volume) {
       return measureAudio((oc, dest) => {
-        const ch = chain(oc, dest, MASTER_AT_70), k = makeAudioKit(oc, ch.m, { seed: seed >>> 0 || 11, music: MUSIC_LEVEL, ambience: AMB_LEVEL });
+        const ch = chain(oc, dest, volume == null ? MASTER_AT_70 : (Math.max(0, Math.min(100, volume)) / 100) * 0.5), k = makeAudioKit(oc, ch.m, { seed: seed >>> 0 || 11, music: MUSIC_LEVEL, ambience: AMB_LEVEL });
         Object.assign(k.INST, KIT_EXTRA_INST);
         if (name.startsWith('cue:')) { const cs = makeCues(oc, ch.s, k.jit), key = name.slice(4); if (!cs[key]) throw new Error('unknown cue ' + key); cs[key](0.05); return null; }
         if (name === 'mix') { // the worst case: music, ambience and the loudest cues at once
@@ -2413,6 +2434,11 @@ function boardBusy() { const t = now(); return (use3D() && (anim.dealAt === -1 |
 function inputLocked() { return !S || paused || anyOverlay(); }
 
 // Left to right across the board, kept off the extreme edges
+// When the clack of a match shows on screen, in seconds after the tap: the sound of it waits for the picture (S1-02).
+// The 3D flight clacks at 66% of FLY_MS; the flat board's tiles meet about 0.3 s in; reduced motion just fades them at once.
+function clackDelay() { return reduced() ? 0 : use3D() ? FLY_MS * 0.66 / 1000 : 0.3; }
+// The suit of a face for the sound of it: Springs, Bathhouses, Lakes, the Honors, and the Flowers and Seasons
+const tileKind = (f) => (f < 27 ? Math.floor(f / 9) : f < 34 ? 3 : 4);
 function tilePan(i) { try { const x = screenCenter(i)[0]; return Math.max(-0.7, Math.min(0.7, (x / Math.max(1, view.cssW) - 0.5) * 1.4)); } catch (e) { return 0; } }
 // What stops tile i being taken: the tiles on top of it, or else the tiles on both its sides (a tile is free with one side open)
 function blockersOf(i) {
@@ -2474,8 +2500,9 @@ function doMatch(a, b, rec) {
   S.winnable = S.plan ? true : before.winnable === false ? false : null; // removing tiles never revives a dead board
   S.history.push({ t: 'm', a, b, pts, combo: S.combo, at: S.lastMatchMs, row: rowNow, before });
   if (!rec) S.redo = [];
-  AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2);
-  if (rowNow) AUDIO.row();
+  const clack = clackDelay();
+  AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2, tileKind(S.faces[a]), clack);
+  if (rowNow) AUDIO.row(clack);
   if (!rec) goalsAfterMatch(S.faces[a], S.faces[b], rowNow);
   spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
@@ -2683,7 +2710,7 @@ let countBusy = false;
 function countUp(el, to) {
   if (reduced()) { el.textContent = to.toLocaleString('en-US'); return; }
   const t0 = performance.now(), dur = 900; countBusy = true;
-  const step = () => { const k = Math.min(1, (performance.now() - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(to * e).toLocaleString('en-US'); if (k < 1) requestAnimationFrame(step); else countBusy = false; };
+  const step = () => { const k = Math.min(1, (performance.now() - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(to * e).toLocaleString('en-US'); if (k < 1) { AUDIO.tick(); requestAnimationFrame(step); } else countBusy = false; }; // a tick as the score counts up (it keeps its own 70 ms spacing)
   step();
 }
 const WIN_HOLD_MS = 1500;
@@ -2730,7 +2757,7 @@ function win() {
   earned.ach = evalAchievements(S.practice ? {} : { win: { hints: S.hints, shuffles: S.shuffles, ms: S.elapsedMs } }); // a replayed Daily Puzzle is practice: it earns nothing but what the records already show
   if (!S.practice) earned.unlocks = evaluateUnlocks();
   saveStats(); store.del('bhm.game.v1');
-  AUDIO.win(); AUDIO.setMood('win');
+  AUDIO.win(clackDelay() + 0.2); AUDIO.setMood('win'); // after the last clack has been seen and heard (S5-07)
   if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), (newBest || newBestScore) && !S.practice ? 2600 : 2100);
   if ((newBest || newBestScore) && !S.practice) setTimeout(() => AUDIO.best(), 1500);
   spawnWinFx();
@@ -3996,7 +4023,7 @@ window.__game = {
   scene(name) { return gotoScene(name); },
   newGame(opts) { closeAll(); paused = false; return newGame(opts || {}); },
   audioList() { const l = AUDIO.list(); return { music: l.music, ambience: l.ambience, cues: l.cues }; },
-  audioRender(name, seconds, wantWav, seed) { return AUDIO.render(name, seconds, wantWav, seed); },
+  audioRender(name, seconds, wantWav, seed, volume) { return AUDIO.render(name, seconds, wantWav, seed, volume); },
   audioState() { return AUDIO.state(); },
   unlockAll() { freshenStats(); for (const u of UNLOCKS) if (!STATS.goals.unlocked.includes(u.id)) STATS.goals.unlocked.push(u.id); saveStats(); syncSettingsUI(); if (scene === 'layouts') buildCards(); if (G) { applyTheme(); } return STATS.goals.unlocked.length; },
   goals() { return JSON.parse(JSON.stringify(STATS.goals)); },
