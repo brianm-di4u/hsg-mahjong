@@ -271,3 +271,39 @@ tests.push(
     },
   },
 );
+
+tests.push(
+  // ------------------------------------------------------------------ S2-05
+  {
+    name: 'S2-05: the HUD counts moves (pairs that can come off), not every way of choosing two free twins',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      // a deal with three or more free twins of one kind, found by looking through seeds inside the page (the deals are seeded, so it is always the same one)
+      const seed = await t.page.evaluate(() => {
+        for (let seed = 1; seed < 400; seed++) {
+          window.__game.newGame({ layout: 'row', seed, level: 'classic' });
+          const c = new Map(); for (const x of window.__game.getState().tiles) if (x.present && x.free) c.set(x.key, (c.get(x.key) || 0) + 1);
+          if ([...c.values()].some((n) => n >= 3)) return seed;
+        }
+        return 0;
+      });
+      t.expect(seed > 0, 'a deal with three free twins exists in the first 400 seeds');
+      await t.waitIdle(15000);
+      const s = await t.state();
+      const c = new Map(); for (const x of s.tiles) if (x.present && x.free) c.set(x.key, (c.get(x.key) || 0) + 1);
+      const moves = [...c.values()].reduce((a, n) => a + Math.floor(n / 2), 0);
+      const hud = await t.page.evaluate(() => ({ n: +document.getElementById('h-pairs').textContent, label: document.getElementById('h-pairs').nextElementSibling.textContent, title: document.getElementById('h-pairs').parentElement.title }));
+      t.expect(s.pairsAvailable > moves, 'the old count (' + s.pairsAvailable + ') is bigger than the number of pairs that can come off (' + moves + ') on this deal');
+      t.equal([hud.n, hud.label], [moves, 'Moves'], 'the HUD shows the number that can come off, under the label Moves');
+      t.equal(hud.title, 'Pairs you can take now', 'and says so when hovered');
+      await t.game('act', 'solveStep');
+      const s2 = await t.state(), c2 = new Map(); for (const x of s2.tiles) if (x.present && x.free) c2.set(x.key, (c2.get(x.key) || 0) + 1);
+      t.equal(+(await t.page.textContent('#h-pairs')), [...c2.values()].reduce((a, n) => a + Math.floor(n / 2), 0), 'and it follows each move');
+      await t.shot('S2-05-moves-hud');
+      await t.page.evaluate(() => document.getElementById('b-menu').click()); await t.page.click('#op-help');
+      const help = await t.page.textContent('#o-help');
+      t.expect(/Moves<?.*counter|Moves counter/.test(help) && /eye button, Free, turns the glow on free tiles on or off/.test(help), 'How to Play explains Moves and the eye button');
+    },
+  },
+);

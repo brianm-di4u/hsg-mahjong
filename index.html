@@ -276,7 +276,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
         <div id="h-timebox"><span id="h-time">0:00</span><small>Time</small></div>
         <div><span id="h-score">0</span><small>Score</small><i class="combo" id="h-combo" aria-hidden="true"></i></div>
         <div><span id="h-left">144</span><small>Tiles</small></div>
-        <div><span id="h-pairs">0</span><small>Pairs</small></div>
+        <div title="Pairs you can take now"><span id="h-pairs">0</span><small>Moves</small></div>
       </div>
       <button class="iconbtn" id="b-pause" aria-label="Pause"><svg class="ic" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
     </div>
@@ -343,6 +343,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <li><b>Any Flower matches any Flower, and any Season matches any Season.</b></li>
       <li>Stuck? <b>Shuffle</b> rearranges the remaining tiles into a new order that can still be solved.</li>
       <li><b>Undo</b> and <b>Redo</b> are unlimited. <b>Hint</b> shows a pair that keeps the board winnable.</li>
+      <li>The <b>Moves</b> counter at the top is how many pairs you can take right now. The eye button, <b>Free</b>, turns the glow on free tiles on or off.</li>
     </ul>
     <h3>Reading the tiles</h3>
     <p>Every tile has an index in the top-left corner and a shape under it, so you never need to rely on color:</p>
@@ -356,7 +357,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </ul>
     <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
     <h3>Scoring</h3>
-    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo.</p>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo.</p>
     <h3>Difficulty</h3>
     <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
@@ -3302,7 +3303,7 @@ function updateHud() {
   $('h-timebox').hidden = !SETTINGS.showTimer;
   $('h-score').textContent = S.score; syncCombo();
   $('h-left').textContent = tilesLeft();
-  $('h-pairs').textContent = pairsAvailable().length;
+  $('h-pairs').textContent = movesAvailable();
   $('t-undo').disabled = !S.history.length || S.status === 'won';
   $('t-redo').disabled = !S.redo.length || S.status !== 'playing';
   $('t-free').setAttribute('aria-pressed', String(freeGlow()));
