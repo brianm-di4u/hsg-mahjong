@@ -196,6 +196,7 @@ html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
 .panel h3{font-family:var(--font-serif-victorian);margin:var(--space-5) 0 var(--space-2);font-size:1.1rem}
 .kbd{display:inline-block;border:1px solid var(--color-border);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.85em;font-family:var(--font-sans);background:var(--color-bg)}
 .factcard{border-left:5px solid var(--color-highlight);background:var(--color-bg);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);margin-top:var(--space-4)}
+.factcard .kick{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted);margin-bottom:var(--space-2)}
 .factcard .q{font-weight:600}
 .factcard .src{font-size:.82rem;color:var(--color-muted);margin-top:var(--space-2)}
 .scoregrid{display:grid;grid-template-columns:1fr auto;gap:2px var(--space-5);font-variant-numeric:tabular-nums}
@@ -314,7 +315,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <p class="big" id="ow-score">0</p>
     <div class="scoregrid" id="ow-grid"></div>
     <div class="earned" id="ow-earned" hidden></div>
-    <div class="factcard" id="ow-fact"><div class="q"></div><div class="a"></div><div class="src"></div></div>
+    <div class="factcard" id="ow-fact"><div class="kick">Hot Springs question</div><div class="q"></div><div class="a"></div><div class="src"></div></div>
   </div>
   <div class="actions"><button class="btn primary" id="ow-again">Play again</button><button class="btn" id="ow-layouts">Layouts</button><button class="btn" id="ow-title">Title</button></div>
 </div></div>
@@ -1072,7 +1073,7 @@ const ACH = [
   { id: 'grand-tour', name: 'Grand Tour', text: 'Clear every layout.', when: () => E.LAYOUTS.every((l) => clearedIds().has(l.id)) },
   { id: 'regular', name: 'Regular', text: 'Win 10 games.', when: () => STATS.won >= 10 },
   { id: 'know-your-tiles', name: 'Know Your Tiles', text: 'Collect the story of every tile.', when: () => STATS.goals.tiles.length >= E.FACES },
-  { id: 'local-historian', name: 'Local Historian', text: 'Read every "Did you know?" fact on the win card.', when: () => FACTS.length > 0 && STATS.goals.wins.length >= FACTS.length },
+  { id: 'local-historian', name: 'Local Historian', text: 'Read every Hot Springs fact on the win card.', when: () => FACTS.length > 0 && STATS.goals.wins.length >= FACTS.length },
 ];
 const ACH_BY_ID = {}; for (const a of ACH) ACH_BY_ID[a.id] = a;
 const RECENT_MAX = 20; // wins kept in STATS.recent, newest first
@@ -2684,7 +2685,7 @@ function win() {
   $('ow-earned').hidden = !lines.length;
   $('ow-earned').innerHTML = lines.map((l) => '<p>' + l[0] + '</p>').join('');
   const fc = $('ow-fact');
-  if (fact) { fc.hidden = false; fc.querySelector('.q').textContent = 'Did you know? ' + fact.q; fc.querySelector('.a').textContent = fact.a + '. ' + fact.e; fc.querySelector('.src').textContent = 'Source: ' + fact.s; }
+  if (fact) { fc.hidden = false; fc.querySelector('.q').textContent = fact.q; fc.querySelector('.a').textContent = 'Answer: ' + fact.a + '. ' + fact.e; fc.querySelector('.src').textContent = 'Source: ' + fact.s; }
   else fc.hidden = true;
   announce('Board cleared! Score ' + S.score + '. ' + lines.map((l) => l[1]).join('. '));
   setTimeout(() => { if (S.status === 'won') { openOverlay('o-win'); countUp($('ow-score'), S.score); } }, reduced() ? 60 : 900);

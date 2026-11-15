@@ -148,7 +148,7 @@ const TESTS = [
       t.equal(s.hints, 72, 'one hint per pair');
       await waitOverlay(t, 'o-win');
       const txt = await t.page.textContent('#o-win');
-      t.expect(txt.includes('Did you know?') && txt.includes('Source:'), 'win screen shows a sourced Hot Springs fact');
+      t.expect(txt.includes('Hot Springs question') && txt.includes('Answer:') && txt.includes('Source:'), 'win screen shows a sourced Hot Springs fact');
       t.expect(s.score >= 500, 'win bonus applied');
       await t.shot('03-win');
       await t.checkLayout();
