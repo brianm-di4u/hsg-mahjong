@@ -341,3 +341,67 @@ tests.push(
     },
   },
 );
+
+const coachState = (t) => t.page.evaluate(() => {
+  const c = document.getElementById('coach'), r = c.getBoundingClientRect(), w = document.getElementById('board-wrap').getBoundingClientRect();
+  return { hidden: c.hidden, text: c.textContent, top: r.top - w.top, h: r.height, inside: r.left >= w.left && r.right <= w.right && r.bottom <= w.bottom + 1, none: getComputedStyle(c).pointerEvents, btn: getComputedStyle(document.getElementById('coach-ok')).pointerEvents };
+});
+const FIRST = (t) => t.viewport === 'mobile' ? 'terraces' : 'pyramid';
+tests.push(
+  // ------------------------------------------------------------------ S1-11
+  {
+    name: 'S1-11: the first game of a new profile says how a game goes and pulses a free pair at no charge; the first match clears it',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: FIRST(t), seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      let c = await coachState(t), s = await t.state();
+      t.expect(!c.hidden && /Tap a bright tile, then its twin/.test(c.text) && /Any Flower matches any Flower, and any Season any Season/.test(c.text) && /Hint shows a pair for −40 points/.test(c.text), 'the card teaches free tiles, the wildcards and the hint: ' + c.text);
+      t.expect(c.inside && c.h < 220, 'it sits inside the board area and is not tall (' + Math.round(c.h) + ' px)');
+      t.equal([c.none, c.btn], ['none', 'auto'], 'taps pass through the card to the tiles; its two buttons take taps');
+      t.expect(Array.isArray(s.hint) && s.hint.length === 2 && s.tiles[s.hint[0]].free && s.tiles[s.hint[1]].free, 'one free pair is pulsing: ' + JSON.stringify(s.hint));
+      t.equal([s.hints, s.score, s.fee.hint], [0, 0, 0], 'and it cost nothing and counts as no hint');
+      const ys = [];
+      for (const i of s.hint) { const p = await t.game('act', 'screenCenter', i); const r = await t.page.evaluate(() => document.getElementById('board').getBoundingClientRect().top - document.getElementById('board-wrap').getBoundingClientRect().top); ys.push(p[1] + r); }
+      t.expect(Math.max(...ys) < c.top, 'the pulsing pair is above the card, not under it (' + ys.map(Math.round) + ' against ' + Math.round(c.top) + ')');
+      await t.shot('S1-11-coach');
+      await t.game('act', 'hint'); s = await t.state();
+      t.equal(s.hints, 1, 'a real press of Hint is still a hint');
+      await t.game('act', 'solveStep');
+      t.equal((await coachState(t)).hidden, true, 'the first match takes the card away');
+      await t.game('newGame', { layout: FIRST(t), seed: 22, level: 'classic' });
+      t.equal((await coachState(t)).hidden, true, 'and the next game does not show it again');
+    },
+  },
+  {
+    name: 'S1-11: Got it puts the card away, and a profile that has started a game is not shown it again',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: FIRST(t), seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await t.page.click('#coach-ok');
+      t.equal([(await coachState(t)).hidden, (await t.state()).overlay], [true, null], 'Got it hides the card');
+      await t.page.reload(); await t.page.waitForFunction(() => !!window.__game); await t.waitIdle(15000);
+      await t.game('newGame', { layout: FIRST(t), seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      t.equal((await coachState(t)).hidden, true, 'a profile that has started a game is not shown it again');
+    },
+  },
+  {
+    name: 'S1-11: How to Play on the card opens the rules; Expert names free tiles without the glow and has no hints; a profile with games played never sees it',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'expert' }); await t.waitIdle(15000);
+      const c = await coachState(t);
+      t.expect(/Tap a free tile, then its twin/.test(c.text) && /Hints are off in Expert/.test(c.text) && !/bright/.test(c.text), 'Expert: ' + c.text);
+      await t.page.click('#coach-help');
+      t.equal([(await coachState(t)).hidden, (await t.state()).overlay], [true, 'o-help'], 'How to Play opens the rules and puts the card away');
+      await t.page.keyboard.press('Escape');
+      // a profile with a record never sees it, and Continue (a game from a save) never shows it
+      await t.page.evaluate(() => localStorage.setItem('bhm.stats.v1', JSON.stringify({ played: 5, won: 1 })));
+      await t.page.reload(); await t.page.waitForFunction(() => !!window.__game); await t.waitIdle(15000);
+      await t.game('newGame', { layout: 'pyramid', seed: 23, level: 'classic' }); await t.waitIdle(15000);
+      t.equal((await coachState(t)).hidden, true, 'a profile with games played is not shown it');
+    },
+  },
+);

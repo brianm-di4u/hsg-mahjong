@@ -167,6 +167,10 @@ html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
 .toast.on{transform:translate(-50%,0);opacity:1}
 .banner{position:absolute;left:50%;bottom:12px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--bar);color:var(--bar-text);border:2px solid var(--brass);border-radius:999px;padding:var(--space-2) var(--space-5);font-weight:700;font-size:.9rem;box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center}
 .banner.on{transform:translate(-50%,0);opacity:1}
+.coach{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(440px,calc(100% - 20px));box-sizing:border-box;z-index:3;pointer-events:none;background:var(--panel);color:var(--color-text);border:2px solid var(--color-highlight);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);box-shadow:0 6px 18px rgba(0,0,0,.3);font-size:.9rem;line-height:1.35}
+.coach[hidden]{display:none}
+.coach p{margin:0 0 var(--space-2)}
+.coach .coachbtns{display:flex;gap:var(--space-3);justify-content:center;pointer-events:auto}
 .earned p{margin:var(--space-2) 0 0;font-size:.95rem}
 .lockhint{flex-basis:100%;margin:0;font-size:.82rem;color:var(--color-muted)}
 .btn.locked{opacity:.6;border-style:dashed}
@@ -287,6 +291,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <canvas id="board"tabindex="0" role="application" aria-roledescription="mahjong board" aria-label="Mahjong board. Use arrow keys to move, Enter to select."></canvas>
       <div class="toast" id="toast" role="status"></div>
       <div class="banner" id="banner" aria-hidden="true"></div>
+      <div class="coach" id="coach" role="note" aria-label="How to play" hidden><p id="coach-1"></p><p id="coach-2"></p><div class="coachbtns"><button class="btn small primary" id="coach-ok">Got it</button><button class="btn small" id="coach-help">How to Play</button></div></div>
     </div>
     <div class="status" id="status"><span id="status-text">Match pairs of free tiles.</span><span class="chip" id="rot-chip" hidden>Turn your phone sideways for bigger tiles</span></div>
     <div class="toolbar" role="toolbar" aria-label="Game tools">
@@ -2271,8 +2276,24 @@ function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E377
 
 // a game counts as abandoned (and breaks the win streak) once it has a match and has not been won
 function inProgress() { return !!S && (S.status === 'playing' || S.status === 'stuck') && S.history.some((h) => h.t === 'm'); }
+// First-run teaching (S1-11): the first game a profile ever starts says how a game goes, in two lines under the board, and pulses one free
+// pair (no charge). It is shown to a profile with no game played and no tile story collected, so a player with a save never sees it, and
+// it is gone at the first match, on Got it, or on leaving the board. Nothing is saved: the records say whether it has been shown.
+const COACH_PULSE_MS = 10000;
+function showCoach() {
+  const glow = freeGlow();
+  $('coach-1').textContent = glow ? 'Tap a bright tile, then its twin. Bright tiles are free: nothing on top of them, and a side open.' : 'Tap a free tile, then its twin. A tile is free when nothing is on top of it and a side is open.';
+  $('coach-2').textContent = 'Any Flower matches any Flower, and any Season any Season. ' + (lv().hints ? 'Stuck? Hint shows a pair' + (lv().hintCost ? ' for −' + lv().hintCost + ' points.' : ', free.') : 'Hints are off in ' + lv().name + '.');
+  $('coach').hidden = false;
+  announce($('coach-1').textContent + ' ' + $('coach-2').textContent);
+  let best = null, bestY = Infinity; // the free pair highest on the board, so the card under the board does not cover it
+  for (const pr of S.plan || []) if (free(pr[0]) && free(pr[1])) { const y = Math.max(G.pos[pr[0]][1], G.pos[pr[1]][1]); if (y < bestY) { bestY = y; best = pr; } }
+  if (best) { anim.hint = best; anim.hintPaid = false; anim.hintUntil = now() + COACH_PULSE_MS; kick(); }
+}
+function hideCoach() { $('coach').hidden = true; }
 function newGame(opts = {}) {
   freshenStats();
+  const firstRun = STATS.played === 0 && !STATS.goals.tiles.length;
   const lost = abandoning(); // the game this one ends: after a reload that is the saved one, so reloading does not dodge the streak
   if (lost && !lost.practice) STATS.streak = 0;
   let layout, seed, daily = null;
@@ -2308,6 +2329,7 @@ function newGame(opts = {}) {
   if (!use3D() || reduced()) AUDIO.deal(); // in 3D the deal-in starts the cue on its first frame
   // small tiles on a portrait phone: point at Zoom and landscape
   setStatus(practice ? 'Practice: already finished today. ' + layout.caption : layout.caption);
+  hideCoach(); if (firstRun && !practice) showCoach();
   if (wideDaily) toast("Today's board, " + layout.name + ", is wide: Zoom is on. Tap Zoom to see it all.");
   else if (view.W < 30 && !zoomTipShown) { zoomTipShown = true; toast('Tip: tap Zoom, or turn your phone sideways, for bigger tiles.'); }
   return { layoutId: layout.id, seed, tiles: G.n };
@@ -2435,7 +2457,7 @@ function doMatch(a, b, rec) {
   if (a === b || !S.present[a] || !S.present[b] || !free(a) || !free(b) || E.matchKey(S.faces[a]) !== E.matchKey(S.faces[b])) return false;
   const before = { combo: S.combo, lastMatchMs: S.lastMatchMs, rowDone: S.rowDone, plan: S.plan, winnable: S.winnable };
   S.present[a] = S.present[b] = false;
-  S.selected = -1; anim.hint = null;
+  S.selected = -1; anim.hint = null; hideCoach();
   let pts, rowNow = false;
   if (rec) { pts = rec.pts; S.combo = rec.combo; S.lastMatchMs = rec.at; rowNow = rec.row; if (rowNow) S.rowDone = true; }
   else {
@@ -3342,7 +3364,7 @@ function dailyCalendarHtml() {
   return h + '</div>';
 }
 function showScene(name) {
-  scene = name;
+  scene = name; if (name !== 'game') hideCoach();
   AUDIO.setMood(name === 'game' ? (S && S.status === 'won' ? 'win' : 'play') : 'title');
   for (const el of document.querySelectorAll('.screen')) el.classList.toggle('on', el.id === 's-' + name);
   if (name === 'title') { syncDailyButton(); drawTitleArt(); $('b-continue').hidden = !(store.get('bhm.game.v1', null) || (S && (S.status === 'playing' || S.status === 'stuck'))); }
@@ -3889,6 +3911,8 @@ on('t-redo', () => redo());
 on('t-free', () => toggleGlow());
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
+on('coach-ok', () => { hideCoach(); canvas.focus({ preventScroll: true }); });
+on('coach-help', () => { hideCoach(); openOverlay('o-help'); });
 on('op-new', () => askNewGame());
 on('op-replay', () => { const o = { layout: S.layoutId, seed: S.seed, level: S.level }; if (!hasProgress()) closeAll(); startNewGame(o); });
 $('lb-seed').addEventListener('input', (e) => { const v = e.target.value.replace(/[^0-9]/g, ''); if (v !== e.target.value) e.target.value = v; $('seed-note').textContent = SEED_NOTE; });
