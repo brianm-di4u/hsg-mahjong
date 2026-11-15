@@ -96,7 +96,7 @@ const TESTS = [
       t.expect(s.rowDone, 'all 36 Bathhouse tiles cleared');
       t.expect(s.tiles.filter((x) => x.present && x.f >= 9 && x.f < 18).length === 0, 'no Bathhouse tiles left');
       const txt = await t.page.textContent('#toast');
-      t.expect(txt.includes('Bathhouse Row complete') && txt.includes('1923'), 'toast names the 1923 completion');
+      t.expect(/^Bathhouse Row complete! The last tile was the (\w+ Bathhouse|Administration Building) \(\d{4}\)\. \+100$/.test(txt), 'toast names the last Bathhouse tile (S4-08): ' + txt);
       await t.shot('03-row-toast');
     },
   },

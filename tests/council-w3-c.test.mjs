@@ -307,3 +307,37 @@ tests.push(
     },
   },
 );
+
+tests.push(
+  // ------------------------------------------------------------------ S4-08
+  {
+    name: 'S4-08: the Row toast names the Bathhouse tile that finished the Row, whichever it was; the guide counts eight bathhouses and the Administration Building',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const names = (await t.game('act', 'faceMeta')).slice(9, 18).map((m) => m.name.split(': ')[1]);
+      t.equal(names.length, 9, 'nine Bathhouse faces');
+      // play seeded deals along their plans until the Row is done, and note which face the last pair of the suit was
+      const runs = await t.page.evaluate(() => {
+        const g = window.__game, out = [];
+        for (let seed = 1; seed <= 24; seed++) {
+          g.newGame({ layout: 'tower', seed, level: 'classic' });
+          let guard = 80, last = -1;
+          while (!g.getState().rowDone && guard-- > 0) {
+            const before = g.getState().tiles.map((x) => x.present);
+            g.act('solveStep');
+            const s = g.getState();
+            if (s.rowDone) { const gone = s.tiles.filter((x, i) => before[i] && !x.present); last = gone[0].f; out.push({ seed, face: last, toast: document.getElementById('toast').textContent }); }
+          }
+        }
+        return out;
+      });
+      t.expect(runs.length >= 20, 'the Row was finished on at least 20 of 24 deals (' + runs.length + ')');
+      const bad = runs.filter((r) => r.toast !== 'Bathhouse Row complete! The last tile was the ' + names[r.face - 9] + '. +100');
+      t.equal(bad, [], 'every toast names the tile that really finished the Row');
+      t.expect(new Set(runs.map((r) => r.face)).size >= 3 && runs.some((r) => r.face !== 16), 'and they differ: ' + [...new Set(runs.map((r) => names[r.face - 9]))].join(', '));
+      await t.page.evaluate(() => document.getElementById('b-menu').click()); await t.page.click('#op-help');
+      t.expect(/the eight bathhouses of the Row from north to south, then the Administration Building/.test(await t.page.textContent('#o-help')), 'How to Play says what the ninth Bathhouse is');
+    },
+  },
+);
