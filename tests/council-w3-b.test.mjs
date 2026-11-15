@@ -163,4 +163,61 @@ export const tests = [
       t.equal(first.bestScore > 0, true, 'the first win saved a best score');
     },
   },
+  // ------------------------------------------------------------------ S3-08
+  {
+    name: 'S3-08: Stats says Completion rate, keeps win totals and the last twenty wins, and shows them',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const statsText = async () => { await t.game('scene', 'stats'); return t.page.locator('#ost-body').innerText(); };
+      // a save from before this wave: wins on record, no totals
+      await put(t, 'bhm.stats.v1', { played: 9, won: 4, streak: 2, bestStreak: 3, layouts: { pyramid: { played: 5, won: 3, bestMs: 303000, bestScore: 1190 } }, daily: { last: null, streak: 0, best: 0, done: {} } });
+      await reload(t);
+      let txt = await statsText();
+      t.expect(txt.includes('Completion rate') && !txt.includes('Win rate'), 'the rate is called Completion rate (it only measures abandoning, since a game cannot be lost)');
+      t.expect(/Average win time\s*—/.test(txt), 'an old save has no average yet');
+      t.expect(txt.includes('count the wins since they were added'), 'and the page says why');
+      t.expect(!txt.includes('Recent wins'), 'no recent list until a win is made');
+      await t.page.evaluate(() => document.querySelector('#o-stats [data-close]').click());
+      // two wins: one clean, one with a hint
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 2); await t.game('act', 'advance', 120000); await t.game('act', 'solveTo', 0);
+      await winCard(t); await t.page.click('#ow-title');
+      await t.game('newGame', { layout: 'display', seed: 3, level: 'relaxed' }); await t.waitIdle(15000);
+      await t.game('act', 'hint'); await t.game('act', 'solveTo', 2); await t.game('act', 'advance', 240000); await t.game('act', 'solveTo', 0);
+      await winCard(t); await t.page.click('#ow-title');
+      const st = await stored(t, 'bhm.stats.v1');
+      t.equal([st.sums.wins, st.sums.clean], [2, 1], 'two timed wins, one of them hint-free');
+      t.equal(st.recent.map((r) => [r.l, r.v, r.h]), [['display', 'relaxed', 1], ['pyramid', 'classic', 0]], 'the last wins are kept, newest first');
+      t.expect(st.sums.winMs === st.recent[0].ms + st.recent[1].ms, 'the time in won games is the sum of those wins');
+      txt = await statsText();
+      const mins = Math.round(st.sums.winMs / 60000);
+      t.expect(txt.includes('Time in won games') && txt.includes(mins + ' min'), 'the stats page shows the time in won games (' + mins + ' min)');
+      t.expect(/Hint-free wins\s+1/.test(txt), 'and one hint-free win');
+      t.expect(txt.includes('Recent wins') && txt.includes('Display Springs (Relaxed)') && txt.includes('Classic Pyramid'), 'and the recent wins');
+      await t.shot('S3-08-stats');
+      await t.page.evaluate(() => document.querySelector('#o-stats [data-close]').click());
+    },
+  },
+  {
+    name: 'S3-08: only the last twenty wins are kept, and damaged totals or entries are read as nothing',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      const mk = (i) => ({ d: '2026-10-' + String(10 + (i % 18)).padStart(2, '0'), l: 'pyramid', v: 'classic', ms: 100000 + i, h: 0, s: 1000 + i });
+      await put(t, 'bhm.stats.v1', { played: 30, won: 25, streak: 0, bestStreak: 0, layouts: {}, daily: { done: {} }, sums: { wins: 25, winMs: 2500000, clean: 25 }, recent: Array.from({ length: 25 }, (_, i) => mk(i)) });
+      await reload(t);
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0); await winCard(t);
+      const st = await stored(t, 'bhm.stats.v1');
+      t.equal([st.recent.length, st.recent[1].s, st.sums.wins], [20, 1000, 26], 'twenty are kept: the new win then the newest nineteen older ones');
+      await put(t, 'bhm.stats.v1', { played: 3, won: 2, sums: 'x', recent: [null, 7, { l: 'nowhere', v: 'classic', d: '2026-10-01' }, { l: 'pyramid', v: 'bogus', d: '2026-10-01' }, { l: 'pyramid', v: 'classic', d: 'yesterday' }, { l: 'pyramid', v: 'classic', d: '2026-10-01', ms: 'x', h: -4, s: null }], layouts: {}, daily: {} });
+      await reload(t);
+      await t.game('scene', 'stats');
+      const txt = await t.page.locator('#ost-body').innerText();
+      t.expect(txt.includes('Games played') && txt.includes('Average win time'), 'the Stats page still opens');
+      t.equal(await t.page.locator('#st-recent tbody tr').count(), 1, 'only the one entry with a known layout, level and date is shown');
+      t.expect(/0:00/.test(await t.page.locator('#st-recent tbody tr').innerText()), 'its damaged numbers read as zero');
+    },
+  },
 ];

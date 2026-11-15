@@ -1068,8 +1068,9 @@ const ACH = [
   { id: 'local-historian', name: 'Local Historian', text: 'Read every "Did you know?" fact on the win card.', when: () => FACTS.length > 0 && STATS.goals.wins.length >= FACTS.length },
 ];
 const ACH_BY_ID = {}; for (const a of ACH) ACH_BY_ID[a.id] = a;
+const RECENT_MAX = 20; // wins kept in STATS.recent, newest first
 function freshGoals() { return { rec: false, unlocked: [], ach: {}, tiles: [], wins: [] }; }
-function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} }, goals: freshGoals() }; }
+function freshStats() { return { played: 0, won: 0, streak: 0, bestStreak: 0, layouts: {}, tiers: { relaxed: { played: 0, won: 0, layouts: {} }, expert: { played: 0, won: 0, layouts: {} } }, daily: { last: null, streak: 0, best: 0, done: {} }, sums: { wins: 0, winMs: 0, clean: 0 }, recent: [], goals: freshGoals() }; }
 // A finite number or the default: stored stats are not trusted to hold numbers
 function num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
 function count(v) { return Math.max(0, Math.floor(num(v, 0))); }
@@ -1094,6 +1095,13 @@ function loadStats() {
   f.daily.streak = count(d.streak); f.daily.best = count(d.best);
   const done = d.done && typeof d.done === 'object' && !Array.isArray(d.done) ? d.done : {};
   for (const k of Object.keys(done)) { const v = num(done[k], null); if (v != null && v >= 0) f.daily.done[k] = v; }
+  // wave 3 (S3-08): win time totals and the last twenty wins; a save from before has neither, so they count from the first win after
+  const sm = s.sums && typeof s.sums === 'object' && !Array.isArray(s.sums) ? s.sums : {};
+  f.sums = { wins: count(sm.wins), winMs: count(sm.winMs), clean: count(sm.clean) };
+  if (Array.isArray(s.recent)) for (const r of s.recent) {
+    if (f.recent.length >= RECENT_MAX) break;
+    if (r && typeof r === 'object' && typeof r.l === 'string' && E.LAYOUTS.some((l) => l.id === r.l) && LEVELS[r.v] && typeof r.d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.d)) f.recent.push({ d: r.d, l: r.l, v: r.v, ms: count(r.ms), h: count(r.h), s: count(r.s) });
+  }
   f.goals = cleanGoals(s.goals);
   return f;
 }
@@ -2231,6 +2239,8 @@ function dailyInfo(date) {
   const days = Math.floor(Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86400000);
   return { seed, layout: E.LAYOUTS[((days % DAILY_POOL) + DAILY_POOL) % DAILY_POOL] };
 }
+// a long span of time as hours and minutes: 42 min, 3 h 12 min
+function fmtSpan(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; }
 function fmtTime(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function tilesLeft() { let n = 0; for (let i = 0; i < G.n; i++) if (S.present[i]) n++; return n; }
 function rngFor(extra) { return E.makeRng((S.seed ^ Math.imul(extra + 1, 0x9E3779B1)) >>> 0); }
@@ -2615,6 +2625,8 @@ function win() {
   const stars = starsEarned(S), starsBefore = starsOf(ls);
   if (!S.practice) {
     STATS.won++; if (S.level !== 'classic') STATS.tiers[S.level].won++; STATS.streak++; STATS.bestStreak = Math.max(STATS.bestStreak, STATS.streak);
+    STATS.sums.wins++; STATS.sums.winMs += Math.round(S.elapsedMs); if (!S.hints) STATS.sums.clean++;
+    STATS.recent.unshift({ d: todayStr(), l: S.layoutId, v: S.level, ms: Math.round(S.elapsedMs), h: S.hints, s: S.score }); STATS.recent.length = Math.min(STATS.recent.length, RECENT_MAX);
     ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score); ls.stars = Math.max(ls.stars || 0, stars);
   }
   if (S.daily) {
@@ -3448,18 +3460,25 @@ function buildGuide() {
 let statsLevel = 'classic'; // the level whose per-layout records the Stats card shows
 let statsTab = 'records'; // Records, or Goals (stars, achievements, unlocks)
 function buildStats() {
-  const d = STATS.daily;
+  const d = STATS.daily, sm = STATS.sums;
   let html = '<div class="seg tabs" role="group" aria-label="Stats sections" id="st-tabs">' + [['records', 'Records'], ['goals', 'Goals']].map(([k, n]) => '<button class="btn small" data-tab="' + k + '" aria-pressed="' + (k === statsTab) + '">' + n + '</button>').join('') + '</div>';
   if (statsTab === 'goals') html += goalsHtml(); else {
-  html += '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Win rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span></div>';
+  html += '<div class="scoregrid"><span>Games played</span><span>' + STATS.played + '</span><span>Games won</span><span>' + STATS.won + '</span><span>Completion rate</span><span>' + (STATS.played ? Math.round(STATS.won / STATS.played * 100) : 0) + '%</span><span>Current streak</span><span>' + STATS.streak + '</span><span>Best streak</span><span>' + STATS.bestStreak + '</span><span>Daily streak</span><span>' + d.streak + ' (best ' + d.best + ')</span>'
+    + '<span>Average win time</span><span>' + (sm.wins ? fmtTime(sm.winMs / sm.wins) : '—') + '</span><span>Time in won games</span><span>' + fmtSpan(sm.winMs) + '</span><span>Hint-free wins</span><span>' + sm.clean + '</span></div>'
+    + (STATS.won > sm.wins ? '<p style="font-size:.85rem;color:var(--color-muted)">Average time, time in won games and hint-free wins count the wins since they were added; earlier wins are in the totals above.</p>' : '');
   const tier = (lvl) => lvl === 'classic' ? { played: Math.max(0, STATS.played - STATS.tiers.relaxed.played - STATS.tiers.expert.played), won: Math.max(0, STATS.won - STATS.tiers.relaxed.won - STATS.tiers.expert.won) } : STATS.tiers[lvl];
-  html += '<h3>By difficulty</h3><table class="st"><thead><tr><th>Level</th><th>Played</th><th>Won</th><th>Win rate</th></tr></thead><tbody>';
+  html += '<h3>By difficulty</h3><table class="st"><thead><tr><th>Level</th><th>Played</th><th>Won</th><th>Completion</th></tr></thead><tbody>';
   for (const lvl of ['relaxed', 'classic', 'expert']) { const t = tier(lvl); html += '<tr><td>' + LEVELS[lvl].name + '</td><td>' + t.played + '</td><td>' + t.won + '</td><td>' + (t.played ? Math.round(t.won / t.played * 100) + '%' : '—') + '</td></tr>'; }
   html += '</tbody></table>';
   html += '<h3>By layout</h3><div class="seg" role="group" aria-label="Difficulty shown" id="st-level">' + ['relaxed', 'classic', 'expert'].map((lvl) => '<button class="btn small" data-v="' + lvl + '" aria-pressed="' + (lvl === statsLevel) + '">' + LEVELS[lvl].name + '</button>').join('') + '</div>';
   html += '<table class="st"><thead><tr><th>Layout</th><th>Played</th><th>Won</th><th>Best time</th><th>Best score</th></tr></thead><tbody>';
   for (const l of E.LAYOUTS) { const s = layoutBook(statsLevel)[l.id] || {}; html += '<tr><td>' + l.name + '</td><td>' + (s.played || 0) + '</td><td>' + (s.won || 0) + '</td><td>' + (s.bestMs != null ? fmtTime(s.bestMs) : '—') + '</td><td>' + (s.bestScore || '—') + '</td></tr>'; }
   html += '</tbody></table>';
+  if (STATS.recent.length) {
+    html += '<h3>Recent wins</h3><table class="st" id="st-recent"><thead><tr><th>Date</th><th>Layout</th><th>Time</th><th>Score</th></tr></thead><tbody>';
+    for (const r of STATS.recent.slice(0, 5)) html += '<tr><td>' + r.d + '</td><td>' + layoutById(r.l).name + (r.v !== 'classic' ? ' (' + LEVELS[r.v].name + ')' : '') + '</td><td>' + fmtTime(r.ms) + '</td><td>' + r.s.toLocaleString('en-US') + '</td></tr>';
+    html += '</tbody></table>';
+  }
   }
   if (!store.ok) html += '<p style="color:var(--color-muted)">Storage is unavailable in this browser, so stats last only for this visit.</p>';
   else if (store.failed) html += '<p style="color:var(--color-muted)">' + STORAGE_FULL + '</p>';
