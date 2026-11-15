@@ -63,3 +63,81 @@ tests.push(
     },
   },
 );
+
+tests.push(
+  // ------------------------------------------------------------------ S1-05
+  {
+    name: 'S1-05: pressing Hint again while its pair still shows is not charged again; a new pair is',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await play(t, 12);
+      let s = await t.state(); const base = s.score;
+      await t.game('act', 'hint'); s = await t.state();
+      t.equal([s.hints, s.fee.hint, s.score], [1, 40, base - 40], 'the first hint is charged');
+      const pair = s.hint.slice();
+      await t.game('act', 'animAt', 'now'); // the clock stands still, so the 8 s the pair shows for cannot run out between presses
+      for (let k = 0; k < 3; k++) await t.game('act', 'hint');
+      s = await t.state();
+      t.equal([s.hints, s.fee.hint, s.score], [1, 40, base - 40], 'three more presses of Hint while it shows cost nothing');
+      t.expect(/already paid for/.test(s.status), 'and the line says so: ' + s.status);
+      t.equal(s.hint, pair, 'the same pair is still lit');
+      await t.game('act', 'animAt', null);
+      await t.game('act', 'solveStep'); await t.game('act', 'hint'); s = await t.state();
+      t.equal([s.hints, s.fee.hint], [2, 80], 'after a match, the next hint is charged');
+      await t.game('act', 'undo'); await t.game('act', 'hint'); s = await t.state();
+      t.equal(s.hints, 3, 'after an undo, the next hint is charged');
+    },
+  },
+  {
+    name: 'S1-05: Shuffle (the S key or the button) asks first while pairs can be made; Keep playing changes nothing',
+    url: URL,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await play(t, 12);
+      const before = await t.state();
+      t.expect(before.score >= 100, 'a score to lose');
+      const open = () => t.page.evaluate(() => ({ on: document.getElementById('o-confirm').classList.contains('on'), h: document.getElementById('oc-h').textContent, text: document.getElementById('oc-text').textContent, go: document.getElementById('oc-new').textContent, focus: document.activeElement && document.activeElement.id }));
+      if (t.viewport === 'desktop') await t.page.keyboard.press('s'); else await t.page.click('#t-shuffle');
+      await t.page.waitForSelector('#o-confirm.on');
+      let d = await open();
+      t.expect(d.h === 'Shuffle the tiles?' && /You can still take [0-9]+ pairs?./.test(d.text) && d.text.includes('50 points') && d.go === 'Shuffle (−50)', 'the dialog says what a shuffle costs: ' + JSON.stringify(d));
+      t.equal(d.focus, 'oc-keep', 'the safe choice has the focus, so an Enter does not shuffle');
+      await t.shot('S1-05-shuffle-confirm');
+      let s = await t.state();
+      t.equal([s.shuffles, s.score, s.fee.shuffle], [0, before.score, 0], 'nothing has been shuffled or charged yet');
+      await t.page.click('#oc-keep');
+      s = await t.state();
+      t.equal([s.shuffles, s.score], [0, before.score], 'Keep playing leaves the board and the score alone');
+      if (t.viewport === 'desktop') await t.page.keyboard.press('s'); else await t.page.click('#t-shuffle');
+      await t.page.waitForSelector('#o-confirm.on');
+      await t.page.click('#oc-new');
+      s = await t.state();
+      t.equal([s.shuffles, s.fee.shuffle, s.score], [1, 50, before.score - 50], 'Shuffle (−50) shuffles and charges once');
+      // the dialog is the same one New game uses: it says that again afterwards
+      await t.page.evaluate(() => { document.getElementById('b-menu').click(); });
+      await t.page.click('#op-new');
+      d = await open();
+      t.expect(d.h === 'Abandon this game?' && d.go === 'New game', 'New game still asks to abandon: ' + JSON.stringify(d));
+    },
+  },
+  {
+    name: 'S1-05: Relaxed shuffles at once, and the game hook shuffles directly',
+    url: URL,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'relaxed' }); await t.waitIdle(15000);
+      await play(t, 3);
+      await t.page.keyboard.press('s');
+      await t.waitIdle(15000);
+      let s = await t.state();
+      t.equal([s.overlay, s.shuffles], [null, 1], 'Relaxed has no cost to guard: S shuffles with no dialog');
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      await play(t, 3);
+      await t.game('act', 'shuffle'); s = await t.state();
+      t.equal([s.overlay, s.shuffles], [null, 1], 'the game hook shuffles directly, with no dialog');
+    },
+  },
+);

@@ -150,7 +150,7 @@ const TESTS = [
       // win delay: N and other keys must not skip the win card
       await t.game('act', 'solveTo', 2); await t.waitIdle(15000);
       await t.game('act', 'solveStep'); await t.game('act', 'key', 'n'); await t.game('act', 'key', 'u');
-      await t.page.waitForTimeout(1200);
+      await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-win', null, { timeout: 15000 }); // the card opens 1.5 s after the board clears (S4-04)
       const w = await t.state(); t.equal([w.gameStatus, w.overlay], ['won', 'o-win'], 'the win card still shows after keys during the win delay');
       // switch to flat tiles while a match is flying (watchdog, context loss or Settings) must not throw
       await t.game('newGame', { layout: 'islands', seed: 14 }); await t.waitIdle(15000);
@@ -173,7 +173,7 @@ const TESTS = [
       await key('z', { ctrlKey: true, shiftKey: true }); t.equal((await t.state()).tilesLeft, 142, 'Ctrl+Shift+Z redoes');
       await key('u'); await key('r'); t.equal((await t.state()).tilesLeft, 142, 'U then R');
       await key('y', { ctrlKey: true }); await key('u'); await key('y', { ctrlKey: true }); t.equal((await t.state()).tilesLeft, 142, 'Ctrl+Y redoes');
-      await key('s'); s = await t.state(); t.equal(s.shuffles, 1, 'S shuffles'); await key('s', { repeat: true }); t.equal((await t.state()).shuffles, 1, 'a held S does not repeat');
+      await key('s'); t.equal((await t.state()).overlay, 'o-confirm', 'S asks first while pairs can still be taken (S1-05)'); await t.page.click('#oc-new'); s = await t.state(); t.equal(s.shuffles, 1, 'and Shuffle in that dialog shuffles'); await key('s', { repeat: true }); t.equal((await t.state()).shuffles, 1, 'a held S does not repeat');
       await t.waitIdle(15000);
       const hf = s.settings.highlightFree; await key('f'); t.equal((await t.state()).settings.highlightFree, !hf, 'F toggles the free-tile highlight'); await key('f');
       await key('z'); t.equal((await t.state()).zoom, true, 'Z zooms'); await key('z');

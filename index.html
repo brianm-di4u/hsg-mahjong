@@ -2301,11 +2301,16 @@ function newGame(opts = {}) {
   return { layoutId: layout.id, seed, tiles: G.n };
 }
 // New game from inside a game asks first when there is progress to lose
+// The one confirm dialog asks two things: whether to end this game (the default), or whether to shuffle while pairs are still free (S1-05)
+let confirmKind = 'new';
+function setConfirm(kind, text, heading, go) {
+  confirmKind = kind; $('oc-text').textContent = text; $('oc-h').textContent = heading || 'Abandon this game?'; $('oc-new').textContent = go || 'New game';
+}
 let pendingNew = null; // the new game the Abandon dialog will start when it is confirmed (null: restart this layout)
 function askNewGame() {
   pendingNew = null;
   if (!inProgress()) { closeAll(); newGame({ layout: S ? S.layoutId : undefined }); return true; }
-  $('oc-text').textContent = 'Starting a new game ends this one' + streakLine() + '.';
+  setConfirm('new', 'Starting a new game ends this one' + streakLine() + '.');
   openOverlay('o-confirm'); return false;
 }
 // The game with matches made that a new game would end: the one in play, or the saved one Continue would resume after a reload (null: none)
@@ -2321,7 +2326,7 @@ function streakLine() { const g = abandoning(); return g && !g.practice && STATS
 function startNewGame(opts) {
   if (!hasProgress()) { newGame(opts); return; }
   pendingNew = opts;
-  $('oc-text').textContent = 'Starting a new game ends ' + (S ? 'this one' : 'your saved game') + streakLine() + '.';
+  setConfirm('new', 'Starting a new game ends ' + (S ? 'this one' : 'your saved game') + streakLine() + '.');
   openOverlay('o-confirm');
 }
 
@@ -2359,6 +2364,13 @@ function saveGame() {
 // ---------- rules glue ----------
 function free(i) { return E.isFree(G, S.present, i); }
 function pairsAvailable() { return E.availablePairs(G, S.present, S.faces); }
+// How many pairs can come off the board now: four free twins make two, not the six ways of choosing two (S2-05)
+function movesAvailable() {
+  const per = new Map();
+  for (let i = 0; i < G.n; i++) if (S.present[i] && free(i)) { const k = E.matchKey(S.faces[i]); per.set(k, (per.get(k) || 0) + 1); }
+  let n = 0; for (const c of per.values()) n += Math.floor(c / 2);
+  return n;
+}
 function resetStuckDialog() { $('os-shuffle').disabled = !shuffleLeft(); $('os-shuffle').textContent = shuffleLeft() ? shuffleLabel() : 'No shuffles left'; $('os-text').textContent = stuckText(); }
 function clearSelection() { try { const sel = window.getSelection(); if (sel && sel.rangeCount) sel.removeAllRanges(); } catch (e) { /* no selection API */ } }
 // Taps wait while the board is still dealing in or flipping through a shuffle (the faces on screen are not final yet).
@@ -2528,6 +2540,14 @@ function bestFreePair() {
   return best;
 }
 
+// The S key and the Shuffle button ask first when a shuffle would cost points while pairs can still be made, so a slip next to H and U does not cost 50 (S1-05)
+function askShuffle() {
+  const n = S && S.status === 'playing' && !paused && !anyOverlay() ? movesAvailable() : 0, cost = S ? lv().shuffleCost : 0;
+  if (!n || !cost || !shuffleLeft()) return shuffle();
+  setConfirm('shuffle', 'You can still take ' + (n === 1 ? '1 pair' : n + ' pairs') + '. A shuffle costs ' + cost + ' points.', 'Shuffle the tiles?', 'Shuffle (−' + cost + ')');
+  openOverlay('o-confirm'); $('oc-keep').focus({ preventScroll: true });
+  return null;
+}
 // Takes a penalty off the score (never below 0) and keeps what was actually paid, so the win card can itemize it
 function charge(kind, amount) { const paid = Math.min(S.score, amount); S.score -= paid; S.fee[kind] = (S.fee[kind] || 0) + paid; }
 function hint() {
@@ -2535,13 +2555,18 @@ function hint() {
   AUDIO.unlock();
   if (!lv().hints) { setStatus('Hints are off in ' + lv().name + '. Undo is still free.', STATUS_HOLD_MS); announce('Hints are off in ' + lv().name); AUDIO.thud(); return null; }
   if (!S.plan && S.winnable !== false) { const r = E.solveInfo(G, S.present, S.faces, 20000); S.plan = r.plan; S.winnable = r.plan ? true : r.exhausted ? false : null; if (S.winnable == null && !planAsk) deepSearch(boardKey()); }
+  if (anim.hint && anim.hintPaid && now() < anim.hintUntil) { // the pair is already showing and was paid for: pulse it again, free
+    anim.hintUntil = now() + 8000; if (view.zoom) panTo(anim.hint);
+    AUDIO.chime(); setStatus('Hint: the highlighted pair is already paid for.', STATUS_HOLD_MS); announce('Hint pair highlighted again, no charge'); kick();
+    return anim.hint;
+  }
   let pr = null;
   if (S.plan) pr = S.plan.find(([a, b]) => free(a) && free(b));
   let guess = false; // no known way to clear the board: the pair is only the free pair that opens the most tiles
   if (!pr) { pr = bestFreePair(); guess = !!pr; }
   if (!pr) { setStatus('No free pairs: try Shuffle.', STATUS_HOLD_MS); return null; }
   S.hints++; charge('hint', lv().hintCost);
-  anim.hint = pr; anim.hintUntil = now() + 8000; // until a match, or 8 s
+  anim.hint = pr; anim.hintPaid = true; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
   AUDIO.chime();
@@ -3748,7 +3773,7 @@ function handleKey(key, ev) {
     case 'ArrowDown': kbActive = true; moveCursor('down'); return true;
     case 'Enter': case ' ': kbActive = true; if (S.cursor < 0 || !S.present[S.cursor]) moveCursor('right'); else if (!boardBusy()) selectTile(S.cursor); return true;
     case 'h': hint(); return true;
-    case 's': shuffle(); return true;
+    case 's': askShuffle(); return true;
     case 'u': undo(); return true;
     case 'r': redo(); return true;
     case 'f': toggleGlow(); return true;
@@ -3824,14 +3849,14 @@ on('b-settings', () => openOverlay('o-settings'));
 on('b-menu', () => pauseGame());
 on('b-pause', () => pauseGame());
 on('t-hint', () => hint());
-on('t-shuffle', () => shuffle());
+on('t-shuffle', () => askShuffle());
 on('t-undo', () => undo());
 on('t-redo', () => redo());
 on('t-free', () => toggleGlow());
 on('t-zoom', () => setZoom(!view.zoom));
 on('op-resume', () => resumeGame());
 on('op-new', () => askNewGame());
-on('oc-new', () => { const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
+on('oc-new', () => { if (confirmKind === 'shuffle') { closeOverlay('o-confirm'); shuffle(); return; } const o = pendingNew || { layout: S.layoutId }; pendingNew = null; closeAll(); paused = false; newGame(o); });
 on('oc-keep', () => { pendingNew = null; closeOverlay('o-confirm'); });
 on('op-help', () => openOverlay('o-help'));
 on('op-settings', () => openOverlay('o-settings'));
