@@ -1573,7 +1573,7 @@ const CUE_GAIN = 1;                   // every cue passes through this: the one 
 const MASTER_AT_70 = 0.7 * 0.5;       // the master level the game ships with (volume 70)
 
 // ----- cues: synthesized, each call a little different (detune, level and noise offset) -----
-const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve', 'comboEnd', 'hintCost', 'shuffleCost'];
+const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve', 'comboEnd', 'hintCost', 'shuffleCost', 'streak'];
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
 // The match note climbs the pentatonic for two octaves and a bit: combo 0 is the first entry, combo 11 the last (S5-10). It was PENTA, which stopped at combo 6.
 const COMBO_NOTES = PENTA.concat([PENTA[2], PENTA[3], PENTA[4], PENTA[5], PENTA[6]].map((f) => f * 2));
@@ -1599,7 +1599,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4, hintCost: 3.8, shuffleCost: 3.6 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4, hintCost: 3.8, shuffleCost: 3.6, streak: 3.0 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
@@ -1656,6 +1656,8 @@ function makeCues(c, dest, jit) {
     tick(t) { begin('tick'); tone(1400, t, 0.04, 'sine', 0.28); noise(t, 0.025, 3500, 2, 0.4, 'highpass'); },
     // a chain that ran out: two soft notes stepping down, so the player hears the combo drop (S5-10)
     comboEnd(t) { begin('comboEnd'); tone(880, t, 0.1, 'triangle', 0.22, 0.95); tone(587.33, t + 0.09, 0.16, 'triangle', 0.2, 0.9); tone(293.66, t + 0.09, 0.14, 'sine', 0.12); },
+    // a streak that went on (S5-20): three bells climbing the scale, a step higher for each day or win the streak has run (up to day 6), ending on a shimmer; a milestone, quieter than the win
+    streak(t, n = 2) { begin('streak'); const k = Math.max(0, Math.min(4, (n | 0) - 2)); [0, 1, 2].forEach((j, i) => { const f = PENTA[k + j]; tone(f, t + i * 0.11, 0.55, 'sine', 0.26); tone(f * 2.76, t + i * 0.11, 0.2, 'sine', 0.04); tone(f / 2, t + i * 0.11, 0.25, 'triangle', 0.07); }); noise(t + 0.22, 0.4, 5000, 0.6, 0.05, 'highpass', 0.1); },
     // two struck bells a fifth apart, the upper one a little softer: a small prize, quieter than the win
     achieve(t) { begin('achieve'); [[698.5, 0], [1046.5, 0.14]].forEach(([f, d], i) => { tone(f, t + d, 0.7, 'sine', i ? 0.22 : 0.28); tone(f * 2.76, t + d, 0.25, 'sine', 0.05); tone(f / 2, t + d, 0.3, 'triangle', 0.08); }); },
   };
@@ -1726,6 +1728,7 @@ const AUDIO = (() => {
     win: cue('win', () => kit.music.duck(8, 3200)),
     zoom: guard((on) => { if (!ensure()) return; const n = on ? 'zoomIn' : 'zoomOut'; played[n] = (played[n] || 0) + 1; cues[n](ac.currentTime); }),
     achieve: cue('achieve', () => kit.music.duck(4, 700)),
+    streak: cue('streak', () => kit.music.duck(4, 700)),
     comboEnd: cue('comboEnd'),
     tick: guard(() => { const n = performance.now(); if (n - lastTick < 70) return; lastTick = n; if (!ensure()) return; played.tick = (played.tick || 0) + 1; cues.tick(ac.currentTime); }),
     // which piece the screen wants: 'title', 'play' or 'win' (null: none). Nothing sounds before the first gesture.
@@ -2517,6 +2520,7 @@ function partnerRing() {
   for (let j = 0; j < G.n; j++) if (j !== S.selected && S.present[j] && E.matchKey(S.faces[j]) === k && free(j)) out.push(j);
   return out;
 }
+const WIN_STREAK_CHEERS = [3, 5, 10, 20, 50]; // wins in a row that sound the streak cue (S5-20)
 let mismatchSaid = 0; const MISMATCH_SAID_MAX = 5; // how many times this visit the game has said "Not a match"
 function selectTile(i) {
   if (!S || S.status !== 'playing' || inputLocked()) return { selected: S ? S.selected : -1, removed: false };
@@ -2803,7 +2807,7 @@ function win() {
     STATS.recent.unshift({ d: todayStr(), l: S.layoutId, v: S.level, ms: Math.round(S.elapsedMs), h: S.hints, s: S.score }); STATS.recent.length = Math.min(STATS.recent.length, RECENT_MAX);
     ls.won++; if (newBest) ls.bestMs = S.elapsedMs; ls.bestScore = Math.max(ls.bestScore, S.score); ls.stars = Math.max(ls.stars || 0, stars);
   }
-  let dailyLine = null;
+  let dailyLine = null, streakRun = 0; // streakRun: the run the streak cue sounds, when a daily or win streak has just gone on (S5-20)
   if (S.daily) {
     const dd = STATS.daily, prevBest = Math.min(Infinity, ...Object.values(dd.done)); // the best daily time before today's
     if (dd.done[S.daily] == null) {
@@ -2811,7 +2815,7 @@ function win() {
       const prev = dd.last ? new Date(dd.last + 'T12:00:00') : null, cur = new Date(S.daily + 'T12:00:00');
       const gap = prev ? Math.round((cur - prev) / 86400000) : null;
       if (gap == null || gap > 0) { dd.streak = gap === 1 ? dd.streak + 1 : 1; dd.last = S.daily; }
-      dd.best = Math.max(dd.best, dd.streak);
+      dd.best = Math.max(dd.best, dd.streak); if (!S.practice && dd.streak >= 2) streakRun = dd.streak;
     }
     dd.done[S.daily] = Math.min(dd.done[S.daily] == null ? Infinity : dd.done[S.daily], S.elapsedMs);
     if (!S.practice) dailyLine = 'Daily streak: day ' + dd.streak + '. ' + (S.elapsedMs <= prevBest ? 'Your best daily time yet.' : 'Your best daily time is ' + fmtTime(prevBest) + '.');
@@ -2827,6 +2831,8 @@ function win() {
   buzz(HAPTIC.win); AUDIO.win(clackDelay() + 0.2); AUDIO.setMood('win'); // after the last clack has been seen and heard (S5-07)
   if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), (newBest || newBestScore) && !S.practice ? 2600 : 2100);
   if ((newBest || newBestScore) && !S.practice) setTimeout(() => AUDIO.best(), 1500);
+  if (!S.practice && !streakRun && WIN_STREAK_CHEERS.includes(STATS.streak)) streakRun = STATS.streak;
+  if (streakRun) { const gotAch = earned.ach.length || earned.unlocks.length, gotBest = (newBest || newBestScore) && !S.practice; setTimeout(() => AUDIO.streak(streakRun), 1500 + (gotBest ? 1100 : 0) + (gotAch ? 1100 : 0)); } // after the best and the prize, so they are not heard on top of each other
   spawnWinFx();
   $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest && newBestScore ? ' · new best time and score!' : newBest ? ' · new best time!' : newBestScore ? ' · new best score!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
