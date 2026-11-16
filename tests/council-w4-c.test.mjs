@@ -91,4 +91,23 @@ export const tests = [
       await t.shot('C4-08-coach');
     },
   },
+  // ------------------------------------------------------------------ C4-02
+  {
+    name: 'C4-02: How to Play says in one plain line how the art was made, and nothing overflows',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.page.click('#b-help');
+      await t.page.waitForSelector('#o-help.on', { timeout: 5000 });
+      const m = await t.page.evaluate(() => {
+        const p = document.getElementById('help-art'), body = document.querySelector('#o-help .body'), panel = document.querySelector('#o-help .panel'); p.scrollIntoView({ block: 'end' });
+        const r = p.getBoundingClientRect(), b = body.getBoundingClientRect(), last = [...body.querySelectorAll(':scope > *')].pop();
+        return { text: p.textContent, inView: r.top >= b.top - 1 && r.bottom <= b.bottom + 1, left: r.left, right: r.right, vw: innerWidth, overflowX: body.scrollWidth > body.clientWidth + 1 || panel.scrollWidth > panel.clientWidth + 1, isLast: last === p };
+      });
+      t.equal(m.text, 'Art: painted with AI image tools for this game.', 'the line says exactly that');
+      t.expect(m.inView && m.left >= 0 && m.right <= m.vw && !m.overflowX, 'it is on screen and nothing overflows sideways');
+      t.expect(m.isLast, 'it is the last line of How to Play');
+      t.expect(!/Codex|OpenAI|Midjourney|DALL|Gemini|Stable/i.test(m.text), 'and names no company or product');
+      await t.shot('C4-02-art-line');
+    },
+  },
 ];
