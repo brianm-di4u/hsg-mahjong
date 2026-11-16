@@ -38,6 +38,7 @@ Out of scope for v1: the 4-player traditional mahjong mode (stretch goal; see §
 | Match | +10 |
 | Combo (a match within 4 s of the previous one) | +5 × combo level, capped at +25 |
 | Clearing all 36 Bathhouse tiles | +100 one time ("Bathhouse Row complete") |
+| Clearing every Springs tile, and every Lakes & Fish tile | +50 each, one time per suit (S3-11) |
 | Hint | −15 |
 | Shuffle | −50 |
 | Win | +500, plus +1 per second under 10:00 |

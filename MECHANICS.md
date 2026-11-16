@@ -68,7 +68,7 @@ S = {
 ```
 Settings and stats are separate objects (`SETTINGS`, `STATS`). `history` entries are enough to undo exactly;
 `redo` is cleared by any new move.
-- **Score on undo/redo:** a match entry keeps its own points (`pts`, with combo and Row bonus). Undo subtracts
+- **Score on undo/redo:** a match entry keeps its own points (`pts`, with combo, Row bonus and suit bonus; `suits` lists the suits that move cleared). Undo subtracts
   them (floor 0) and redo adds back exactly the same points, so **hint and shuffle penalties stay paid**. Undoing
   or redoing a shuffle swaps the faces back or forward, but never refunds it, charges it again or changes the
   shuffle count. Undo clears the selection.
