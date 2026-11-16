@@ -95,7 +95,8 @@ export const tests = [
       c = await winCard(t);
       t.equal(rowOf(c, 'Hints'), '−40', 'the hint is itemized');
       t.equal(rowOf(c, 'Undos after the first 3'), '−20', 'two undos past the free three are itemized');
-      t.equal(rowOf(c, 'No-help bonus'), undefined, 'and there is no no-help bonus');
+      t.expect(!c.rows.some((r) => r[0] === 'No-help bonus'), 'and there is no no-help bonus');
+      t.equal(rowOf(c, 'No-help bonus, ended by'), '0', 'the card names it as ended, worth 0 (C4-03)');
       const total2 = c.rows.find((r) => r[0] === 'Total');
       t.equal(num(total2[1]), c.rows.filter((r) => r[0] !== 'Total').reduce((a, r) => a + num(r[1]), 0), 'the rows still add up to the total');
       await t.shot('S3-05-win-card-helped');
