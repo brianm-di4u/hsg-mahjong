@@ -78,4 +78,67 @@ export const tests = [
       for (const c of [kept, undone, both]) { const a = addsUp(c); t.equal(a.sum, a.tot, 'the rows add up to the Total row'); }
     },
   },
+  {
+    name: 'S3-11: the last tile of Springs, and of Lakes & Fish, earns +50 with a toast; the card has a Suits cleared line and adds up; undo and redo keep it',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      let run = null;
+      for (let seed = 1; seed <= 12 && !run; seed++) {
+      await t.game('newGame', { layout: 'pyramid', seed }); await t.waitIdle(15000);
+      run = await t.page.evaluate(() => {
+        const g = window.__game, steps = [], cnt = (s) => [0, 1, 2].map((k) => s.tiles.filter((x) => x.present && x.f < 27 && Math.floor(x.f / 9) === k).length);
+        let undoRedo = null;
+        for (let n = 0; n < 100; n++) {
+          const s0 = g.getState(), c0 = cnt(s0);
+          if (!g.act('solveStep')) break;
+          const s1 = g.getState(), c1 = cnt(s1);
+          if (s1.gameStatus === 'won') break; // the last pair carries the win bonuses as well
+          const cleared = [0, 1, 2].filter((k) => c0[k] > 0 && c1[k] === 0);
+          steps.push({ d: s1.score - s0.score, combo: s1.combo, row: s1.rowDone && !s0.rowDone, cleared, toast: document.getElementById('toast').textContent, status: document.getElementById('status-text').textContent });
+          if (cleared.length && !undoRedo) {
+            g.act('undo'); const back = g.getState().score; g.act('redo'); const again = g.getState().score;
+            undoRedo = { before: s0.score, after: s1.score, back, again };
+          }
+        }
+        return { steps, undoRedo };
+      });
+      if (!(run.steps.some((s) => s.cleared.includes(0)) && run.steps.some((s) => s.cleared.includes(2)))) run = null;
+      }
+      if (!run) { t.fail('no deal of seeds 1 to 12 clears both Springs and Lakes & Fish before its last pair'); return; }
+      const springs = run.steps.find((s) => s.cleared.includes(0)), lakes = run.steps.find((s) => s.cleared.includes(2)), row = run.steps.find((s) => s.cleared.includes(1));
+      t.expect(!!springs && !!lakes, 'this deal clears Springs and Lakes & Fish before its last pair');
+      for (const s of run.steps) {
+        const want = 10 + Math.min(25, 5 * s.combo) + (s.row ? 100 : 0) + s.cleared.filter((k) => k !== 1).length * 50;
+        t.equal(s.d, want, 'a pair is worth 10, plus the combo, the Row bonus and 50 for each of Springs and Lakes cleared (' + JSON.stringify(s.cleared) + ' gave ' + s.d + ')');
+      }
+      if (springs) t.expect(/Springs cleared/.test(springs.toast) && /\+50/.test(springs.toast), 'the toast says Springs cleared, +50: ' + springs.toast);
+      if (lakes) t.expect(/Lakes & Fish cleared/.test(lakes.toast), 'and Lakes & Fish cleared: ' + lakes.toast);
+      t.expect(!run.steps.some((s) => !s.cleared.length && /cleared!/.test(s.toast) && /Springs|Lakes/.test(s.toast) && s === run.steps[0]), 'a first match toasts nothing about suits');
+      t.expect(!!run.undoRedo && run.undoRedo.back === run.undoRedo.before && run.undoRedo.again === run.undoRedo.after, 'undoing the clearing pair takes the bonus back and redoing it returns it: ' + JSON.stringify(run.undoRedo));
+      const card = await winCard(t);
+      const suits = rowOf(card, 'Suits cleared');
+      t.expect(suits === '100' || suits === '50', 'the card has a Suits cleared line: ' + JSON.stringify(card.rows.map((r) => r[0])));
+      t.expect(/\(Springs and Lakes\)/.test(card.rows.find((r) => r[0].startsWith('Suits cleared'))[0]), 'it names the suits');
+      { const a = addsUp(card); t.equal(a.sum, a.tot, 'and every row on the card adds up to its Total'); }
+      await t.shot('S3-11-win-card');
+      await t.checkLayout({ allowScrollY: true });
+    },
+  },
+  {
+    name: 'S3-11: a game that was saved with the pairs on record plays on, and a damaged suits list in the save is repaired',
+    url: FLAT,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.game('act', 'solveStep');
+      const saved = await t.page.evaluate(() => { const s = JSON.parse(localStorage.getItem('bhm.game.v1')); s.history[0].suits = 'junk'; return s; });
+      await t.game('setState', saved); await t.waitIdle(15000);
+      const hist = await t.page.evaluate(() => window.__game.getState().historyLen);
+      t.equal(hist, 1, 'the move is still on record after a repaired load');
+      await t.game('act', 'solveTo', 0);
+      const card = await winCard(t);
+      { const a = addsUp(card); t.equal(a.sum, a.tot, 'and the card still adds up'); }
+    },
+  },
 ];

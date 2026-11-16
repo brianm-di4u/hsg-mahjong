@@ -375,7 +375,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </ul>
     <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
     <h3>Scoring</h3>
-    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo. An undo that costs no points still ends that bonus.</p>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100, and clearing every Springs tile or every Lakes & Fish tile earns +50 each. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo. An undo that costs no points still ends that bonus.</p>
     <h3>Difficulty</h3>
     <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps; an undo is free three times, then costs 10 points. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
@@ -1083,6 +1083,8 @@ const LEVELS = {
 };
 // The time bonus runs from TIME_BONUS_MAX at no time down to nothing at TIME_BONUS_PARS times the layout's par (was 600 minus the seconds taken, for every layout).
 const TIME_BONUS_MAX = 600, TIME_BONUS_PARS = 2;
+// Clearing every tile of Springs, or of Lakes & Fish, earns this on top of the pair (the Bathhouse Row keeps its +100). S3-11
+const SUIT_BONUS = 50, SUIT_BONUS_SUITS = [0, 2];
 const RATING_EASY = 50, RATING_HARD = 30; // a layout is Easy when a random player clears at least this share of its deals, Hard below the second
 function ratingOf(l) { return l.measured >= RATING_EASY ? 'Easy' : l.measured < RATING_HARD ? 'Hard' : 'Medium'; }
 // ---------- goals and collection (S3-02) ----------
@@ -2435,7 +2437,7 @@ function loadState(s) {
   for (const k of ['score', 'elapsedMs', 'combo', 'hints', 'shuffles', 'undos', 'lastMatchMs']) if (!Number.isFinite(st[k])) throw new Error('bad ' + k);
   if (!Array.isArray(st.history)) st.history = [];
   // saves from before scores were kept per move have no `pts`: their match entries undo to the score before the move
-  st.history = st.history.filter((h) => h && (h.t === 'm' ? h.before : h.t === 's' && Array.isArray(h.faces) && h.faces.length === g.n));
+  st.history = st.history.filter((h) => h && (h.t === 'm' ? h.before : h.t === 's' && Array.isArray(h.faces) && h.faces.length === g.n)).map((h) => (h.t === 'm' ? Object.assign(h, { suits: Array.isArray(h.suits) ? h.suits.filter((s) => SUIT_BONUS_SUITS.includes(s)) : [] }) : h));
   if (!E.planValid(g, st.present, st.faces, st.plan)) st.plan = null; // a stale plan could hint a pair that no longer matches
   st.selected = st.selected >= 0 && st.present[st.selected] && E.isFree(g, st.present, st.selected) ? st.selected : -1;
   st.winnable = st.plan ? true : null;
@@ -2529,8 +2531,8 @@ function doMatch(a, b, rec) {
   const before = { combo: S.combo, lastMatchMs: S.lastMatchMs, rowDone: S.rowDone, plan: S.plan, winnable: S.winnable };
   S.present[a] = S.present[b] = false;
   S.selected = -1; anim.hint = null; hideCoach();
-  let pts, rowNow = false;
-  if (rec) { pts = rec.pts; S.combo = rec.combo; S.lastMatchMs = rec.at; rowNow = rec.row; if (rowNow) S.rowDone = true; }
+  let pts, rowNow = false, suitsNow = [];
+  if (rec) { pts = rec.pts; S.combo = rec.combo; S.lastMatchMs = rec.at; rowNow = rec.row; suitsNow = rec.suits || []; if (rowNow) S.rowDone = true; }
   else {
     // combo
     const t = S.elapsedMs;
@@ -2539,11 +2541,14 @@ function doMatch(a, b, rec) {
     pts = 10 + Math.min(25, 5 * S.combo);
     // Bathhouse Row bonus
     if (!S.rowDone) { let any = false; for (let i = 0; i < G.n; i++) if (S.present[i] && S.faces[i] >= 9 && S.faces[i] < 18) { any = true; break; } if (!any) { S.rowDone = true; rowNow = true; pts += 100; } }
+    // the last tile of Springs or of Lakes & Fish earns the suit bonus (S3-11)
+    const s = Math.floor(S.faces[a] / 9);
+    if (SUIT_BONUS_SUITS.includes(s) && !S.faces.some((f, i) => S.present[i] && Math.floor(f / 9) === s && f < 27)) { suitsNow = [s]; pts += SUIT_BONUS; }
   }
   S.score += pts;
   S.plan = E.repairPlan(G, S.present, S.faces, S.plan, a, b);
   S.winnable = S.plan ? true : before.winnable === false ? false : null; // removing tiles never revives a dead board
-  S.history.push({ t: 'm', a, b, pts, combo: S.combo, at: S.lastMatchMs, row: rowNow, before });
+  S.history.push({ t: 'm', a, b, pts, combo: S.combo, at: S.lastMatchMs, row: rowNow, suits: suitsNow, before });
   if (!rec) S.redo = [];
   countPlayed();
   const clack = clackDelay();
@@ -2555,6 +2560,7 @@ function doMatch(a, b, rec) {
   setStatus('Matched ' + shortName(S.faces[a]) + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
   if (rowNow) toast('Bathhouse Row complete! The last tile was the ' + BATHHOUSES[S.faces[a] - 9][1] + '. +100');
+  if (suitsNow.length && !rec) { toast(SUITS[suitsNow[0]].name + ' cleared! Every tile of the suit is gone. +' + SUIT_BONUS); announce(SUITS[suitsNow[0]].name + ' cleared. Plus ' + SUIT_BONUS + ' points.'); AUDIO.row(clack); }
   afterMove();
   if (S.winnable === false) noteDead();
   return true;
@@ -2803,9 +2809,9 @@ function win() {
   // the pairs, the combo bonuses and the Row bonus, from the moves on record; if they do not add up to what was scored (a score that hit 0
   // while penalties came off, say) the card keeps the one line it always had
   const moves = S.history.filter((h) => h.t === 'm'), moveSum = moves.reduce((a, h) => a + (Number.isFinite(h.pts) ? h.pts : NaN), 0);
-  const pairPts = moves.length * 10, rowPts = moves.filter((h) => h.row).length * 100, comboPts = moveSum - pairPts - rowPts;
+  const suitsDone = moves.flatMap((h) => h.suits || []), pairPts = moves.length * 10, rowPts = moves.filter((h) => h.row).length * 100, suitPts = suitsDone.length * SUIT_BONUS, comboPts = moveSum - pairPts - rowPts - suitPts;
   const rows = moveSum === base && comboPts >= 0 ? [['Pairs', pairPts]] : [['Pairs and combos', base]];
-  if (moveSum === base && comboPts >= 0) { if (comboPts) rows.push(['Combos', comboPts]); if (rowPts) rows.push(['Bathhouse Row bonus', rowPts]); }
+  if (moveSum === base && comboPts >= 0) { if (comboPts) rows.push(['Combos', comboPts]); if (rowPts) rows.push(['Bathhouse Row bonus', rowPts]); if (suitPts) rows.push(['Suits cleared (' + suitsDone.map((s) => SUITS[s].short).join(' and ') + ')', suitPts]); }
   for (const [k, n] of [['hint', 'Hints'], ['shuffle', 'Shuffles'], ['undo', 'Undos after the first ' + lv().undoFree]]) if (S.fee[k]) rows.push([n, '−' + S.fee[k]]);
   rows.push(['Clear bonus', 500], ['Time bonus (par ' + fmtTime(par) + ')', timeBonus]);
   if (noHelp) rows.push(['No-help bonus', noHelp]);
