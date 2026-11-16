@@ -375,7 +375,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </ul>
     <p><button class="btn small" id="oh-tiles">Open the Tile Guide</button></p>
     <h3>Scoring</h3>
-    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo.</p>
+    <p>+10 per pair, plus a combo bonus for quick pairs (within 4 seconds, up to +25; the thin bar under the Score runs out with that time). Clearing all 36 Bathhouse tiles earns +100. In Classic, hints cost 40 and shuffles 50, and an undo costs 10 after the first three. Winning adds 500, a time bonus of up to 600 that shrinks to nothing at twice the layout's par time, and 250 more for a win with no hint, shuffle or undo. An undo that costs no points still ends that bonus.</p>
     <h3>Difficulty</h3>
     <p>Pick Relaxed, Classic or Expert above the layouts. <b>Relaxed:</b> hints and shuffles are free and the deals steer clear of traps. <b>Classic:</b> the standard game. <b>Expert:</b> no hints, no glow on free tiles, three shuffles at 100 points each, and deals full of traps; an undo is free three times, then costs 10 points. Each level keeps its own records. The Daily Puzzle is always Classic.</p>
     <h3>Controls</h3>
@@ -2700,6 +2700,7 @@ function swapShuffle(h) {
   S.faces = h.faces; S.plan = h.plan; S.winnable = h.plan ? true : h.winnable === false ? false : null;
   h.faces = f; h.plan = p; h.winnable = w;
 }
+const NOHELP_UNDO_NOTE = 'Free of points, but it ends the no-help bonus.';
 function undo() {
   if (!S || !S.history.length || S.status === 'won' || paused) return false;
   const h = S.history.pop();
@@ -2716,8 +2717,10 @@ function undo() {
   const owed = S.undos > lv().undoFree ? lv().undoCost : 0, paid0 = S.fee.undo || 0; if (owed) charge('undo', owed); const undoFee = (S.fee.undo || 0) - paid0; /* what was really taken: the score never goes below 0 */ anim.hint = null; S.deadNoted = false;
   S.status = 'playing'; closeOverlay('o-stuck'); resetStuckDialog();
   AUDIO.undo();
-  setStatus('Undone' + (undoFee ? ' (−' + undoFee + ')' : '') + '. ' + tilesLeft() + ' tiles on the board.');
-  announce('Undo');
+  // the first undo of a board, while nothing has yet ended the no-help bonus: say that a free undo still ends it (C4-03)
+  const endsBonus = S.undos === 1 && !S.hints && !S.shuffles && lv().noHelp > 0;
+  setStatus('Undone' + (undoFee ? ' (−' + undoFee + ')' : '') + '. ' + (endsBonus ? NOHELP_UNDO_NOTE + ' ' : '') + tilesLeft() + ' tiles on the board.', endsBonus ? STATUS_HOLD_MS : 0);
+  announce(endsBonus ? 'Undo. ' + NOHELP_UNDO_NOTE : 'Undo');
   afterMove();
   return true;
 }
@@ -2806,6 +2809,7 @@ function win() {
   for (const [k, n] of [['hint', 'Hints'], ['shuffle', 'Shuffles'], ['undo', 'Undos after the first ' + lv().undoFree]]) if (S.fee[k]) rows.push([n, '−' + S.fee[k]]);
   rows.push(['Clear bonus', 500], ['Time bonus (par ' + fmtTime(par) + ')', timeBonus]);
   if (noHelp) rows.push(['No-help bonus', noHelp]);
+  else if (lv().noHelp) { const used = [S.hints && 'a hint', S.shuffles && 'a shuffle', S.undos && 'an undo'].filter(Boolean); rows.push(['No-help bonus, ended by ' + used.join(' or '), 0]); }
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
   $('ow-grid').innerHTML = rows.map(([k, v]) => '<span>' + k + '</span><span>' + v + '</span>').join('') + '<span class="tot">Total</span><span class="tot">' + S.score + '</span>'
     + '<span style="grid-column:1/-1;font-size:.85rem;color:var(--color-muted)">' + plural(S.hints, 'hint') + ' · ' + plural(S.shuffles, 'shuffle') + ' · ' + plural(S.undos, 'undo') + '</span>';
@@ -3395,6 +3399,7 @@ function updateHud() {
   $('h-left').textContent = tilesLeft();
   $('h-pairs').textContent = movesAvailable();
   $('t-undo').disabled = !S.history.length || S.status === 'won';
+  $('t-undo').title = lv().noHelp ? 'Undo (U): the first ' + lv().undoFree + ' cost no points, but any undo ends the no-help bonus' : 'Undo (U)';
   $('t-redo').disabled = !S.redo.length || S.status !== 'playing';
   $('t-free').setAttribute('aria-pressed', String(freeGlow()));
   const noHint = !lv().hints, noGlow = lv().freeGlow === 'off';
