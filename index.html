@@ -1031,6 +1031,17 @@ function faceMeta(f) {
 }
 const META = [];
 for (let f = 0; f < E.FACES; f++) META.push(faceMeta(f));
+// How a tile is named in a line of the status strip. A name with a colon in it ("Dragon: White Stone") made lines such as
+// "Dragon: White Stone: Novaculite forms ..." and "Matched Bathhouse 5: Quapaw Bathhouse (1922) ..." that wrapped on a phone (S4-09).
+// shortName is for the Matched, Not a match and Blocked lines; storyName leads a tile's story, and has the full Bathhouse name.
+function shortName(f) {
+  const m = META[f];
+  if (f >= 9 && f < 18) return 'Bathhouse ' + (f - 8) + ' (' + BATHHOUSES[f - 9][0] + ')';
+  if (f < 27) return m.name;
+  const h = HONORS[f - 27];
+  return f < 31 ? h[1] : f < 34 ? h[1] + ' dragon' : f < 38 ? h[1] + ' flower' : h[1] + ' season';
+}
+function storyName(f) { return f >= 9 && f < 18 ? 'Bathhouse ' + (f - 8) + ', ' + BATHHOUSES[f - 9][1] : shortName(f); }
 
 let FACTS = [];
 try { FACTS = JSON.parse($('facts').textContent || '[]'); } catch (e) { FACTS = []; }
@@ -2488,7 +2499,7 @@ function selectTile(i) {
   if (!free(i)) {
     anim.shake = { i, start: now() }; AUDIO.thud(tilePan(i));
     const why = blockersOf(i); anim.block = { tiles: why.tiles, start: now() };
-    setStatus('Blocked: ' + META[S.faces[i]].name + '. ' + why.text, STATUS_HOLD_MS);
+    setStatus('Blocked: ' + shortName(S.faces[i]) + '. ' + why.text, STATUS_HOLD_MS);
     announce('Blocked tile. ' + why.text);
     markDirty(); return { selected: S.selected, removed: false, blocked: true };
   }
@@ -2500,11 +2511,11 @@ function selectTile(i) {
   S.selected = i; AUDIO.click(tilePan(i));
   const m = META[S.faces[i]];
   if (prev >= 0 && mismatchSaid < MISMATCH_SAID_MAX) { // a free tile that does not match the selected one: say so, the first few times, while the selection moves (S2-08)
-    mismatchSaid++; const was = META[S.faces[prev]].name;
-    setStatus('Not a match: ' + was + ' and ' + m.name + '. ' + m.name + ' is selected now.', STATUS_HOLD_MS);
+    mismatchSaid++; const was = shortName(S.faces[prev]), cur = shortName(S.faces[i]);
+    setStatus('Not a match: ' + was + ' and ' + cur + '. ' + cur + ' is selected now.', STATUS_HOLD_MS);
     announce('Not a match. ' + m.name + ' selected.');
   } else {
-    setStatus(m.name + ': ' + m.fact);
+    setStatus(storyName(S.faces[i]) + '. ' + m.fact);
     announce('Selected ' + m.name);
   }
   markDirty();
@@ -2541,7 +2552,7 @@ function doMatch(a, b, rec) {
   if (!rec) goalsAfterMatch(S.faces[a], S.faces[b], rowNow);
   spawnMatchFx(a, b, pts);
   const m = META[S.faces[a]];
-  setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
+  setStatus('Matched ' + shortName(S.faces[a]) + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
   if (rowNow) toast('Bathhouse Row complete! The last tile was the ' + BATHHOUSES[S.faces[a] - 9][1] + '. +100');
   afterMove();
@@ -3810,7 +3821,7 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (e.pointerType === 'mouse' && S && S.status === 'playing') {
     const i = tileAt(x, y);
-    if (i !== hoverTile) { hoverTile = i; if (use3D()) markDirty(); if (i >= 0 && S.selected < 0 && performance.now() >= statusHoldUntil) { const m = META[S.faces[i]]; setStatus(m.name + ': ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
+    if (i !== hoverTile) { hoverTile = i; if (use3D()) markDirty(); if (i >= 0 && S.selected < 0 && performance.now() >= statusHoldUntil) { const m = META[S.faces[i]]; setStatus(storyName(S.faces[i]) + '. ' + m.fact + (free(i) ? '' : ' (blocked)')); } }
   }
 });
 // Lifting a finger (or the mouse) while still moving lets the zoomed board glide on, slowing to a stop. Speed comes from the
@@ -3896,7 +3907,7 @@ function spotText(i) {
   const p = G.pos[i];
   return 'row ' + (Math.round((p[1] - my) / 2) + 1) + ', column ' + (Math.round((p[0] - mx) / 2) + 1) + (p[2] ? ', layer ' + (p[2] + 1) : '');
 }
-function announceCursor() { const i = S.cursor; if (i < 0) return; const m = META[S.faces[i]]; const fr = free(i); setStatus(m.name + (fr ? '' : ' (blocked)') + ': ' + m.fact); announce(m.name + ', ' + spotText(i) + (fr ? ', free' : ', blocked')); }
+function announceCursor() { const i = S.cursor; if (i < 0) return; const m = META[S.faces[i]]; const fr = free(i); setStatus(storyName(S.faces[i]) + (fr ? '' : ' (blocked)') + '. ' + m.fact); announce(m.name + ', ' + spotText(i) + (fr ? ', free' : ', blocked')); }
 
 function handleKey(key, ev) {
   const ctrl = ev && (ev.ctrlKey || ev.metaKey);

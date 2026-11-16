@@ -210,4 +210,61 @@ export const tests = [
       b = await badge(); t.expect(b.text === '' && !b.shown, 'Expert: no hints, no badge');
     },
   },
+  // ------------------------------------------------------------------ S4-09
+  {
+    name: 'S4-09: the line for a tile on the status strip has no stacked colons, for every one of the 42 faces',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const meta = await t.game('act', 'faceMeta'), seen = {};
+      for (let seed = 1; seed <= 12 && Object.keys(seen).length < meta.length; seed++) {
+        await t.game('newGame', { layout: 'row', seed }); await t.waitIdle(15000);
+        const s = await t.state();
+        for (const x of s.tiles) {
+          if (!x.present || seen[x.f]) continue;
+          const c = await t.game('act', 'tileCenter', x.i);
+          if ((await t.game('act', 'tileAt', c.x, c.y)) !== x.i) continue; // another tile is drawn over this point
+          await t.page.mouse.move(c.x, c.y);
+          seen[x.f] = (await t.state()).status;
+        }
+      }
+      t.equal(Object.keys(seen).length, meta.length, 'every face was hovered');
+      // the tile's story is its own text (some stories hold a colon of their own); what leads it is the name
+      const lead = (f) => { const line = seen[f], at = line.indexOf(meta[f].fact); return at < 0 ? null : line.slice(0, at); };
+      const bad = Object.keys(seen).filter((f) => lead(f) === null || /:/.test(lead(f)) || !/\. $/.test(lead(f).replace(/ \(blocked\)\. $/, '. ')));
+      t.expect(bad.length === 0, 'each line is a name, a full stop and its story, with no colon in the name: ' + JSON.stringify(bad.slice(0, 3).map((f) => seen[f])));
+      const white = Object.values(seen).find((l) => /^White Stone dragon\. /.test(l));
+      t.expect(!!white && white.startsWith('White Stone dragon. Novaculite forms'), 'the dragon reads as a sentence: ' + white);
+      const bath = Object.values(seen).filter((l) => /^Bathhouse \d, /.test(l));
+      t.expect(bath.length === 9 && bath.every((l) => /^Bathhouse [1-9], [A-Z][A-Za-z. ]+ \(\d{4}\)\. /.test(l)), 'a Bathhouse names itself once, with its year (' + bath.length + ' of 9): ' + bath[4]);
+    },
+  },
+  {
+    name: 'S4-09: the Matched line uses the short name and stays on one line, a Blocked line has no colon in the name',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const oneLine = () => t.page.evaluate(() => { const e = document.getElementById('status-text'), r = e.getBoundingClientRect(), cs = getComputedStyle(e); return { text: e.textContent, h: r.height, line: parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.3 }; });
+      const lines = [], wrapped = [];
+      for (let k = 0; k < 72; k++) {
+        if (!(await t.game('act', 'solveStep'))) break;
+        const o = await oneLine(); lines.push(o.text);
+        if (k === 11) await t.shot('S4-09-matched-line');
+        if (o.h > o.line * 1.5) wrapped.push(o.text);
+      }
+      t.expect(lines.length >= 60, 'a full board of matches was read (' + lines.length + ')');
+      const matched = lines.filter((l) => /^Matched /.test(l)), bath = matched.filter((l) => /^Matched Bathhouse/.test(l));
+      t.expect(matched.length >= 60, 'almost every line is a Matched line (' + matched.length + ')');
+      t.expect(bath.length >= 3 && bath.every((l) => /^Matched Bathhouse [1-9] \([A-Z][a-z.]+\)/.test(l)), 'Bathhouse matches read like Matched Bathhouse 5 (Quapaw): ' + bath[0]);
+      t.expect(matched.every((l) => !/:/.test(l)), 'no Matched line has a colon');
+      t.expect(matched.some((l) => /combo ×\d\d/.test(l)), 'the run reached a two-digit combo: ' + matched.find((l) => /combo ×\d\d/.test(l)));
+      t.expect(wrapped.length === 0, 'and no Matched line wraps to a second line at ' + t.vp.width + ' px: ' + JSON.stringify(wrapped.slice(0, 2)));
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const s = await t.state(), blocked = s.tiles.find((x) => x.present && !x.free && x.f >= 31 && x.f < 34) || s.tiles.find((x) => x.present && !x.free);
+      await t.game('act', 'click', blocked.i);
+      const b = (await t.state()).status;
+      t.expect(/^Blocked: [^:.]+\. /.test(b), 'Blocked names the tile without a colon of its own: ' + b);
+    },
+  },
 ];
