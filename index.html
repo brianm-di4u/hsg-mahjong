@@ -125,6 +125,7 @@ html[data-theme="dark"] .title-block .menu .btn.primary{background:linear-gradie
 #s-game{background:var(--color-bg)}
 .hud{position:relative;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);background:linear-gradient(var(--bar),var(--chrome-b));color:var(--bar-text);flex:none;min-height:54px;box-shadow:0 2px 0 var(--brass),0 4px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.25);z-index:2}
 .hud .iconbtn,.topbar .iconbtn{color:var(--icon)}
+#b-mute[aria-pressed=false] .snd-off,#b-mute[aria-pressed=true] .snd-on{display:none}
 .hud .name{flex:1;min-width:0;line-height:1.15}
 .hud .name b{display:block;font-family:var(--font-serif-victorian);font-size:1.12rem;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hud .name span{font-size:.8rem;color:var(--chrome-muted)}
@@ -239,7 +240,8 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 #o-win header h2::before,#o-win header h2::after{content:"\2726";color:var(--brass);font-size:.9rem;margin:0 .6em;vertical-align:middle}
 @media (max-width:520px){
   .stats{gap:4px;font-size:.9rem}
-  .stats div{min-width:40px;padding:2px 5px}
+  .stats div{min-width:34px;padding:2px 2px} /* room for the speaker button beside Pause (S5-06) */
+  .hud{gap:2px}
   .hud .name span{display:none}
   .hud .name b{white-space:normal;font-size:.95rem;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .tool{font-size:.68rem}
@@ -290,6 +292,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
         <div><span id="h-left">144</span><small>Tiles</small></div>
         <div title="Pairs you can take now"><span id="h-pairs">0</span><small>Moves</small></div>
       </div>
+      <button class="iconbtn" id="b-mute" aria-label="Mute sound" aria-pressed="false" title="Mute sound"><svg class="ic" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="snd-on" d="M16.5 9.2a4 4 0 0 1 0 5.6M19 6.7a7.5 7.5 0 0 1 0 10.6"/><path class="snd-off" d="M17 9.5l4.5 5M21.5 9.5l-4.5 5"/></svg></button>
       <button class="iconbtn" id="b-pause" aria-label="Pause"><svg class="ic" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></button>
     </div>
     <div id="board-wrap">
@@ -354,6 +357,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
       <li>A tile is <b>free</b> when nothing sits on top of it, even partly, and it can slide out to the <b>left or the right</b>.</li>
       <li>Select a free tile, then a matching free tile. Tiles match when they show the same suit and number, the same mountain or the same dragon.</li>
       <li><b>Any Flower matches any Flower, and any Season matches any Season.</b></li>
+      <li>The speaker button at the top mutes all sound and brings it back. Settings has Music, Sound effects and Ambience as separate switches.</li>
       <li>Stuck? <b>Shuffle</b> rearranges the remaining tiles into a new order that can still be solved.</li>
       <li><b>Undo</b> and <b>Redo</b> are unlimited. <b>Hint</b> shows a pair that keeps the board winnable.</li>
       <li>The <b>Moves</b> counter at the top is how many pairs you can take right now. The eye button, <b>Free</b>, turns the glow on free tiles on or off.</li>
@@ -3738,6 +3742,7 @@ function syncSettingsUI() {
   const onoff = (id, v) => { const b = $(id); b.setAttribute('aria-pressed', String(v)); b.textContent = v ? 'On' : 'Off'; };
   onoff('se-sound', SETTINGS.sound); onoff('se-sfx', SETTINGS.effects); onoff('se-music', SETTINGS.music); onoff('se-amb', SETTINGS.ambience); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions);
   $('se-vol').value = SETTINGS.volume;
+  { const mute = $('b-mute'), off = !SETTINGS.sound; mute.setAttribute('aria-pressed', String(off)); mute.setAttribute('aria-label', off ? 'Unmute sound' : 'Mute sound'); mute.title = off ? 'Unmute sound' : 'Mute sound'; }
   for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.setAttribute('aria-pressed', String(SETTINGS[g.dataset.set] === b.dataset.v));
   for (const kind of ['tileset', 'camera']) {
     const g = document.querySelector('[data-set="' + kind + '"]'), shut = [];
@@ -3993,6 +3998,7 @@ on('b-stats', () => openOverlay('o-stats'));
 on('b-settings', () => openOverlay('o-settings'));
 on('b-menu', () => pauseGame());
 on('b-pause', () => pauseGame());
+on('b-mute', () => setSetting('sound', !SETTINGS.sound)); // the speaker button is the Sound switch, within reach during play
 on('t-hint', () => hint());
 on('t-shuffle', () => askShuffle());
 on('t-undo', () => undo());
@@ -4182,6 +4188,7 @@ if (HAS_BACKDROP) setTimeout(() => loadArt(['backdrop-day', 'backdrop-night']), 
 // warm the 3D renderer while the title screen sits idle, so the first deal doesn't stutter
 (window.requestIdleCallback || ((f) => setTimeout(f, 300)))(() => { if (R3 && !G) { try { buildAtlas(false); R3.warm(); } catch (e) { /* only a head start */ } } });
 applyTheme();
+syncSettingsUI(); // the speaker button in the HUD shows a saved Sound setting from the first frame
 showScene('title');
 // A shared link (?layout=pyramid&seed=123&level=expert) opens that deal; a game in progress is asked about first (S1-17)
 {

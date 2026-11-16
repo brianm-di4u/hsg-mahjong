@@ -60,4 +60,69 @@ export const tests = [
       }
     },
   },
+  // ------------------------------------------------------------------ S5-06
+  {
+    name: 'S5-06: a speaker button beside Pause mutes all sound in play and brings it back, kept in the Sound setting',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      const mute = t.page.locator('#b-mute'), box = await mute.boundingBox(), pause = await t.page.locator('#b-pause').boundingBox();
+      t.expect(box.width >= 44 && box.height >= 44, 'it is a full-size touch target: ' + box.width + ' x ' + box.height);
+      t.expect(box.x + box.width <= pause.x + 1 && pause.x - (box.x + box.width) < 16 && Math.abs(box.y - pause.y) < 4, 'it sits right beside Pause');
+      t.expect(box.x >= 0 && pause.x + pause.width <= t.vp.width, 'nothing in the top bar is pushed off the screen');
+      t.equal(await mute.getAttribute('aria-pressed'), 'false', 'with sound on it is not pressed');
+      t.equal(await mute.getAttribute('aria-label'), 'Mute sound', 'and offers to mute');
+      await t.shot('S5-06-hud-sound-on');
+      await mute.click();
+      t.equal((await t.state()).settings.sound, false, 'one press turns Sound off');
+      t.equal(await mute.getAttribute('aria-pressed'), 'true', 'it shows pressed');
+      t.equal(await mute.getAttribute('aria-label'), 'Unmute sound', 'and offers to unmute');
+      t.equal(await t.page.evaluate(() => JSON.parse(localStorage.getItem('bhm.settings.v1')).sound), false, 'the choice is saved');
+      const before = (await t.game('audioState')).cues;
+      const f = (await t.state()).tiles.find((x) => x.present && x.free);
+      await t.game('act', 'click', f.i); await t.game('act', 'click', f.i);
+      t.equal(JSON.stringify((await t.game('audioState')).cues), JSON.stringify(before), 'and playing makes no sound');
+      await t.shot('S5-06-hud-muted');
+      await mute.focus(); await t.page.keyboard.press('Enter'); // a real button: Enter works from the keyboard
+      t.equal((await t.state()).settings.sound, true, 'Enter on it turns Sound back on');
+      t.equal(await mute.getAttribute('aria-pressed'), 'false', 'and it shows not pressed');
+      await t.game('scene', 'settings');
+      t.equal(await t.page.locator('#se-sound').getAttribute('aria-pressed'), 'true', 'the Sound switch in Settings agrees');
+    },
+  },
+  {
+    name: 'S5-06: a profile saved with Sound off opens with the speaker button already showing it',
+    url: FLAT,
+    viewports: ['desktop'],
+    initScript: () => { if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('bhm.settings.v1', JSON.stringify({ sound: false })); } },
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      t.equal(await t.page.locator('#b-mute').getAttribute('aria-pressed'), 'true', 'muted from the first frame');
+      t.equal(await t.page.locator('#b-mute').getAttribute('aria-label'), 'Unmute sound', 'and says what a press does');
+    },
+  },
+  {
+    name: 'S5-06: the top bar holds the speaker button at 320, 360 and 390 px without overlap or overflow',
+    url: FLAT,
+    viewports: ['mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      for (const w of [320, 360, 390]) {
+        await t.page.setViewportSize({ width: w, height: 844 });
+        await t.page.waitForFunction((w) => window.innerWidth === w, w);
+        const r = await t.page.evaluate(() => {
+          const hud = document.querySelector('.hud'), kids = ['#b-menu', '.hud .name', '.hud .stats', '#b-mute', '#b-pause'].map((s) => document.querySelector(s).getBoundingClientRect());
+          let overlap = false; for (let i = 0; i < kids.length - 1; i++) if (kids[i].right > kids[i + 1].left + 0.5) overlap = true;
+          const pills = [...document.querySelectorAll('.stats > div')].map((d) => d.getBoundingClientRect()); for (let i = 0; i < pills.length - 1; i++) if (pills[i].right > pills[i + 1].left + 0.5) overlap = true;
+          const over = [...hud.querySelectorAll('*')].some((e) => { const b = e.getBoundingClientRect(); return b.width && (b.right > innerWidth + 0.5 || b.left < -0.5); });
+          const mute = kids[3];
+          return { overlap, over, muteW: mute.width, nameW: kids[1].width, scroll: document.documentElement.scrollWidth };
+        });
+        t.expect(!r.overlap && !r.over && r.scroll <= w, w + ' px: nothing overlaps or runs off (' + JSON.stringify(r) + ')');
+        t.expect(r.muteW >= 44, w + ' px: the speaker button stays 44 px wide');
+      }
+      await t.page.setViewportSize({ width: 390, height: 844 });
+    },
+  },
 ];
