@@ -235,7 +235,7 @@ export const tests = [
       await t.game('scene', 'tiles');
       await t.page.click('#ot-tabs [data-tab="coll"]');
       let txt = await t.page.locator('#ot-coll').innerText();
-      t.expect(/Tile stories: 0 of 42/.test(txt) && /Win facts read: 0 of 123/.test(txt), 'a new collection is empty: ' + txt.slice(0, 50).replace(/\n/g, ' '));
+      t.expect(/Tile stories: 0 of 42/.test(txt) && /Win facts read: 0 of 146/.test(txt), 'a new collection is empty: ' + txt.slice(0, 50).replace(/\n/g, ' '));
       t.expect(/Not found yet/.test(txt), 'and says how to fill it');
       await t.page.click('#ot-tabs [data-tab="faces"]');
       t.equal(await t.page.locator('#ot-faces').isVisible(), true, 'the faces are still on the first tab');
@@ -263,7 +263,7 @@ export const tests = [
       await t.game('scene', 'tiles');
       await t.page.click('#ot-tabs [data-tab="coll"]');
       txt = await t.page.locator('#ot-coll').innerText();
-      t.expect(/Tile stories: 42 of 42/.test(txt) && /Win facts read: 2 of 123/.test(txt), 'the collection shows the counts');
+      t.expect(/Tile stories: 42 of 42/.test(txt) && /Win facts read: 2 of 146/.test(txt), 'the collection shows the counts');
       t.expect(/Source: /.test(txt), 'and the facts read, with their sources');
       t.expect(!/Not found yet/.test(txt), 'and nothing left to find among the tiles');
       await t.checkLayout({ allowScrollY: true });

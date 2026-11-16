@@ -110,4 +110,41 @@ export const tests = [
       await t.shot('C4-02-art-line');
     },
   },
+  // ------------------------------------------------------------------ C4-04
+  {
+    name: 'C4-04: the win facts hold 146 records, the old 123 first and in order, the 23 approved ones after them, and the count follows the data',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const f = await factsOf(t);
+      t.equal(f.length, 146, '146 facts');
+      t.equal(new Set(f.map((x) => x.id)).size, 146, 'with unique ids');
+      t.expect(f.every((x) => ['id', 'q', 'a', 'e', 's'].every((k) => typeof x[k] === 'string' && x[k].length > 0) && Object.keys(x).length === 5), 'each has an id, a question, an answer, an explanation and a source, and nothing else');
+      t.equal([f[0].id, f[122].id, f[123].id], ['hs-0057', 'hs-0181', 'hs-0212'], 'the old facts keep their places and the new ones follow');
+      t.equal(f[123].e, "More than 3,000 people attended Oaklawn's first day of racing.", 'the first new record is word for word');
+      t.expect(f.slice(123).every((x) => /^hs-\d{4}$/.test(x.id)), 'every new record has an hs- id');
+      const brewery = f.find((x) => x.id === 'hs-0102');
+      t.equal([brewery.e, brewery.s], ['Superior Bathhouse Brewery opened in the 1916 building in 2013.', 'Wikipedia: Hot Springs, Arkansas; Superior Bathhouse Brewery: History'], 'the brewery year is 2013 and its second source is named');
+      await t.game('scene', 'tiles');
+      await t.page.click('#ot-tabs [data-tab="coll"]');
+      const txt = await t.page.locator('#ot-coll').innerText();
+      t.expect(/Win facts read: 0 of 146/.test(txt), 'the collection counts them from the data: ' + (txt.match(/Win facts read[^\n]*/) || [''])[0]);
+    },
+  },
+  {
+    name: 'C4-04: a save that has read every old fact keeps them, and the next win shows one of the new ones',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const ids = (await factsOf(t)).slice(0, 123).map((x) => x.id);
+      await t.page.evaluate((ids) => { const s = JSON.parse(localStorage.getItem('bhm.stats.v1') || 'null') || {}; s.goals = Object.assign({ rec: false, coached: true, unlocked: [], ach: {}, tiles: [] }, s.goals, { wins: ids }); localStorage.setItem('bhm.stats.v1', JSON.stringify(s)); }, ids);
+      await t.reload();
+      t.equal((await t.game('goals')).wins.length, 123, 'every fact the save had read is still counted');
+      await t.game('newGame', { layout: 'pyramid', seed: 5, level: 'classic' }); await t.game('act', 'solveTo', 0);
+      await t.page.waitForSelector('#o-win.on', { timeout: 15000 });
+      const card = await t.page.evaluate(() => document.querySelector('#ow-fact .q').textContent);
+      const f = await factsOf(t), shown = f.find((x) => x.q === card);
+      t.expect(shown && f.indexOf(shown) >= 123, 'the card shows a new fact, the only kind not read yet: ' + card);
+      t.equal((await t.game('goals')).wins.length, 124, 'and it counts as read');
+      await t.shot('C4-04-win-fact');
+    },
+  },
 ];
