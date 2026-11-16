@@ -2572,7 +2572,7 @@ function doMatch(a, b, rec) {
   setStatus('Matched ' + shortName(S.faces[a]) + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
   if (rowNow) toast('Bathhouse Row complete! The last tile was the ' + BATHHOUSES[S.faces[a] - 9][1] + '. +100');
-  if (suitsNow.length && !rec) { toast(SUITS[suitsNow[0]].name + ' cleared! Every tile of the suit is gone. +' + SUIT_BONUS); announce(SUITS[suitsNow[0]].name + ' cleared. Plus ' + SUIT_BONUS + ' points.'); AUDIO.row(clack); }
+  if (suitsNow.length && !rec) { toast(SUITS[suitsNow[0]].name + ' cleared! Every tile of the suit is gone. +' + SUIT_BONUS); announce(SUITS[suitsNow[0]].name + ' cleared. Plus ' + SUIT_BONUS + ' points.'); if (tilesLeft() > 0) AUDIO.row(clack); /* the last pair has the fanfare */ }
   afterMove();
   if (S.winnable === false) noteDead();
   return true;

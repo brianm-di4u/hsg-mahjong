@@ -86,22 +86,23 @@ export const tests = [
       let run = null;
       for (let seed = 1; seed <= 12 && !run; seed++) {
       await t.game('newGame', { layout: 'pyramid', seed }); await t.waitIdle(15000);
+      { const f = (await t.state()).tiles.find((x) => x.present && x.free); await t.game('act', 'click', f.i); await t.game('act', 'click', f.i); } // the first sound of the game, so there is audio to count
       run = await t.page.evaluate(() => {
-        const g = window.__game, steps = [], cnt = (s) => [0, 1, 2].map((k) => s.tiles.filter((x) => x.present && x.f < 27 && Math.floor(x.f / 9) === k).length);
+        const g = window.__game, rows = () => g.audioState().cues.row || 0, steps = []; let final = null, cnt = (s) => [0, 1, 2].map((k) => s.tiles.filter((x) => x.present && x.f < 27 && Math.floor(x.f / 9) === k).length);
         let undoRedo = null;
         for (let n = 0; n < 100; n++) {
-          const s0 = g.getState(), c0 = cnt(s0);
+          const s0 = g.getState(), c0 = cnt(s0), r0 = rows();
           if (!g.act('solveStep')) break;
           const s1 = g.getState(), c1 = cnt(s1);
-          if (s1.gameStatus === 'won') break; // the last pair carries the win bonuses as well
           const cleared = [0, 1, 2].filter((k) => c0[k] > 0 && c1[k] === 0);
-          steps.push({ d: s1.score - s0.score, combo: s1.combo, row: s1.rowDone && !s0.rowDone, cleared, toast: document.getElementById('toast').textContent, status: document.getElementById('status-text').textContent });
+          if (s1.gameStatus === 'won') { final = { rowDelta: rows() - r0, rowBonus: s1.rowDone && !s0.rowDone }; break; } // the last pair carries the win bonuses as well
+          steps.push({ rowDelta: rows() - r0, d: s1.score - s0.score, combo: s1.combo, row: s1.rowDone && !s0.rowDone, cleared, toast: document.getElementById('toast').textContent, status: document.getElementById('status-text').textContent });
           if (cleared.length && !undoRedo) {
             g.act('undo'); const back = g.getState().score; g.act('redo'); const again = g.getState().score;
             undoRedo = { before: s0.score, after: s1.score, back, again };
           }
         }
-        return { steps, undoRedo };
+        return { steps, undoRedo, final };
       });
       if (!(run.steps.some((s) => s.cleared.includes(0)) && run.steps.some((s) => s.cleared.includes(2)))) run = null;
       }
@@ -112,6 +113,7 @@ export const tests = [
         const want = 10 + Math.min(25, 5 * s.combo) + (s.row ? 100 : 0) + s.cleared.filter((k) => k !== 1).length * 50;
         t.equal(s.d, want, 'a pair is worth 10, plus the combo, the Row bonus and 50 for each of Springs and Lakes cleared (' + JSON.stringify(s.cleared) + ' gave ' + s.d + ')');
       }
+      for (const s of run.steps) if (s.cleared.some((k) => k !== 1)) t.expect(s.rowDelta >= 1, 'a suit cleared in mid-board rings the Row chime (' + s.rowDelta + ')');
       if (springs) t.expect(/Springs cleared/.test(springs.toast) && /\+50/.test(springs.toast), 'the toast says Springs cleared, +50: ' + springs.toast);
       if (lakes) t.expect(/Lakes & Fish cleared/.test(lakes.toast), 'and Lakes & Fish cleared: ' + lakes.toast);
       t.expect(!run.steps.some((s) => !s.cleared.length && /cleared!/.test(s.toast) && /Springs|Lakes/.test(s.toast) && s === run.steps[0]), 'a first match toasts nothing about suits');
@@ -123,6 +125,31 @@ export const tests = [
       { const a = addsUp(card); t.equal(a.sum, a.tot, 'and every row on the card adds up to its Total'); }
       await t.shot('S3-11-win-card');
       await t.checkLayout({ allowScrollY: true });
+    },
+  },
+  {
+    name: 'S3-11: when the last pair of the board also clears a suit, the win fanfare has it to itself (no Row chime on top)',
+    url: FLAT,
+    viewports: ['desktop'],
+    async run(t) {
+      let found = null;
+      for (let seed = 1; seed <= 60 && !found; seed++) {
+        await t.game('newGame', { layout: 'pyramid', seed }); await t.waitIdle(15000);
+        { const f = (await t.state()).tiles.find((x) => x.present && x.free); await t.game('act', 'click', f.i); await t.game('act', 'click', f.i); }
+        const r = await t.page.evaluate(() => {
+          const g = window.__game, rows = () => g.audioState().cues.row || 0;
+          g.act('solveTo', 2);
+          const s0 = g.getState(), face = s0.tiles.find((x) => x.present).f, r0 = rows();
+          if (!(face < 9 || (face >= 18 && face < 27))) return null; // the last pair is of Springs or of Lakes & Fish, so it clears that suit
+          g.act('solveStep'); const s1 = g.getState();
+          return { won: s1.gameStatus === 'won', rowDelta: rows() - r0, rowBonus: s1.rowDone && !s0.rowDone, face };
+        });
+        if (r) found = r;
+      }
+      if (!found) { t.fail('no deal of seeds 1 to 60 ends on a Springs or Lakes & Fish pair'); return; }
+      t.expect(found.won, 'the last pair wins the board');
+      t.equal(found.rowDelta, found.rowBonus ? 1 : 0, 'and rings no Row chime for the suit it clears (' + JSON.stringify(found) + ')');
+      await winCard(t);
     },
   },
   {
