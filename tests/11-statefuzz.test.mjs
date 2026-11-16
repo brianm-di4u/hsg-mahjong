@@ -29,6 +29,8 @@ function fuzz({ layout, seed, steps }) {
     const matchCheck = (a, b, B) => {
       const nc = s.elapsedMs - lastMatch <= 4000 ? combo + 1 : 0, rowNow = !A.rowDone && B.rowDone;
       let pts = 10 + Math.min(25, 5 * nc) + (rowNow ? 100 : 0);
+      const face = A.s.tiles[a].f, left = (st) => st.tiles.some((x) => x.present && ((face < 9 && x.f < 9) || (face >= 18 && face < 27 && x.f >= 18 && x.f < 27)));
+      if ((face < 9 || (face >= 18 && face < 27)) && left(A.s) && !left(B.s)) pts += 50; // the last tile of Springs, or of Lakes & Fish, earns a suit bonus (S3-11)
       if (B.s.tilesLeft === 0) pts += 500 + Math.max(0, Math.round(600 * (1 - B.s.elapsedMs / (2 * (B.s.total / 2 * 6000))))) + (!B.s.hints && !B.s.shuffles && !B.s.undos ? 250 : 0); // clear bonus, time bonus (to twice par) and no-help bonus
       if (B.combo !== nc) fail(`combo ${B.combo}, want ${nc}`);
       if (B.score - A.score !== pts) fail(`match scored ${B.score - A.score}, want ${pts}`);
