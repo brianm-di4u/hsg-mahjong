@@ -221,7 +221,7 @@ export const tests = [
       await t.page.click('#st-tabs [data-tab="records"]');
       t.expect(/Games played\s+1/.test(await t.page.locator('#ost-body').innerText()), 'the Records tab is still there');
       // reset clears records but keeps what was earned
-      await t.page.click('#ost-reset');
+      await t.page.click('#ost-reset'); await t.page.click('#oc-new'); // the themed confirm (S4-11)
       g = await goals(t);
       t.expect('first-soak' in g.ach && g.unlocked.includes('tileset:ribbon'), 'Reset stats keeps achievements and unlocks');
       t.equal((await stored(t, 'bhm.stats.v1')).won, 0, 'and clears the records');

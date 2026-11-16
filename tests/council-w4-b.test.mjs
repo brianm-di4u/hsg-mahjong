@@ -141,4 +141,98 @@ export const tests = [
       { const a = addsUp(card); t.equal(a.sum, a.tot, 'and the card still adds up'); }
     },
   },
+  {
+    name: 'S4-11: Reset stats asks in the game\'s own dialog (above the Stats card), never in a native one, and only a press of Reset records resets',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      t.page.on('dialog', (d) => { t.fail('a native dialog opened: ' + d.message()); d.dismiss(); });
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0); await t.page.waitForSelector('#o-win.on', { timeout: 15000 });
+      await t.game('scene', 'title'); await t.page.evaluate(() => { for (const el of document.querySelectorAll('.overlay.on')) el.classList.remove('on'); });
+      await t.page.click('#b-stats'); await t.page.waitForSelector('#o-stats.on');
+      const played = () => t.page.evaluate(() => JSON.parse(localStorage.getItem('bhm.stats.v1')).won);
+      t.equal(await played(), 1, 'one win is on record');
+      await t.page.click('#ost-reset');
+      t.expect(await t.page.locator('#o-confirm.on').count() === 1, 'the themed confirm opens');
+      t.equal(await t.page.locator('#oc-h').textContent(), 'Reset all records?', 'with its own heading');
+      t.expect(/achievements, unlocks and collection stay/.test(await t.page.locator('#oc-text').textContent()), 'and says what stays');
+      const top = await t.page.evaluate(() => { const b = document.getElementById('oc-new').getBoundingClientRect(), e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return !!e.closest('#o-confirm'); });
+      t.expect(top, 'it is above the Stats card, so its buttons can be pressed');
+      t.equal(await t.page.evaluate(() => document.activeElement.id), 'oc-keep', 'the safe choice has the focus');
+      await t.shot('S4-11-reset-confirm');
+      await t.page.keyboard.press('Escape');
+      t.equal(await t.page.locator('#o-confirm.on').count(), 0, 'Escape closes just the confirm');
+      t.equal(await t.page.locator('#o-stats.on').count(), 1, 'and leaves the Stats card open');
+      t.equal(await played(), 1, 'nothing was reset');
+      await t.page.click('#ost-reset'); await t.page.click('#oc-keep');
+      t.equal(await played(), 1, 'Keep them resets nothing');
+      await t.page.click('#ost-reset'); await t.page.click('#oc-new');
+      t.equal(await played(), 0, 'Reset records clears the records');
+      t.expect(await t.page.evaluate(() => JSON.parse(localStorage.getItem('bhm.stats.v1')).goals.wins.length > 0), 'and keeps the collection');
+      t.equal(await t.page.locator('#o-stats.on').count(), 1, 'the Stats card is still there, now showing the cleared records');
+    },
+  },
+  {
+    name: 'S4-11: the title, board names and win card are set in Marcellus, from file://, and nothing overflows or wraps where it did not',
+    url: FLAT,
+    fileUrl: true,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const fam = (sel) => t.page.evaluate((sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).fontFamily : null; }, sel);
+      await t.page.evaluate(() => document.fonts.ready);
+      t.expect(await t.page.evaluate(() => document.fonts.check('400 20px Marcellus')), 'the face is loaded (document.fonts.check)');
+      t.expect(/^"?Marcellus/.test(await fam('h1')), 'the title is in Marcellus first: ' + await fam('h1'));
+      const h1 = await t.page.evaluate(() => { const r = document.querySelector('#s-title h1').getBoundingClientRect(), s = getComputedStyle(document.querySelector('#s-title h1')); return { l: r.left, r: r.right, h: r.height, fs: parseFloat(s.fontSize), w: innerWidth }; });
+      t.expect(h1.l >= 0 && h1.r <= h1.w && h1.h < h1.fs * 1.6, 'the title is inside the screen on one line: ' + JSON.stringify(h1));
+      await t.checkLayout();
+      await t.shot('S4-11-title-font');
+      await t.game('scene', 'layouts'); await t.waitIdle(15000);
+      t.expect(/^"?Marcellus/.test(await fam('.card b')), 'the board names are in Marcellus: ' + await fam('.card b'));
+      const cards = await t.page.evaluate(() => [...document.querySelectorAll('.card')].map((c) => { const b = c.querySelector('b'), r = c.getBoundingClientRect(), q = b.getBoundingClientRect(); return { id: c.dataset.layout, ok: q.left >= r.left - 1 && q.right <= r.right + 1 && b.scrollWidth <= b.clientWidth + 1, lines: Math.round(q.height / parseFloat(getComputedStyle(b).lineHeight === 'normal' ? parseFloat(getComputedStyle(b).fontSize) * 1.2 : getComputedStyle(b).lineHeight)) }; }));
+      t.expect(cards.length === 18 && cards.every((c) => c.ok), 'every board name stays inside its card: ' + JSON.stringify(cards.filter((c) => !c.ok)));
+      await t.shot('S4-11-layouts-font', { fullPage: false });
+      // a name that fits the top bar in the old stack still fits in Marcellus (on a 390 px phone the same nine long names are cut in both)
+      const worse = [];
+      for (const c of cards) {
+        await t.game('newGame', { layout: c.id, seed: 3 }); await t.waitIdle(15000);
+        const r = await t.page.evaluate(() => {
+          const b = document.querySelector('.hud .name b'), cut = () => b.scrollWidth > b.clientWidth + 1, now = cut();
+          document.documentElement.style.setProperty('--font-display', '"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif'); const was = cut();
+          document.documentElement.style.removeProperty('--font-display');
+          return { text: b.textContent, now, was };
+        });
+        if (r.now && !r.was) worse.push(r.text);
+      }
+      t.equal(worse.length, 0, 'no layout name is cut short in the top bar that was not before: ' + worse.join(', '));
+      t.expect(/^"?Marcellus/.test(await fam('.hud .name b')), 'the name in the top bar is in Marcellus: ' + await fam('.hud .name b'));
+      await t.game('act', 'solveTo', 0);
+      await t.page.waitForSelector('#o-win.on', { timeout: 15000 });
+      t.expect(/^"?Marcellus/.test(await fam('#ow-h')) && /^"?Marcellus/.test(await fam('#ow-score')), 'the win card heading and score are in Marcellus');
+      const card = await t.page.evaluate(() => { const p = document.querySelector('#o-win .panel'), r = p.getBoundingClientRect(); return { l: r.left, r: r.right, w: innerWidth, sw: p.scrollWidth, cw: p.clientWidth, h2: document.getElementById('ow-h').getBoundingClientRect().height }; });
+      t.expect(card.l >= 0 && card.r <= card.w && card.sw <= card.cw + 1, 'the win card fits the screen: ' + JSON.stringify(card));
+      await t.waitForAnimations(); await t.shot('S4-11-win-font');
+    },
+  },
+  {
+    name: 'S4-11: the font in index.html is the vendored file, its licence is beside it, and the title stays inside a 320 px phone',
+    url: FLAT,
+    fileUrl: true,
+    viewports: ['mobile'],
+    async run(t) {
+      const html = fs.readFileSync(path.join(HERE, '..', 'index.html'), 'utf8');
+      const file = fs.readFileSync(path.join(HERE, '..', 'vendor', 'fonts', 'marcellus-latin-400-normal.woff2'));
+      const m = /\/\* fonts:begin[^*]*\*\/(.*?)\/\* fonts:end \*\//s.exec(html);
+      t.expect(!!m && m[1].includes(file.toString('base64')) && /font-display:block/.test(m[1]), 'the @font-face between the markers carries the vendored file, with font-display: block');
+      t.expect(file.length < 30 * 1024, 'and it is under 30 KB (' + file.length + ' bytes)');
+      t.expect(/SIL OPEN FONT LICENSE/.test(fs.readFileSync(path.join(HERE, '..', 'vendor', 'fonts', 'OFL-marcellus.txt'), 'utf8')), 'the licence is beside it as OFL-marcellus.txt');
+      t.expect(/Marcellus, under the SIL Open Font License/.test(await t.page.locator('#o-help').evaluate((e) => e.textContent)), 'How to Play names the face and its licence');
+      for (const w of [320, 360]) {
+        await t.page.setViewportSize({ width: w, height: 700 });
+        await t.page.waitForFunction((w) => innerWidth === w, w);
+        const r = await t.page.evaluate(() => { const e = document.querySelector('#s-title h1').getBoundingClientRect(); return { l: e.left, r: e.right, w: innerWidth, sw: document.documentElement.scrollWidth }; });
+        t.expect(r.l >= 0 && r.r <= r.w && r.sw <= r.w, 'the title fits at ' + w + ' px: ' + JSON.stringify(r));
+      }
+    },
+  },
 ];

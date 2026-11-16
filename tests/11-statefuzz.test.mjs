@@ -219,7 +219,7 @@ const TESTS = [
     viewports: ['desktop'],
     async run(t) {
       const stats = () => t.page.evaluate(() => JSON.parse(localStorage.getItem('bhm.stats.v1')));
-      await t.page.evaluate(() => document.getElementById('ost-reset').click());
+      await t.page.evaluate(() => { document.getElementById('ost-reset').click(); document.getElementById('oc-new').click(); }); // Reset stats now asks in the game's own dialog (S4-11)
       // win: +1 won, streak 1, best time and time bonus
       await t.game('newGame', { layout: 'islands', seed: 1 });
       await t.game('act', 'advance', 300000);
