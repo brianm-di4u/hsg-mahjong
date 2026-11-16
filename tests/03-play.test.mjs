@@ -24,7 +24,8 @@ const TESTS = [
       await t.game('act', 'click', a);
       s = await t.state();
       t.equal(s.selected, a, 'free tile selected');
-      t.expect(s.status.includes(':'), 'status shows the tile name and fact');
+      const fact = (await t.game('act', 'faceMeta'))[s.tiles[a].f].fact; // S4-09: the name and a full stop lead the fact (it was a colon)
+      t.expect(s.status.endsWith(fact) && s.status.length > fact.length + 3, 'status shows the tile name and fact: ' + s.status);
       t.expect(s.live.startsWith('Selected') || true, 'live region updated');
       await t.shot('03-selected');
       // non-matching free tile moves the selection
