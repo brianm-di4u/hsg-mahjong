@@ -91,6 +91,26 @@ export const tests = [
       await t.shot('C4-08-coach');
     },
   },
+  // ------------------------------------------------------------------ C4-09
+  {
+    name: 'C4-09: the Not a match line names a Bathhouse tile by its short name, with one colon, and fits the strip',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      let pick = null;
+      for (let seed = 1; seed <= 60 && !pick; seed++) {
+        await t.game('newGame', { layout: 'pyramid', seed, level: 'classic' });
+        const s = await t.state(), free = s.tiles.filter((x) => x.present && x.free), b = free.find((x) => x.f >= 9 && x.f < 18), o = b && free.find((x) => x.key !== b.key);
+        if (o) pick = [b.i, o.i];
+      }
+      t.expect(!!pick, 'a board with a free Bathhouse tile and a tile that does not match it was found');
+      await t.game('act', 'click', pick[0]); await t.game('act', 'click', pick[1]);
+      const m = await t.page.evaluate(() => { const e = document.getElementById('status-text'); return { text: e.textContent, lines: Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)) }; });
+      t.expect(/^Not a match: Bathhouse \d \([A-Za-z. ]+\) and .*\. .* is selected now\.$/.test(m.text), 'the line: ' + m.text);
+      t.expect(!/\(\d{4}\)/.test(m.text), 'it carries no year');
+      t.equal((m.text.match(/:/g) || []).length, 1, 'and one colon');
+      if (t.viewport === 'mobile') t.expect(m.lines <= 2, 'it takes at most two lines on a phone (' + m.lines + ')');
+    },
+  },
   // ------------------------------------------------------------------ C4-02
   {
     name: 'C4-02: How to Play says in one plain line how the art was made, and nothing overflows',
@@ -145,6 +165,19 @@ export const tests = [
       t.expect(shown && f.indexOf(shown) >= 123, 'the card shows a new fact, the only kind not read yet: ' + card);
       t.equal((await t.game('goals')).wins.length, 124, 'and it counts as read');
       await t.shot('C4-04-win-fact');
+    },
+  },
+  // ------------------------------------------------------------------ S2-27
+  {
+    name: 'S2-27: the page description counts the layouts the game ships, and the phone browser bar takes the game\'s dark colour',
+    url: FLAT, viewports: ['desktop'],
+    async run(t) {
+      const m = await t.page.evaluate(() => ({ desc: document.querySelector('meta[name=description]').content, theme: document.querySelector('meta[name=theme-color]').content }));
+      await t.page.click('#b-play'); await t.page.waitForSelector('.card', { timeout: 5000 });
+      const n = await t.page.locator('.card').count();
+      const words = { 17: 'seventeen', 18: 'eighteen', 19: 'nineteen', 20: 'twenty' };
+      t.expect(new RegExp(words[n] + ' local layouts').test(m.desc), n + ' boards ship and the description says so: ' + m.desc);
+      t.expect(/^#[0-9A-Fa-f]{6}$/.test(m.theme) && parseInt(m.theme.slice(1, 3), 16) < 0x40, 'the theme colour is a dark one: ' + m.theme);
     },
   },
 ];
