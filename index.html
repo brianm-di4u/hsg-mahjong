@@ -170,7 +170,8 @@ html[data-theme="dark"] .tool.primary svg.ic{color:#0B1020}
 .tool[aria-pressed="true"]{background:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.12));border-color:var(--brass);box-shadow:inset 0 2px 6px rgba(0,0,0,.45)}
 .tool[aria-pressed="true"]::after{background:var(--icon);box-shadow:0 0 8px var(--icon)}
 .tool:disabled{opacity:.4;cursor:default}
-.tool .badge{font-variant-numeric:tabular-nums}
+.tool .badge{font-variant-numeric:tabular-nums;font-size:.85em;font-weight:700;margin-left:.3em;opacity:.8}
+.tool .badge:empty{display:none}
 .toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-20px);opacity:0;pointer-events:none;background:var(--panel);color:var(--color-text);border:2px solid var(--color-highlight);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-5);font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center;font-size:.95rem}
 .toast.on{transform:translate(-50%,0);opacity:1}
 .banner{position:absolute;left:50%;bottom:12px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--bar);color:var(--bar-text);border:2px solid var(--brass);border-radius:999px;padding:var(--space-2) var(--space-5);font-weight:700;font-size:.9rem;box-shadow:0 6px 18px rgba(0,0,0,.3);transition:transform .25s,opacity .25s;max-width:calc(100% - 24px);text-align:center}
@@ -306,7 +307,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     </div>
     <div class="status" id="status"><span id="status-text">Match pairs of free tiles.</span><span class="chip" id="rot-chip" hidden>Turn your phone sideways for bigger tiles</span></div>
     <div class="toolbar" role="toolbar" aria-label="Game tools">
-      <button class="tool primary" id="t-hint" title="Hint (H)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>Hint</button>
+      <button class="tool primary" id="t-hint" title="Hint (H)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><span>Hint<span class="badge" id="t-hint-cost" aria-hidden="true"></span></span></button>
       <button class="tool" id="t-shuffle" title="Shuffle (S)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.6 0 2.8-1.6 3.9-3.5M13.1 9.5C14.2 7.6 15.4 7 17 7h3M17 4l3 3-3 3M17 14l3 3-3 3"/></svg>Shuffle</button>
       <button class="tool" id="t-undo" title="Undo (U)"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>Undo</button>
       <button class="tool" id="t-redo" title="Redo (R)"><svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>Redo</button>
@@ -2785,7 +2786,12 @@ function win() {
   spawnWinFx();
   $('ow-sub').textContent = (S.daily ? 'Daily Puzzle ' + S.daily + ' · ' : '') + LAYOUT.name + (S.level !== 'classic' && !S.daily ? ' (' + lv().name + ')' : '') + ' in ' + fmtTime(S.elapsedMs) + (S.practice ? ' · practice' : newBest && newBestScore ? ' · new best time and score!' : newBest ? ' · new best time!' : newBestScore ? ' · new best score!' : '');
   $('ow-score').textContent = S.score.toLocaleString('en-US');
-  const rows = [['Pairs and combos', base]];
+  // the pairs, the combo bonuses and the Row bonus, from the moves on record; if they do not add up to what was scored (a score that hit 0
+  // while penalties came off, say) the card keeps the one line it always had
+  const moves = S.history.filter((h) => h.t === 'm'), moveSum = moves.reduce((a, h) => a + (Number.isFinite(h.pts) ? h.pts : NaN), 0);
+  const pairPts = moves.length * 10, rowPts = moves.filter((h) => h.row).length * 100, comboPts = moveSum - pairPts - rowPts;
+  const rows = moveSum === base && comboPts >= 0 ? [['Pairs', pairPts]] : [['Pairs and combos', base]];
+  if (moveSum === base && comboPts >= 0) { if (comboPts) rows.push(['Combos', comboPts]); if (rowPts) rows.push(['Bathhouse Row bonus', rowPts]); }
   for (const [k, n] of [['hint', 'Hints'], ['shuffle', 'Shuffles'], ['undo', 'Undos after the first ' + lv().undoFree]]) if (S.fee[k]) rows.push([n, '−' + S.fee[k]]);
   rows.push(['Clear bonus', 500], ['Time bonus (par ' + fmtTime(par) + ')', timeBonus]);
   if (noHelp) rows.push(['No-help bonus', noHelp]);
@@ -3381,7 +3387,7 @@ function updateHud() {
   $('t-redo').disabled = !S.redo.length || S.status !== 'playing';
   $('t-free').setAttribute('aria-pressed', String(freeGlow()));
   const noHint = !lv().hints, noGlow = lv().freeGlow === 'off';
-  $('t-hint').setAttribute('aria-disabled', String(noHint)); $('t-hint').title = noHint ? 'Hints are off in ' + lv().name : 'Hint (H)';
+  $('t-hint').setAttribute('aria-disabled', String(noHint)); const cost = noHint ? 0 : lv().hintCost; $('t-hint-cost').textContent = cost ? '−' + cost : ''; $('t-hint').title = noHint ? 'Hints are off in ' + lv().name : 'Hint (H)' + (cost ? ', costs ' + cost + ' points' : '');
   $('t-free').setAttribute('aria-disabled', String(noGlow)); $('t-free').title = noGlow ? 'Free tiles are not highlighted in ' + lv().name : 'Highlight free tiles (F)';
   $('t-zoom').setAttribute('aria-pressed', String(view.zoom));
 }

@@ -2,6 +2,13 @@
 const FLAT = 'index.html?gl=0';
 const freePair = (s) => { const f = s.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i, f[a].f]; return null; };
 
+const winCard = async (t) => {
+  await t.page.waitForSelector('#o-win.on', { timeout: 15000 });
+  return t.page.evaluate(() => { const c = [...document.querySelectorAll('#ow-grid > span')].map((s) => s.textContent), rows = []; for (let i = 0; i + 1 < c.length; i += 2) rows.push([c[i], c[i + 1]]); return { rows }; });
+};
+const num = (v) => +String(v).replace('−', '-').replace(/,/g, '');
+const rowOf = (c, label) => (c.rows.find((r) => r[0].startsWith(label)) || [])[1];
+
 export const tests = [
   // ------------------------------------------------------------------ C4-05
   {
@@ -123,6 +130,84 @@ export const tests = [
         t.expect(r.muteW >= 44, w + ' px: the speaker button stays 44 px wide');
       }
       await t.page.setViewportSize({ width: 390, height: 844 });
+    },
+  },
+  // ------------------------------------------------------------------ S2-13
+  {
+    name: 'S2-13: the win card lists Pairs, Combos, the Row bonus and each penalty on its own line, and they add up',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      // the points each match scored, read from the score as it moves (no formula of the game's is used)
+      const deltas = []; let last = 0;
+      for (let k = 0; k < 72; k++) { if (!(await t.game('act', 'solveStep'))) break; const sc = (await t.state()).score; deltas.push(sc - last); last = sc; }
+      t.equal(deltas.length, 72, 'all 72 pairs were taken');
+      const c = await winCard(t);
+      // the last pair's delta also holds the clear, time and no-help bonuses that the card lists: take them off
+      deltas[71] -= ['Clear bonus', 'Time bonus', 'No-help bonus'].reduce((a, l) => a + (rowOf(c, l) === undefined ? 0 : num(rowOf(c, l))), 0);
+      const labels = c.rows.map((r) => r[0]);
+      t.expect(!labels.includes('Pairs and combos'), 'the lump is gone: ' + JSON.stringify(labels));
+      const rowEst = deltas.filter((d) => d >= 100).length * 100, pairEst = deltas.length * 10, comboEst = deltas.reduce((a, b) => a + b, 0) - pairEst - rowEst;
+      t.equal(num(rowOf(c, 'Pairs')), pairEst, 'Pairs: ten for each of the 72 pairs');
+      t.expect(comboEst > 0, 'this deal has combos (' + comboEst + ')');
+      t.equal(num(rowOf(c, 'Combos')), comboEst, 'Combos: what the chains added');
+      t.equal(rowOf(c, 'Bathhouse Row bonus') === undefined ? 0 : num(rowOf(c, 'Bathhouse Row bonus')), rowEst, 'Bathhouse Row bonus: 100 when the Row was cleared (' + rowEst + ')');
+      const total = c.rows.find((r) => r[0] === 'Total');
+      t.equal(num(total[1]), c.rows.filter((r) => r[0] !== 'Total').reduce((a, r) => a + num(r[1]), 0), 'the lines add up to the total');
+      await t.shot('S2-13-win-card');
+      await t.page.click('#ow-title');
+      // a helped win: a hint, a shuffle, five undos
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      for (let k = 0; k < 30; k++) { await t.game('act', 'advance', 10000); await t.game('act', 'solveStep'); } // 300 points, so every penalty can be taken in full
+      await t.game('act', 'hint'); await t.game('act', 'shuffle');
+      for (let k = 0; k < 5; k++) await t.game('act', 'undo');
+      for (let k = 0; k < 5; k++) await t.game('act', 'redo');
+      await t.game('act', 'solveTo', 0);
+      const h = await winCard(t);
+      t.equal(rowOf(h, 'Hints'), '−40', 'the hint has its own line');
+      t.equal(rowOf(h, 'Shuffles'), '−50', 'the shuffle has its own line');
+      t.equal(rowOf(h, 'Undos after the first 3'), '−20', 'the undos past the free three have theirs');
+      t.equal(num(rowOf(h, 'Pairs')), 720, 'and Pairs is still 72 pairs');
+      const total2 = h.rows.find((r) => r[0] === 'Total');
+      t.equal(num(total2[1]), h.rows.filter((r) => r[0] !== 'Total').reduce((a, r) => a + num(r[1]), 0), 'the lines add up to the total again');
+      await t.page.click('#ow-title');
+    },
+  },
+  {
+    name: 'S2-13: a game saved without its move scores shows one Pairs and combos line, as before, and still adds up',
+    url: FLAT,
+    viewports: ['desktop'],
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 100);
+      // the record of the moves holds no points (a save from before they were kept): the card cannot split what it cannot see.
+      // The page is reloaded first, because leaving it saves the game in play again.
+      await t.reload();
+      await t.page.evaluate(() => { const g = JSON.parse(localStorage.getItem('bhm.game.v1')); for (const h of g.history) delete h.pts; localStorage.setItem('bhm.game.v1', JSON.stringify(g)); });
+      await t.page.click('#b-continue'); await t.waitIdle(15000);
+      await t.game('act', 'solveTo', 0);
+      const c = await winCard(t);
+      t.expect(c.rows.some((r) => r[0] === 'Pairs and combos') && !c.rows.some((r) => r[0] === 'Pairs'), 'one lumped line: ' + JSON.stringify(c.rows.map((r) => r[0])));
+      const total = c.rows.find((r) => r[0] === 'Total');
+      t.equal(num(total[1]), c.rows.filter((r) => r[0] !== 'Total').reduce((x, r) => x + num(r[1]), 0), 'and the lines add up to the total');
+    },
+  },
+  {
+    name: 'S2-13: the Hint button shows what a hint costs: -40 in Classic, nothing in Relaxed or Expert',
+    url: FLAT,
+    viewports: ['desktop', 'mobile'],
+    async run(t) {
+      const badge = () => t.page.evaluate(() => { const b = document.getElementById('t-hint-cost'), r = b.getBoundingClientRect(), h = document.getElementById('t-hint').getBoundingClientRect(); return { text: b.textContent, shown: getComputedStyle(b).display !== 'none', inside: r.left >= h.left && r.right <= h.right && r.top >= h.top && r.bottom <= h.bottom, oneLine: document.querySelector('#t-hint > span').getBoundingClientRect().height < 20, title: document.getElementById('t-hint').title }; });
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      let b = await badge();
+      t.expect(b.text === '−40' && b.shown && b.inside && b.oneLine, 'Classic: the badge reads -40, sits inside the button and the label stays on one line: ' + JSON.stringify(b));
+      t.expect(/costs 40 points/.test(b.title), 'and the tooltip says it too: ' + b.title);
+      await t.shot('S2-13-hint-badge');
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'relaxed' }); await t.waitIdle(15000);
+      b = await badge(); t.expect(b.text === '' && !b.shown, 'Relaxed: a free hint carries no badge');
+      await t.game('newGame', { layout: 'pyramid', seed: 21, level: 'expert' }); await t.waitIdle(15000);
+      b = await badge(); t.expect(b.text === '' && !b.shown, 'Expert: no hints, no badge');
     },
   },
 ];
