@@ -148,7 +148,7 @@ export const tests = [
       deltas[71] -= ['Clear bonus', 'Time bonus', 'No-help bonus'].reduce((a, l) => a + (rowOf(c, l) === undefined ? 0 : num(rowOf(c, l))), 0);
       const labels = c.rows.map((r) => r[0]);
       t.expect(!labels.includes('Pairs and combos'), 'the lump is gone: ' + JSON.stringify(labels));
-      const rowEst = deltas.filter((d) => d >= 100).length * 100, pairEst = deltas.length * 10, comboEst = deltas.reduce((a, b) => a + b, 0) - pairEst - rowEst;
+      const rowEst = deltas.filter((d) => d >= 100).length * 100, pairEst = deltas.length * 10, suitEst = rowOf(c, 'Suits cleared') === undefined ? 0 : num(rowOf(c, 'Suits cleared')), comboEst = deltas.reduce((a, b) => a + b, 0) - pairEst - rowEst - suitEst; // the suit bonus (S3-11) is on the card as its own line
       t.equal(num(rowOf(c, 'Pairs')), pairEst, 'Pairs: ten for each of the 72 pairs');
       t.expect(comboEst > 0, 'this deal has combos (' + comboEst + ')');
       t.equal(num(rowOf(c, 'Combos')), comboEst, 'Combos: what the chains added');
