@@ -85,8 +85,11 @@ const TESTS = [
         if (Math.abs(after.x - before.x) > 20 || Math.abs(after.y - before.y) > 10) moved = true;
       }
       t.expect(moved, 'drag pans the zoomed board');
+      // the drags leave a pan coasting: wait for the game to report the glide over before the board is measured again
+      await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
       // a hint while zoomed pans the pair into view
       const p3 = await t.game('act', 'hint');
+      await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
       const hc = await t.game('act', 'tileCenter', p3[0]);
       t.expect(hc.x > box.x && hc.x < box.x + box.width && hc.y > box.y && hc.y < box.y + box.height, 'hinted tile is on screen while zoomed');
       await t.page.click('#t-zoom');
