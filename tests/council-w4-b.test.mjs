@@ -235,4 +235,143 @@ export const tests = [
       }
     },
   },
+  {
+    name: 'S1-09: a new profile on a phone feels a tick on a pick, a match, a blocked tile and a win; the Vibration switch and Reduced motion silence it',
+    url: FLAT,
+    viewports: ['mobile'],
+    initScript: () => { window.__vib = []; navigator.vibrate = (p) => { window.__vib.push(p); return true; }; },
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      t.equal((await t.state()).settings.haptics, true, 'a new profile on a touch device has Vibration on');
+      const vib = () => t.page.evaluate(() => window.__vib.slice());
+      const clear = () => t.page.evaluate(() => { window.__vib.length = 0; });
+      let s = await t.state();
+      const blocked = s.tiles.find((x) => x.present && !x.free), pair = (() => { const f = s.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i]; return null; })();
+      await clear(); await t.game('act', 'click', pair[0]);
+      t.equal(await vib(), [10], 'picking a tile ticks 10 ms');
+      await clear(); await t.game('act', 'click', blocked.i);
+      t.equal(await vib(), [25], 'a blocked tile gives a longer 25 ms tick');
+      await clear(); await t.game('act', 'click', pair[1]);
+      t.equal(await vib(), [20], 'a match gives 20 ms');
+      // Reduced motion: nothing
+      await t.game('scene', 'settings');
+      await t.page.click('[data-set="motion"] [data-v="reduced"]');
+      await t.page.keyboard.press('Escape');
+      s = await t.state(); const f2 = s.tiles.find((x) => x.present && x.free);
+      await clear(); await t.game('act', 'click', f2.i); await t.game('act', 'click', f2.i);
+      t.equal(await vib(), [], 'with Reduced motion on there is no vibration');
+      await t.game('scene', 'settings');
+      await t.page.click('[data-set="motion"] [data-v="full"]');
+      t.expect(await t.page.locator('#row-haptics').isVisible(), 'Settings shows a Vibration switch');
+      t.equal(await t.page.locator('#se-haptics').getAttribute('aria-pressed'), 'true', 'which reads On');
+      await t.shot('S1-09-settings-vibration');
+      await t.page.click('#se-haptics');
+      t.equal((await t.state()).settings.haptics, false, 'pressing it turns Vibration off');
+      t.equal(await t.page.evaluate(() => JSON.parse(localStorage.getItem('bhm.settings.v1')).haptics), false, 'and the choice is saved');
+      await t.page.keyboard.press('Escape');
+      await clear(); await t.game('act', 'click', f2.i); await t.game('act', 'click', f2.i);
+      t.equal(await vib(), [], 'with the switch off a pick is silent too');
+      await t.game('act', 'solveTo', 0);
+      t.equal(await vib(), [], 'and so is the win');
+    },
+  },
+  {
+    name: 'S1-09: the win has its own pattern when Vibration is on',
+    url: FLAT,
+    viewports: ['mobile'],
+    initScript: () => { window.__vib = []; navigator.vibrate = (p) => { window.__vib.push(p); return true; }; },
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.page.evaluate(() => { window.__vib.length = 0; });
+      await t.game('act', 'solveTo', 0);
+      const v = await t.page.evaluate(() => window.__vib.filter((p) => Array.isArray(p)));
+      t.equal(v.length, 1, 'one pattern for the win');
+      t.expect(v[0].length >= 3 && v[0].every((x) => x >= 15 && x <= 60), 'made of short pulses: ' + JSON.stringify(v[0]));
+    },
+  },
+  {
+    name: 'S1-09: a desktop profile, and a phone profile that already has a save, start with Vibration off; where the browser cannot vibrate there is no switch',
+    url: FLAT,
+    viewports: ['desktop'],
+    initScript: () => { navigator.vibrate = () => true; },
+    async run(t) {
+      t.equal((await t.state()).settings.haptics, false, 'a mouse-and-keyboard profile starts with it off');
+      await t.game('scene', 'settings');
+      t.expect(await t.page.locator('#row-haptics').isVisible(), 'the switch is there (the browser can vibrate)');
+      await t.shot('S1-09-settings-vibration');
+    },
+  },
+  {
+    name: 'S1-09: a phone profile that already has a save keeps today\'s game: Vibration starts off',
+    url: FLAT,
+    viewports: ['mobile'],
+    initScript: () => { navigator.vibrate = () => true; if (!sessionStorage.getItem('seeded')) { sessionStorage.setItem('seeded', '1'); localStorage.setItem('bhm.stats.v1', JSON.stringify({ played: 4, won: 2 })); } },
+    async run(t) {
+      t.equal((await t.state()).settings.haptics, false, 'an existing player does not suddenly get vibration');
+    },
+  },
+  {
+    name: 'S1-09: a browser that cannot vibrate shows no Vibration switch',
+    url: FLAT,
+    viewports: ['desktop'],
+    initScript: () => { try { delete Navigator.prototype.vibrate; } catch (e) { /* kept */ } Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true }); },
+    async run(t) {
+      await t.game('scene', 'settings');
+      t.expect(!(await t.page.locator('#row-haptics').isVisible()), 'no switch');
+      t.equal((await t.state()).settings.haptics, false, 'and the setting is off');
+    },
+  },
+  {
+    name: 'S1-09: a gamepad drives the keyboard path: D-pad and stick move the cursor, A selects, B undoes, X hints, Start pauses; over a card the D-pad moves the focus',
+    url: FLAT,
+    viewports: ['desktop'],
+    initScript: () => {
+      window.__pad = { id: 'test pad', index: 0, connected: true, buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })), axes: [0, 0, 0, 0] };
+      navigator.getGamepads = () => [window.__pad];
+    },
+    async run(t) {
+      await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
+      await t.page.evaluate(() => window.dispatchEvent(new Event('gamepadconnected')));
+      const frames = () => t.page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      const hold = async (set) => { await t.page.evaluate((set) => { for (const [k, v] of Object.entries(set)) { if (k === 'ax') window.__pad.axes[v[0]] = v[1]; else window.__pad.buttons[+k].pressed = v; } }, set); await frames(); };
+      const release = async () => { await t.page.evaluate(() => { for (const b of window.__pad.buttons) b.pressed = false; window.__pad.axes = [0, 0, 0, 0]; }); await frames(); };
+      let s = await t.state();
+      const pr = (() => { const f = s.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i]; return null; })();
+      // D-pad right from no cursor: the cursor appears
+      await t.game('act', 'cursor', -1);
+      await hold({ 15: true });
+      await t.page.waitForFunction(() => window.__game.getState().cursor >= 0, null, { timeout: 5000 }); await release();
+      t.expect((await t.state()).cursor >= 0, 'the D-pad brings up the cursor, as the arrow keys do');
+      await t.game('act', 'cursor', -1);
+      await hold({ ax: [0, 1] });
+      await t.page.waitForFunction(() => window.__game.getState().cursor >= 0, null, { timeout: 5000 }); await release();
+      t.expect((await t.state()).cursor >= 0, 'so does the left stick');
+      // A selects the tile under the cursor, A on its partner takes the pair
+      await t.game('act', 'cursor', pr[0]); await hold({ 0: true }); await t.page.waitForFunction((i) => window.__game.getState().selected === i, pr[0], { timeout: 5000 }); await release();
+      await t.game('act', 'cursor', pr[1]); await hold({ 0: true }); await t.page.waitForFunction((n) => window.__game.getState().tilesLeft === n, s.tilesLeft - 2, { timeout: 5000 }); await release();
+      t.equal((await t.state()).tilesLeft, s.tilesLeft - 2, 'A, A takes a pair');
+      // B undoes it
+      await hold({ 1: true }); await t.page.waitForFunction((n) => window.__game.getState().tilesLeft === n, s.tilesLeft, { timeout: 5000 }); await release();
+      t.equal((await t.state()).tilesLeft, s.tilesLeft, 'B undoes it');
+      // X asks for a hint
+      await hold({ 2: true }); await t.page.waitForFunction(() => window.__game.getState().hints === 1, null, { timeout: 5000 }); await release();
+      t.equal((await t.state()).hints, 1, 'X is Hint');
+      // holding a direction repeats like a held arrow key: it keeps moving, not just once
+      await hold({ 9: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-pause', null, { timeout: 5000 }); await release();
+      t.equal((await t.state()).overlay, 'o-pause', 'Start pauses');
+      // over the pause card the D-pad moves the focus and A presses the focused button
+      const focus0 = await t.page.evaluate(() => document.activeElement.id);
+      await hold({ 13: true }); await t.page.waitForFunction((f) => document.activeElement.id !== f, focus0, { timeout: 5000 }); await release();
+      t.expect((await t.page.evaluate(() => document.activeElement.id)) !== focus0, 'the D-pad moves the focus along the card\'s buttons');
+      await hold({ 12: true }); await t.page.waitForFunction((f) => document.activeElement.id === f, focus0, { timeout: 5000 }); await release();
+      await hold({ 0: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === null, null, { timeout: 5000 }); await release();
+      t.equal((await t.state()).paused, false, 'A on Resume carries on');
+      await hold({ 9: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-pause', null, { timeout: 5000 }); await release();
+      await hold({ 9: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === null, null, { timeout: 5000 }); await release();
+      t.equal((await t.state()).paused, false, 'Start again resumes');
+      await hold({ 9: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-pause', null, { timeout: 5000 }); await release();
+      await hold({ 1: true }); await t.page.waitForFunction(() => window.__game.getState().overlay === null, null, { timeout: 5000 }); await release();
+      t.equal((await t.state()).paused, false, 'and B closes a card');
+    },
+  },
 ];

@@ -379,6 +379,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
     <ul>
       <li><b>Mouse or touch:</b> click or tap tiles. On small screens, <b>Zoom</b> (or spreading two fingers) enlarges the board; drag to look around, and pinch to zoom back out.</li>
       <li><b>Keyboard:</b> <span class="kbd">←</span><span class="kbd">↑</span><span class="kbd">→</span><span class="kbd">↓</span> move, <span class="kbd">Enter</span> or <span class="kbd">Space</span> select, <span class="kbd">H</span> hint, <span class="kbd">S</span> shuffle, <span class="kbd">U</span> undo, <span class="kbd">R</span> redo, <span class="kbd">F</span> free-tile highlight, <span class="kbd">Z</span> zoom, <span class="kbd">P</span> pause, <span class="kbd">Esc</span> menu.</li>
+      <li><b>Gamepad:</b> the D-pad or left stick moves (over a card, it moves between the buttons), <b>A</b> selects, <b>B</b> undoes or closes a card, <b>X</b> hints, <b>Start</b> pauses. On a phone, Settings has a Vibration switch for a small tick on a pick, a match, a blocked tile and a win.</li>
     </ul>
     <p style="font-size:.85rem;color:var(--color-muted)">Tile backs are inspired by the Quapaw Bathhouse's chevron-tiled dome; the real tile colors are not recorded, so the colors here are our own. The tile facts come from Hot Springs history. The title and board names are set in Marcellus, under the SIL Open Font License.</p>
   </div>
@@ -402,6 +403,7 @@ input[type=range]{width:160px;height:44px;accent-color:var(--color-primary)}
 <div class="overlay" id="o-settings" role="dialog" aria-modal="true" aria-labelledby="ose-h"><div class="panel">
   <header><h2 id="ose-h">Settings</h2><button class="iconbtn" data-close aria-label="Close"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
   <div class="body" id="ose-body">
+    <div class="setrow" id="row-haptics" hidden><span class="lbl" id="lb-haptics">Vibration</span><button class="btn small" id="se-haptics" aria-labelledby="lb-haptics" aria-pressed="false">Off</button></div>
     <div class="setrow"><span class="lbl" id="lb-sound">Sound</span><button class="btn small" id="se-sound" aria-labelledby="lb-sound" aria-pressed="true">On</button></div>
     <div class="setrow"><label for="se-vol">Volume</label><input type="range" id="se-vol" min="0" max="100" step="5"></div>
     <div class="setrow"><span class="lbl" id="lb-sfx">Sound effects</span><button class="btn small" id="se-sfx" aria-labelledby="lb-sfx" aria-pressed="true">On</button></div>
@@ -1059,7 +1061,10 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); this.failed = false; return true; } catch (e) { this.failed = true; if (this.ok && this.onFail) this.onFail(); return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* storage unavailable */ } },
 };
-const DEFAULT_SETTINGS = { sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, effects: true, music: true, ambience: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic', difficulty: 'classic' };
+// Vibration (S1-09): on by default only for a new profile on a touch device that can vibrate; a player who already has a save keeps the game as it was
+const FRESH_PROFILE = !store.get('bhm.settings.v1', null) && !store.get('bhm.stats.v1', null) && !store.get('bhm.game.v1', null);
+const HAPTICS_DEFAULT = FRESH_PROFILE && typeof navigator.vibrate === 'function' && !!window.matchMedia && matchMedia('(pointer:coarse)').matches;
+const DEFAULT_SETTINGS = { haptics: HAPTICS_DEFAULT, sound: true, volume: 70, motion: 'auto', theme: 'auto', highlightFree: true, showTimer: true, effects: true, music: true, ambience: true, captions: true, tileset: 'auto', graphics: 'auto', camera: 'classic', difficulty: 'classic' };
 const SETTING_CHOICES = { motion: ['auto', 'full', 'reduced'], theme: ['auto', 'light', 'dark'], tileset: ['auto', 'palm', 'ribbon', 'peacock'], graphics: ['auto', '3d', 'flat'], camera: ['classic', 'tilted', 'top'], difficulty: ['relaxed', 'classic', 'expert'] };
 // Stored settings come from a file anyone can edit: keep only values the game can use, the defaults for the rest
 function cleanSettings(raw) {
@@ -1210,6 +1215,9 @@ setupGoals();
 
 const mqReduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
+// A short tick on the events a touch player would otherwise only see (S1-09): a pick, a match, a blocked tile, a cleared board. Off with Reduced motion.
+const HAPTIC = { select: 10, match: 20, blocked: 25, win: [20, 50, 20, 50, 40] };
+function buzz(pattern) { if (SETTINGS.haptics && typeof navigator.vibrate === 'function' && !reduced()) { try { navigator.vibrate(pattern); } catch (e) { /* the browser refused: no tick */ } } }
 function reduced() { return SETTINGS.motion === 'reduced' || (SETTINGS.motion === 'auto' && mqReduce.matches); }
 function isDark() { return SETTINGS.theme === 'dark' || (SETTINGS.theme === 'auto' && mqDark.matches); }
 
@@ -2503,7 +2511,7 @@ function selectTile(i) {
   AUDIO.unlock();
   if (!S.present[i]) return { selected: S.selected, removed: false };
   if (!free(i)) {
-    anim.shake = { i, start: now() }; AUDIO.thud(tilePan(i));
+    anim.shake = { i, start: now() }; AUDIO.thud(tilePan(i)); buzz(HAPTIC.blocked);
     const why = blockersOf(i); anim.block = { tiles: why.tiles, start: now() };
     setStatus('Blocked: ' + shortName(S.faces[i]) + '. ' + why.text, STATUS_HOLD_MS);
     announce('Blocked tile. ' + why.text);
@@ -2514,7 +2522,7 @@ function selectTile(i) {
     const a = S.selected; doMatch(a, i); return { selected: -1, removed: true };
   }
   const prev = S.selected;
-  S.selected = i; AUDIO.click(tilePan(i));
+  S.selected = i; AUDIO.click(tilePan(i)); buzz(HAPTIC.select);
   const m = META[S.faces[i]];
   if (prev >= 0 && mismatchSaid < MISMATCH_SAID_MAX) { // a free tile that does not match the selected one: say so, the first few times, while the selection moves (S2-08)
     mismatchSaid++; const was = shortName(S.faces[prev]), cur = shortName(S.faces[i]);
@@ -2556,7 +2564,7 @@ function doMatch(a, b, rec) {
   if (!rec) S.redo = [];
   countPlayed();
   const clack = clackDelay();
-  AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2, tileKind(S.faces[a]), clack);
+  AUDIO.match(S.combo, (tilePan(a) + tilePan(b)) / 2, tileKind(S.faces[a]), clack); buzz(HAPTIC.match);
   if (rowNow) AUDIO.row(clack);
   if (!rec) goalsAfterMatch(S.faces[a], S.faces[b], rowNow);
   spawnMatchFx(a, b, pts);
@@ -2804,7 +2812,7 @@ function win() {
   earned.ach = evalAchievements(S.practice ? {} : { win: { hints: S.hints, shuffles: S.shuffles, ms: S.elapsedMs } }); // a replayed Daily Puzzle is practice: it earns nothing but what the records already show
   if (!S.practice) earned.unlocks = evaluateUnlocks();
   saveStats(); store.del('bhm.game.v1');
-  AUDIO.win(clackDelay() + 0.2); AUDIO.setMood('win'); // after the last clack has been seen and heard (S5-07)
+  buzz(HAPTIC.win); AUDIO.win(clackDelay() + 0.2); AUDIO.setMood('win'); // after the last clack has been seen and heard (S5-07)
   if (earned.ach.length || earned.unlocks.length) setTimeout(() => AUDIO.achieve(), (newBest || newBestScore) && !S.practice ? 2600 : 2100);
   if ((newBest || newBestScore) && !S.practice) setTimeout(() => AUDIO.best(), 1500);
   spawnWinFx();
@@ -3772,7 +3780,7 @@ let storageWarned = false; // a full disk is said once with a toast, then the Se
 store.onFail = () => { showStorageNote(); if (storageWarned) return; storageWarned = true; toast("Your progress could not be saved: this browser's storage is full."); announce(STORAGE_FULL); };
 function syncSettingsUI() {
   const onoff = (id, v) => { const b = $(id); b.setAttribute('aria-pressed', String(v)); b.textContent = v ? 'On' : 'Off'; };
-  onoff('se-sound', SETTINGS.sound); onoff('se-sfx', SETTINGS.effects); onoff('se-music', SETTINGS.music); onoff('se-amb', SETTINGS.ambience); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions);
+  onoff('se-sound', SETTINGS.sound); onoff('se-sfx', SETTINGS.effects); onoff('se-music', SETTINGS.music); onoff('se-amb', SETTINGS.ambience); onoff('se-free', SETTINGS.highlightFree); onoff('se-timer', SETTINGS.showTimer); onoff('se-cap', SETTINGS.captions); onoff('se-haptics', SETTINGS.haptics); $('row-haptics').hidden = typeof navigator.vibrate !== 'function';
   $('se-vol').value = SETTINGS.volume;
   { const mute = $('b-mute'), off = !SETTINGS.sound; mute.setAttribute('aria-pressed', String(off)); mute.setAttribute('aria-label', off ? 'Unmute sound' : 'Mute sound'); mute.title = off ? 'Unmute sound' : 'Mute sound'; }
   for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.setAttribute('aria-pressed', String(SETTINGS[g.dataset.set] === b.dataset.v));
@@ -3957,6 +3965,44 @@ function handleKey(key, ev) {
   }
   return false;
 }
+// ---------- gamepad (S1-09): the pad drives the keyboard path the game already has ----------
+// D-pad and left stick = the arrow keys, A = Enter, B = back (closes a card, otherwise Undo), X = Hint, Start = Pause.
+// Over a card or a menu the D-pad moves the focus (Tab and Shift+Tab) and A presses the focused button.
+const PAD = { deadzone: 0.5, first: 380, every: 140, held: {}, next: {}, raf: 0 };
+function padFocusStep(dir) {
+  const top = [...document.querySelectorAll('.overlay.on')].pop(), root = top || document.querySelector('.screen.on') || document.body;
+  const items = [...root.querySelectorAll(TABBABLE)].filter((el) => el.offsetParent !== null && !el.closest('[hidden]'));
+  if (!items.length) return;
+  const at = items.indexOf(document.activeElement), step = dir === 'left' || dir === 'up' ? -1 : 1;
+  items[(at < 0 ? (step > 0 ? 0 : items.length - 1) : (at + step + items.length) % items.length)].focus({ preventScroll: true });
+}
+function padPress(name) {
+  const menu = anyOverlay() || scene !== 'game' || !S;
+  if (name === 'left' || name === 'right' || name === 'up' || name === 'down') { if (menu) padFocusStep(name); else handleKey('Arrow' + name[0].toUpperCase() + name.slice(1)); return; }
+  if (name === 'a') { if (menu) { const el = document.activeElement; if (el && el !== document.body && el.click) el.click(); } else handleKey('Enter'); return; }
+  if (name === 'b') { if (menu) handleKey('Escape'); else handleKey('u'); return; }
+  if (name === 'x') { if (!menu) handleKey('h'); return; }
+  if (name === 'start') { if (anyOverlay()) { if ($('o-pause').classList.contains('on')) handleKey('Escape'); } else if (scene === 'game') pauseGame(); }
+}
+function padPoll() {
+  PAD.raf = 0;
+  const pads = (navigator.getGamepads ? [...navigator.getGamepads()] : []).filter(Boolean);
+  if (!pads.length) return;
+  const nowMs = performance.now(), down = {};
+  for (const p of pads) {
+    const b = (i) => !!(p.buttons[i] && p.buttons[i].pressed), ax = p.axes || [];
+    if (b(12) || ax[1] < -PAD.deadzone) down.up = true; if (b(13) || ax[1] > PAD.deadzone) down.down = true;
+    if (b(14) || ax[0] < -PAD.deadzone) down.left = true; if (b(15) || ax[0] > PAD.deadzone) down.right = true;
+    if (b(0)) down.a = true; if (b(1)) down.b = true; if (b(2)) down.x = true; if (b(9)) down.start = true;
+  }
+  for (const name of ['up', 'down', 'left', 'right', 'a', 'b', 'x', 'start']) {
+    if (down[name] && !PAD.held[name]) { PAD.held[name] = true; PAD.next[name] = nowMs + PAD.first; padPress(name); }
+    else if (down[name] && PAD.held[name] && 'updownleftright'.includes(name) && nowMs >= PAD.next[name]) { PAD.next[name] = nowMs + PAD.every; padPress(name); } // a held direction repeats, like a held arrow key
+    else if (!down[name]) PAD.held[name] = false;
+  }
+  PAD.raf = requestAnimationFrame(padPoll);
+}
+addEventListener('gamepadconnected', () => { if (!PAD.raf) PAD.raf = requestAnimationFrame(padPoll); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Tab' && anyOverlay() && trapTab(e)) { e.preventDefault(); return; }
   if (e.target && (e.target.tagName === 'INPUT') && e.key !== 'Escape') return;
@@ -4072,6 +4118,7 @@ on('se-amb', () => setSetting('ambience', !SETTINGS.ambience));
 on('se-free', () => setSetting('highlightFree', !SETTINGS.highlightFree));
 on('se-timer', () => setSetting('showTimer', !SETTINGS.showTimer));
 on('se-cap', () => setSetting('captions', !SETTINGS.captions));
+on('se-haptics', () => { setSetting('haptics', !SETTINGS.haptics); buzz(HAPTIC.select); });
 $('se-vol').addEventListener('input', (e) => setSetting('volume', +e.target.value));
 for (const g of document.querySelectorAll('[data-set]')) for (const b of g.querySelectorAll('button')) b.addEventListener('click', () => {
   const u = UNLOCK_BY_ID[g.dataset.set + ':' + b.dataset.v];
