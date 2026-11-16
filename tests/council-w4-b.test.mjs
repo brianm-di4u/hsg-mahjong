@@ -449,6 +449,42 @@ export const tests = [
           t.expect(Math.max(...mixes) <= 0.92, 'the busiest moment, with the win in it, at volume 100 peaks at ' + Math.max(...mixes));
         },
       },
+      {
+        name: 'S5-15: a hint that costs points sounds a soft rising question over a low note, not the chime; a free hint keeps the chime',
+        url: FLAT, viewports: ['desktop'], initScript: recorder,
+        async run(t) {
+          const q = await rendered(t, 'cue:hintCost', 5), c = await rendered(t, 'cue:chime', 5);
+          t.expect(q.glide.some((v) => v > 540 && v < 600), 'the hint cue glides up to about 570 Hz: ' + q.glide.map(Math.round).join(', '));
+          t.expect(q.osc.some((v) => v < 110), 'with a low note under it: ' + q.osc.map(Math.round).join(', '));
+          t.expect(!c.glide.some((v) => v > 540 && v < 600) && !c.osc.some((v) => v < 200), 'the chime has neither');
+          const peaks = []; for (let seed = 101; seed <= 107; seed++) peaks.push((await t.game('audioRender', 'cue:hintCost', 3, false, seed)).peak);
+          t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.min(...peaks) >= 0.17, 'it peaks inside the cue range: ' + median(peaks));
+          await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000); await prime(t);
+          const n0 = await cues(t); await t.game('act', 'hint'); const n1 = await cues(t);
+          t.equal((n1.hintCost || 0) - (n0.hintCost || 0), 1, 'a Classic hint (−40) plays the hint-cost cue');
+          t.equal((n1.chime || 0) - (n0.chime || 0), 0, 'and not the chime');
+          await t.game('newGame', { layout: 'pyramid', seed: 22, level: 'relaxed' }); await t.waitIdle(15000);
+          const r0 = await cues(t); await t.game('act', 'hint'); const r1 = await cues(t);
+          t.equal((r1.chime || 0) - (r0.chime || 0), 1, 'a free hint in Relaxed keeps the chime');
+          t.equal((r1.hintCost || 0) - (r0.hintCost || 0), 0, 'and has no penalty cue');
+        },
+      },
+      {
+        name: 'S5-15: a shuffle that costs points adds a faint falling low note after the rattle; a free one does not',
+        url: FLAT, viewports: ['desktop'], initScript: recorder,
+        async run(t) {
+          const s = await rendered(t, 'cue:shuffleCost', 5);
+          t.expect(s.osc.some((v) => v < 130) && s.glide.some((v) => v < 100), 'the cue is a low note that falls: ' + s.osc.map(Math.round).join(', ') + ' / ' + s.glide.map((v) => +v.toFixed(2)).join(', '));
+          const peaks = []; for (let seed = 101; seed <= 107; seed++) peaks.push((await t.game('audioRender', 'cue:shuffleCost', 3, false, seed)).peak);
+          t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.min(...peaks) >= 0.17, 'it peaks inside the cue range: ' + median(peaks));
+          await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000); await prime(t);
+          const a = await cues(t); await t.game('act', 'shuffle'); const b = await cues(t);
+          t.equal([(b.rattle || 0) - (a.rattle || 0), (b.shuffleCost || 0) - (a.shuffleCost || 0)], [1, 1], 'a Classic shuffle (−50) rattles and adds the low note');
+          await t.game('newGame', { layout: 'pyramid', seed: 22, level: 'relaxed' }); await t.waitIdle(15000);
+          const c = await cues(t); await t.game('act', 'shuffle'); const d = await cues(t);
+          t.equal([(d.rattle || 0) - (c.rattle || 0), (d.shuffleCost || 0) - (c.shuffleCost || 0)], [1, 0], 'a free shuffle in Relaxed only rattles');
+        },
+      },
     ];
   })(),
 ];

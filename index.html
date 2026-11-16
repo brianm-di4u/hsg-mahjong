@@ -1573,7 +1573,7 @@ const CUE_GAIN = 1;                   // every cue passes through this: the one 
 const MASTER_AT_70 = 0.7 * 0.5;       // the master level the game ships with (volume 70)
 
 // ----- cues: synthesized, each call a little different (detune, level and noise offset) -----
-const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve', 'comboEnd'];
+const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle', 'deal', 'undo', 'stuck', 'dead', 'best', 'win', 'pause', 'resume', 'zoomIn', 'zoomOut', 'tick', 'achieve', 'comboEnd', 'hintCost', 'shuffleCost'];
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
 // The match note climbs the pentatonic for two octaves and a bit: combo 0 is the first entry, combo 11 the last (S5-10). It was PENTA, which stopped at combo 6.
 const COMBO_NOTES = PENTA.concat([PENTA[2], PENTA[3], PENTA[4], PENTA[5], PENTA[6]].map((f) => f * 2));
@@ -1599,7 +1599,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4, hintCost: 3.8, shuffleCost: 3.6 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
@@ -1645,6 +1645,10 @@ function makeCues(c, dest, jit) {
       for (let i = 0; i < 12; i++) tone(PENTA[(i * 3) % 7] * 4, t + 0.55 + i * 0.18 + ((i * 0.618) % 1) * 0.08, 0.2, 'sine', 0.025, 0, ((i * 0.618) % 1) * 1.2 - 0.6);
       noise(t + 1.6, 1.1, 5200, 0.6, 0.07, 'highpass', 0.3);
     },
+    // What a hint that costs points sounds like: a soft question that rises and does not resolve, over a faint low note (S5-15). A free hint keeps the chime.
+    hintCost(t) { begin('hintCost'); tone(392, t, 0.3, 'sine', 0.3, 1.45); tone(588, t + 0.2, 0.12, 'sine', 0.05, 0.97); tone(98, t + 0.1, 0.34, 'sine', 0.2, 0.9); },
+    // After the rattle of a shuffle that costs points: the same faint low note, falling
+    shuffleCost(t, delay = 0.38) { begin('shuffleCost'); tone(110, t + delay, 0.36, 'sine', 0.3, 0.82); tone(165, t + delay, 0.2, 'triangle', 0.05, 0.85); },
     pause(t) { begin('pause'); tone(520, t, 0.14, 'sine', 0.3, 0.75); noise(t, 0.05, 1200, 2, 0.3); },
     resume(t) { begin('resume'); tone(440, t, 0.16, 'sine', 0.3, 1.5); noise(t, 0.05, 1800, 2, 0.3); },
     zoomIn(t) { begin('zoomIn'); noise(t, 0.28, 500, 1.2, 0.5, 'bandpass', 0.1, 0, 2600); },
@@ -1715,7 +1719,7 @@ const AUDIO = (() => {
   const api = {
     unlock: guard(() => { ensure(); }),
     click: cue('click'), deselect: cue('deselect'), thud: cue('thud'), chime: cue('chime'), rattle: cue('rattle'),
-    deal: cue('deal'), undo: cue('undo'), stuck: cue('stuck'), dead: cue('dead'), pauseCue: cue('pause'), resumeCue: cue('resume'),
+    deal: cue('deal'), hintCost: cue('hintCost'), shuffleCost: cue('shuffleCost'), undo: cue('undo'), stuck: cue('stuck'), dead: cue('dead'), pauseCue: cue('pause'), resumeCue: cue('resume'),
     match: cue('match'),
     row: cue('row', () => kit.music.duck(5, 900)),
     best: cue('best', () => kit.music.duck(4, 800)),
@@ -2689,7 +2693,7 @@ function hint() {
   anim.hint = pr; anim.hintPaid = true; anim.hintUntil = now() + 8000; // until a match, or 8 s
   if (view.zoom) panTo(pr); // keep the hinted pair on screen when zoomed in
   S.selected = -1;
-  AUDIO.chime();
+  if (lv().hintCost) AUDIO.hintCost(); else AUDIO.chime(); // a hint that costs points does not sound like a prize (S5-15)
   const m = META[S.faces[pr[0]]];
   setStatus((guess ? 'Hint (best guess): match the two highlighted ' : 'Hint: match the two highlighted ') + m.name.split(':')[0] + ' tiles' + (lv().hintCost ? ' (−' + lv().hintCost + ').' : '.'), STATUS_HOLD_MS);
   S.cursor = pr[0]; // the keyboard cursor jumps to the pair, so Enter takes its first tile and the arrows find the other
@@ -2713,7 +2717,7 @@ function shuffle(force) {
   S.status = 'playing';
   closeOverlay('o-stuck'); resetStuckDialog();
   anim.shuffleAt = reduced() ? 0 : now();
-  AUDIO.rattle();
+  AUDIO.rattle(); if (!force && lv().shuffleCost) AUDIO.shuffleCost();
   setStatus('Shuffled: the remaining tiles are in a new order that can still be cleared' + (lv().shuffleCost && !force ? ' (−' + lv().shuffleCost + ').' : '.'), STATUS_HOLD_MS);
   announce('Tiles shuffled');
   afterMove(); kick();

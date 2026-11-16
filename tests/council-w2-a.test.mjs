@@ -270,7 +270,7 @@ export const tests = [
       t.expect((await n('thud')) >= 1, 'a blocked tile thuds');
       // match, undo, hint, shuffle
       const pr = await t.game('act', 'hint');
-      t.expect((await n('chime')) >= 1, 'a hint chimes');
+      t.expect((await n('hintCost')) >= 1 && (await n('chime')) === 0, 'a hint that costs points sounds its own soft question, not the chime (S5-15)');
       await t.game('act', 'match', pr[0], pr[1]);
       t.expect((await n('match')) >= 1, 'a match sounds');
       const m = await n('click');
