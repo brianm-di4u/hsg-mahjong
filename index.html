@@ -1577,6 +1577,7 @@ const CUE_NAMES = ['click', 'deselect', 'match', 'row', 'thud', 'chime', 'rattle
 const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
 // The match note climbs the pentatonic for two octaves and a bit: combo 0 is the first entry, combo 11 the last (S5-10). It was PENTA, which stopped at combo 6.
 const COMBO_NOTES = PENTA.concat([PENTA[2], PENTA[3], PENTA[4], PENTA[5], PENTA[6]].map((f) => f * 2));
+const COMBO_FIFTH_AT = 3; // from this combo a match adds a voice a fifth above its note
 const MATCH_BODY = [95, 120, 150, 185, 220]; // the body of a match clack, Hz, by suit
 function makeCues(c, dest, jit) {
   const nb = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), nd = nb.getChannelData(0);
@@ -1598,7 +1599,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.8, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4 };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },
@@ -1613,6 +1614,7 @@ function makeCues(c, dest, jit) {
       noise(c0, 0.06, 1900 * (0.94 + 0.12 * u), 4, 0.8, 'bandpass', 0.004, pan); noise(c0 + 0.07, 0.06 * (0.9 + 0.2 * w), 1600 * (0.94 + 0.12 * w), 4, 0.75, 'bandpass', 0.004, pan);
       const f = COMBO_NOTES[Math.min(combo, COMBO_NOTES.length - 1)], k = Math.max(0, Math.min(4, kind | 0));
       tone(f, c0 + 0.08, 0.3 + 0.1 * w, k % 2 ? 'sine' : 'triangle', k % 2 ? 0.34 : 0.3, 0, pan); tone(f * 2, c0 + 0.1, 0.25, 'sine', 0.09, 0, pan); tone(f / 4, c0 + 0.07, 0.18, 'sine', 0.22, 0.8, pan);
+      if (combo >= COMBO_FIFTH_AT) tone(f * 1.5, c0 + 0.1, 0.24, 'sine', 0.1, 0, pan); // a second voice a fifth above once a chain is running (S1-22)
       tone(MATCH_BODY[k], c0, 0.05, 'sine', 0.16, 0.85, pan); // the wooden body of the clack
     },
     row(t, delay = 0) { begin('row'); t += delay; [0, 2, 3, 5].forEach((k, i) => { tone(PENTA[k], t + i * 0.1, 0.55, 'triangle', 0.22); tone(PENTA[k] * 2, t + i * 0.1 + 0.02, 0.4, 'sine', 0.08); }); noise(t + 0.1, 1.1, 5600, 0.7, 0.22, 'highpass', 0.25); },
@@ -1636,6 +1638,12 @@ function makeCues(c, dest, jit) {
       tone(PENTA[0] / 2, t + 0.6, 1.6, 'triangle', 0.14);
       tone(PENTA[5], t + 0.86, 0.7, 'sine', 0.06); tone(PENTA[6], t + 1.12, 0.7, 'sine', 0.04);
       noise(t + 0.2, 1.8, 4800, 0.6, 0.2, 'highpass', 0.4);
+      // The second bar (S1-22, S4-21): a bass note under it all, an answer to the climb that comes home on the first note of the scale, and a
+      // shimmer of small high bells like water drops over the last two seconds, so the flourish holds for about 2.7 s.
+      tone(PENTA[0] / 4, t + 0.6, 2.1, 'sine', 0.2); tone(PENTA[0] / 2, t + 1.9, 0.8, 'sine', 0.06);
+      [[5, 1.45], [3, 1.62], [2, 1.79], [0, 1.96]].forEach(([k, d], i) => { tone(PENTA[k], t + d, i === 3 ? 1.0 : 0.5, 'triangle', 0.16); tone(PENTA[k] * 1.5, t + d + 0.01, i === 3 ? 0.8 : 0.3, 'sine', 0.05); });
+      for (let i = 0; i < 12; i++) tone(PENTA[(i * 3) % 7] * 4, t + 0.55 + i * 0.18 + ((i * 0.618) % 1) * 0.08, 0.2, 'sine', 0.025, 0, ((i * 0.618) % 1) * 1.2 - 0.6);
+      noise(t + 1.6, 1.1, 5200, 0.6, 0.07, 'highpass', 0.3);
     },
     pause(t) { begin('pause'); tone(520, t, 0.14, 'sine', 0.3, 0.75); noise(t, 0.05, 1200, 2, 0.3); },
     resume(t) { begin('resume'); tone(440, t, 0.16, 'sine', 0.3, 1.5); noise(t, 0.05, 1800, 2, 0.3); },
@@ -1711,7 +1719,7 @@ const AUDIO = (() => {
     match: cue('match'),
     row: cue('row', () => kit.music.duck(5, 900)),
     best: cue('best', () => kit.music.duck(4, 800)),
-    win: cue('win', () => kit.music.duck(8, 2800)),
+    win: cue('win', () => kit.music.duck(8, 3200)),
     zoom: guard((on) => { if (!ensure()) return; const n = on ? 'zoomIn' : 'zoomOut'; played[n] = (played[n] || 0) + 1; cues[n](ac.currentTime); }),
     achieve: cue('achieve', () => kit.music.duck(4, 700)),
     comboEnd: cue('comboEnd'),

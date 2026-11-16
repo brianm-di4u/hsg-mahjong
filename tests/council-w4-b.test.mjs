@@ -401,4 +401,54 @@ export const tests = [
       t.equal((await t.state()).paused, false, 'and B closes a card');
     },
   },
+  ...(() => {
+    const recorder = () => {
+      window.__rec = null;
+      const log = (k, v) => { if (window.__rec) window.__rec.push({ k, v }); };
+      const co = BaseAudioContext.prototype.createOscillator;
+      BaseAudioContext.prototype.createOscillator = function () { const o = co.call(this), f = o.frequency.setValueAtTime.bind(o.frequency), r = o.frequency.exponentialRampToValueAtTime.bind(o.frequency); o.frequency.setValueAtTime = (v, t) => { log('osc', v); return f(v, t); }; o.frequency.exponentialRampToValueAtTime = (v, t) => { log('glide', v); return r(v, t); }; return o; };
+    };
+    const rendered = (t, name, seed) => t.page.evaluate(async ([name, seed]) => { window.__rec = []; const r = await window.__game.audioRender(name, 4, false, seed); const rec = window.__rec; window.__rec = null; return { r, osc: rec.filter((e) => e.k === 'osc').map((e) => e.v), glide: rec.filter((e) => e.k === 'glide').map((e) => e.v) }; }, [name, seed]);
+    const near = (list, hz, tol = 0.04) => list.some((v) => Math.abs(v / hz - 1) < tol);
+    const LADDER = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1568, 1760, 2093, 2349.32];
+    const prime = async (t) => { const f = (await t.state()).tiles.find((x) => x.present && x.free); await t.game('act', 'click', f.i); await t.game('act', 'click', f.i); };
+    const cues = (t) => t.game('audioState').then((s) => s.cues);
+    return [
+      {
+        name: 'S1-22: from the third chained pair the match note has a second voice a fifth above it; the level stays in the cue range',
+        url: FLAT, viewports: ['desktop'], initScript: recorder,
+        async run(t) {
+          for (const c of [0, 2, 3, 6, 11]) {
+            const has = []; for (let seed = 1; seed <= 3; seed++) has.push(near((await rendered(t, 'cue:match:' + c, seed)).osc, LADDER[c] * 1.5, 0.04));
+            t.expect(c >= 3 ? has.every(Boolean) : !has.some(Boolean), 'combo ' + c + (c >= 3 ? ' has' : ' does not have') + ' a voice at 3/2 of ' + LADDER[c] + ' Hz');
+          }
+          for (const c of [2, 3, 11]) {
+            const peaks = []; for (let seed = 1; seed <= 7; seed++) peaks.push((await t.game('audioRender', 'cue:match:' + c, 2, false, seed)).peak);
+            t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.min(...peaks) >= 0.17 && Math.max(...peaks) <= 0.48, 'combo ' + c + ' peaks at a median of ' + median(peaks) + ' (' + Math.min(...peaks) + ' to ' + Math.max(...peaks) + ')');
+          }
+          let worst = 0; for (let seed = 1; seed <= 8; seed++) worst = Math.max(worst, (await t.game('audioRender', 'cue:match:11', 2, false, seed, 100)).peak);
+          t.expect(worst <= 0.92, 'a combo 11 match at volume 100 peaks at ' + worst);
+        },
+      },
+      {
+        name: 'S1-22, S4-21: the win lasts about 2.7 s with a bass note, a second phrase that comes home and a shimmer; it keeps its level and the busiest moment stays under the ceiling',
+        url: FLAT, viewports: ['desktop'], initScript: recorder,
+        async run(t) {
+          const seeds = [101, 102, 103], runs = []; for (const s of seeds) runs.push(await rendered(t, 'cue:win', s));
+          for (const x of runs) {
+            t.expect(x.r.secs[2] >= 0.005, 'the win is still sounding between 2 and 3 s in (RMS ' + x.r.secs[2] + '; it was 0.0001 before the second bar)');
+            t.expect(x.r.secs[3] < 0.002, 'and has finished by 3 s (RMS of the fourth second ' + x.r.secs[3] + ')');
+            t.expect(near(x.osc, 130.8, 0.04), 'a bass note at 130 Hz sits under it');
+            t.expect(near(x.osc, 523.25 * 4, 0.04) || near(x.osc, 783.99 * 4, 0.04), 'and the shimmer rings two octaves above the scale');
+          }
+          const peaks = [], rms = [], matches = [];
+          for (let seed = 101; seed <= 120; seed++) { const w = await t.game('audioRender', 'cue:win', 3, false, seed), m = await t.game('audioRender', 'cue:match', 3, false, seed); peaks.push(w.peak); rms.push(w.rmsDb); matches.push(m.rmsDb); }
+          t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.max(...peaks.slice(0, 7)) <= 0.45, 'its peak stays in the cue range: median ' + median(peaks));
+          t.expect(median(rms) >= median(matches) + 4, 'and its body is well over a match (' + median(rms) + ' dB against ' + median(matches) + ' dB)');
+          const mixes = []; for (let k = 0; k < 5; k++) mixes.push((await t.game('audioRender', 'mix', 8, false, 201 + k, 100)).peak);
+          t.expect(Math.max(...mixes) <= 0.92, 'the busiest moment, with the win in it, at volume 100 peaks at ' + Math.max(...mixes));
+        },
+      },
+    ];
+  })(),
 ];
