@@ -2538,25 +2538,12 @@ function doMatch(a, b, rec) {
   const m = META[S.faces[a]];
   setStatus('Matched ' + m.name + (S.combo ? '  ·  combo ×' + (S.combo + 1) : '') + '  (+' + pts + ')', STATUS_HOLD_MS);
   announce('Matched ' + m.name + '. ' + tilesLeft() + ' tiles left.');
-  if (!rec) tellStory(S.faces[a]);
   if (rowNow) toast('Bathhouse Row complete! The last tile was the ' + BATHHOUSES[S.faces[a] - 9][1] + '. +100');
   afterMove();
   if (S.winnable === false) noteDead();
   return true;
 }
 
-// The story follows the "Matched" line once it has been read (S2-19): a Bathhouse pair brings a "Did you know?" from the sourced
-// facts, any other pair its own tile story. Anything the player does in between (a tap, a hint) replaces the line and cancels it.
-const STORY_HOLD_MS = 4500;
-let storyTimer = 0;
-function tellStory(face) {
-  clearTimeout(storyTimer);
-  const mine = statusSeq, seed = S.seed, n = S.history.length, m = META[face];
-  storyTimer = setTimeout(() => {
-    if (!S || S.seed !== seed || S.status !== 'playing' || statusSeq !== mine || scene !== 'game' || paused) return;
-    setStatus(face >= 9 && face < 18 && FACTS.length ? 'Did you know? ' + FACTS[(seed + n * 7) % FACTS.length].e : m.name + ': ' + m.fact, STORY_HOLD_MS);
-  }, STATUS_HOLD_MS);
-}
 // Achievements and the tile stories earned by a pair: a short banner for each, never a pause
 function goalsAfterMatch(fa, fb, rowNow) {
   freshenStats();
@@ -3398,8 +3385,7 @@ setInterval(() => { if (scene === 'game' && S && S.status === 'playing') { kick(
 // Results (match, hint, shuffle) stay on the strip for a moment: hovering a tile must not wipe them at once.
 const STATUS_HOLD_MS = 2500;
 let statusHoldUntil = 0;
-let statusSeq = 0; // counts every status line, so a delayed line can tell that nothing newer has replaced the one it follows
-function setStatus(txt, holdMs) { statusSeq++; $('status-text').textContent = txt; statusHoldUntil = holdMs ? performance.now() + holdMs : 0; }
+function setStatus(txt, holdMs) { $('status-text').textContent = txt; statusHoldUntil = holdMs ? performance.now() + holdMs : 0; }
 let toastTimer = 0, toastBusyUntil = 0;
 function toast(txt) {
   const el = $('toast'); el.textContent = txt; el.classList.add('on');
@@ -4156,6 +4142,7 @@ window.__game = {
       case 'advance': S.elapsedMs += a[0]; return Math.round(S.elapsedMs); // move the game clock (combo windows, best times)
       case 'tileAt': { const r = canvas.getBoundingClientRect(); return tileAt(a[0] - r.left, a[1] - r.top, a[2] || 0); }
       case 'screenCenter': return screenCenter(a[0]);
+      case 'spot': return spotText(a[0]); // test: the place a screen reader is told for tile a[0]
       case 'cursor': S.cursor = a[0]; kbActive = true; markDirty(); return S.cursor;
       case 'boardFits': { // every tile's projected top face lies inside the board area
         let out = 0; for (let i = 0; i < G.n; i++) { const [x, y] = screenCenter(i); if (x < 0 || y < 0 || x > view.cssW || y > view.cssH) out++; }

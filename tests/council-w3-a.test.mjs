@@ -1,4 +1,4 @@
-// Council wave 3, batch A: saves and lifecycle, controls, rules and play (S1-04, S4-26, S6-05, P-N01, S4-01, S1-10, S2-09, S3-17, S1-03, S2-19).
+// Council wave 3, batch A: saves and lifecycle, controls, rules and play (S1-04, S4-26, S6-05, P-N01, S4-01, S1-10, S2-09, S3-17, S1-03; S2-19 was dropped in wave 4 by C4-05, see council-w4-a).
 // Tests read the game's state through window.__game; animations are held still with animAt so nothing depends on timing.
 const URL = 'index.html?gl=0';
 const stored = (t, k) => t.page.evaluate((k) => { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }, k);
@@ -316,11 +316,11 @@ export const tests = [
   },
   {
     name: 'S1-03: Zoom glides in 3D (over 160 ms, ending on the zoomed view) and snaps under reduced motion',
-    url: 'index.html',
+    url: 'index.html?gl=1', // 3D forced: the glide is a 3D effect, and a machine that cannot draw it must fail here, not pass without a check
     viewports: ['desktop', 'mobile'],
     async run(t) {
       await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
-      if ((await t.state()).gfx !== '3d') { t.log('no 3D here: the glide is a 3D effect'); return; }
+      if ((await t.state()).gfx !== '3d') { t.fail('this test needs 3D tiles and the page is drawing ' + (await t.state()).gfx + ': run it with a GPU (HS_GPU=1)'); return; }
       // read inside one synchronous call, so nothing depends on how fast the frames come
       const r = await t.page.evaluate(() => {
         const g = window.__game, before = g.act('screenCenter', 0), w0 = g.getState().tileW;
@@ -367,21 +367,20 @@ export const tests = [
       await t.game('act', 'coast', 0.5, 0);
       await t.game('newGame', { layout: 'pyramid', seed: 22 });
       t.equal((await t.state()).gliding, false, 'a new game ends a glide');
-      // a real drag with the mouse: release while still moving, and the board carries on (the drag is retried if the tool stalls)
+      // a real drag with the mouse: release while still moving, and the board carries on. The mouse events carry their own times (CDP timestamp),
+      // 10 ms apart, so a stall in this tool cannot make the finger look like it rested before it lifted.
       await t.waitIdle(15000);
       await t.game('act', 'zoom', true); await t.waitIdle(15000);
-      let moved = false;
-      for (let attempt = 0; attempt < 3 && !moved; attempt++) {
-        const c = await t.game('act', 'tileCenter', 40), p0 = (await t.state()).panX;
-        await t.page.mouse.move(c.x, c.y); await t.page.mouse.down();
-        for (let k = 1; k <= 6; k++) await t.page.mouse.move(c.x - k * 12, c.y); // 72 px to the left
-        await t.page.mouse.up();                                              // straight after the last move: still moving
-        await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
-        const p1 = (await t.state()).panX;
-        if (p0 - p1 > 72 + 5) moved = true;                                   // further than the drag itself: it glided
-        else { await t.game('act', 'zoom', false); await t.game('act', 'zoom', true); await t.waitIdle(15000); }
-      }
-      t.expect(moved, 'a quick drag released while moving carries on');
+      const cdp = await t.page.context().newCDPSession(t.page);
+      const c = await t.game('act', 'tileCenter', 40), q0 = (await t.state()).panX, ts0 = Date.now() / 1000;
+      const ev = (type, x, k, extra) => cdp.send('Input.dispatchMouseEvent', Object.assign({ type, x, y: c.y, timestamp: ts0 + k * 0.01, button: 'left' }, extra));
+      await ev('mouseMoved', c.x, 0, { button: 'none' });
+      await ev('mousePressed', c.x, 0, { buttons: 1, clickCount: 1 });
+      for (let k = 1; k <= 6; k++) await ev('mouseMoved', c.x - k * 12, k, { buttons: 1 }); // 72 px to the left
+      await ev('mouseReleased', c.x - 72, 7, { buttons: 0, clickCount: 1 });                // 10 ms after the last move: still moving
+      await t.page.waitForFunction(() => !window.__game.getState().gliding, null, { timeout: 15000 });
+      const q1 = (await t.state()).panX;
+      t.expect(q0 - q1 > 72 + 5, 'a quick drag released while moving carries on: the board went ' + Math.round(q0 - q1) + ' px for a 72 px drag');
     },
   },
   {
@@ -398,43 +397,6 @@ export const tests = [
       t.expect(true, 'the first tap on Zoom after a touch drag zooms in');
       await t.waitIdle(15000);
       await t.shot('S1-03-touch-zoom');
-    },
-  },
-  // ------------------------------------------------------------------ S2-19
-  {
-    name: 'S2-19: after a match its story follows the Matched line: a Bathhouse pair brings a Did you know, any other pair its own tile story',
-    url: URL,
-    viewports: ['desktop', 'mobile'],
-    async run(t) {
-      const facts = await t.page.evaluate(() => JSON.parse(document.getElementById('facts').textContent).map((f) => f.e));
-      t.expect(facts.length > 100, 'the game carries its sourced facts (' + facts.length + ')');
-      // a deal (the first of a fixed run of seeds) with a free Bathhouse pair and a free pair of another kind
-      let bath = null, other = null;
-      for (let seed = 1; seed < 40 && !(bath && other); seed++) {
-        await t.game('newGame', { layout: 'pyramid', seed }); await t.waitIdle(15000);
-        const s = await t.state(), f = s.tiles.filter((x) => x.present && x.free);
-        bath = null; other = null;
-        for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) { if (f[a].f >= 9 && f[a].f < 18) bath = bath || [f[a].i, f[b].i, f[a].f]; else if (f[a].f < 9) other = other || [f[a].i, f[b].i, f[a].f]; }
-      }
-      t.expect(!!(bath && other), 'found a deal with both kinds of pair');
-      await t.game('act', 'match', bath[0], bath[1]);
-      t.expect(/^Matched Bathhouse/.test((await t.state()).status), 'first the Matched line: ' + (await t.state()).status);
-      await t.page.waitForFunction(() => /^Did you know[?] /.test(window.__game.getState().status), null, { timeout: 15000 });
-      const line = (await t.state()).status;
-      t.expect(facts.includes(line.replace('Did you know? ', '')), 'then a Did you know from the sourced facts: ' + line);
-      await t.shot('S2-19-did-you-know');
-      const names = await t.game('act', 'faceMeta');
-      await t.game('act', 'match', other[0], other[1]);
-      await t.page.waitForFunction((n) => window.__game.getState().status.startsWith(n + ': '), names[other[2]].name, { timeout: 15000 });
-      t.expect(true, 'a Springs pair brings its own story: ' + (await t.state()).status);
-      // doing something else in between keeps the story back
-      const s2 = await t.state(), pr = (() => { const f = s2.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i]; return null; })();
-      await t.game('act', 'match', pr[0], pr[1]);
-      const free = (await t.state()).tiles.find((x) => x.present && x.free && x.i !== pr[0] && x.i !== pr[1]);
-      await t.game('act', 'click', free.i);
-      const picked = (await t.state()).status;
-      await t.page.waitForTimeout(3000); // longer than the Matched line is held
-      t.equal((await t.state()).status, picked, 'a tap before the story arrives keeps its own line');
     },
   },
 ];

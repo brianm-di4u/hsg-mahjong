@@ -81,8 +81,10 @@ export const tests = [
       await t.page.waitForFunction(() => document.getElementById('h-combo').classList.contains('on'), null, { timeout: 15000 });
       await t.game('act', 'advance', 5000); await bar();
       t.equal((await cues(t)).comboEnd, 1, 'a chain of four ends with the blip');
+      // the clock readout and the combo check run in the same 250 ms tick: once the readout has moved on by the 5 s, the check has run
+      const clock = await t.page.evaluate(() => document.getElementById('h-time').textContent);
       await t.game('act', 'advance', 5000);
-      await t.page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
+      await t.page.waitForFunction((c) => document.getElementById('h-time').textContent !== c, clock, { timeout: 15000 });
       t.equal((await cues(t)).comboEnd, 1, 'and it does not sound again while the board waits');
     },
   },

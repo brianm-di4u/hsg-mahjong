@@ -69,16 +69,17 @@ export const tests = [
   },
   {
     name: 'S1-02: on the 3D board the clack waits for the tiles to meet (66% of the flight)',
-    url: 'index.html',
+    url: 'index.html?gl=1', // 3D forced: a machine that falls back to flat tiles must fail here, not pass the flat expectation
     viewports: ['desktop', 'mobile'],
     initScript: recorder,
     async run(t) {
       await t.game('newGame', { layout: 'pyramid', seed: 21 }); await t.waitIdle(15000);
       const gfx = (await t.state()).gfx;
+      if (gfx !== '3d') { t.fail('this test needs 3D tiles and the page is drawing ' + gfx + ': run it with a GPU (HS_GPU=1)'); return; }
       await prime(t);
       const pr = freePair(await t.state());
       const r = await live(t, (a, b) => window.__game.act('match', a, b), pr[0], pr[1]), p = rel(r.rec);
-      const want = (gfx === '3d' ? FLY_MS * 0.66 / 1000 : 0.3) - 0.02;
+      const want = FLY_MS * 0.66 / 1000 - 0.02;
       t.expect(Math.abs((p.src[1] - p.base) - want) < 0.002, 'the clack comes ' + (want + 0.02).toFixed(3) + ' s after the tap on the ' + gfx + ' board: ' + (p.src[1] - p.base).toFixed(3));
     },
   },
