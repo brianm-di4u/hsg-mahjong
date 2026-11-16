@@ -68,4 +68,27 @@ export const tests = [
       t.equal((await timers(t)).streak.length, 1, 'the fourth does not');
     },
   },
+  // ------------------------------------------------------------------ C4-08
+  {
+    name: 'C4-08: on a phone the first-game card is a short strip with its text and both buttons; on a desktop it is as it was',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await t.game('newGame', { layout: t.viewport === 'mobile' ? 'terraces' : 'pyramid', seed: 21, level: 'classic' }); await t.waitIdle(15000);
+      const m = await t.page.evaluate(() => {
+        const c = document.getElementById('coach'), r = c.getBoundingClientRect(), w = document.getElementById('board-wrap').getBoundingClientRect(), ok = document.getElementById('coach-ok').getBoundingClientRect(), help = document.getElementById('coach-help').getBoundingClientRect();
+        return { hidden: c.hidden, h: r.height, wrapH: w.height, inside: r.left >= w.left - 1 && r.right <= w.right + 1 && r.bottom <= w.bottom + 1, okH: ok.height, helpH: help.height, okW: ok.width, text: c.textContent, scrolls: c.scrollWidth > c.clientWidth + 1, font: parseFloat(getComputedStyle(c).fontSize) };
+      });
+      t.expect(!m.hidden && /Tap a bright tile, then its twin/.test(m.text) && /Any Flower matches any Flower/.test(m.text) && /Got it/.test(m.text) && /How to Play/.test(m.text), 'the text and both buttons are kept');
+      t.expect(m.inside && !m.scrolls, 'nothing is cut off');
+      t.expect(m.okH >= 44 && m.helpH >= 44 && m.okW >= 44, 'the buttons keep a 44 px target (' + Math.round(m.okH) + ' high)');
+      if (t.viewport === 'mobile') {
+        // the card as it was before C4-08, restated: it is the baseline the new strip is measured against
+        const before = await t.page.evaluate(() => { const st = document.createElement('style'); st.textContent = '.coach{bottom:10px!important;padding:var(--space-3) var(--space-4)!important;font-size:.9rem!important;line-height:1.35!important}.coach p{margin:0 0 var(--space-2)!important}.coach .coachbtns{gap:var(--space-3)!important}.coach .btn.small{padding:0 var(--space-4)!important;font-size:.9rem!important}'; document.head.appendChild(st); const h = document.getElementById('coach').getBoundingClientRect().height; st.remove(); return h; });
+        t.expect(m.h <= 0.82 * before, 'the card is at least 18% shorter than before: ' + Math.round(m.h) + ' px against ' + Math.round(before) + ' px');
+        t.expect(m.h <= 0.18 * m.wrapH, 'and takes at most 18% of the board area (' + Math.round(m.h) + ' of ' + Math.round(m.wrapH) + ' px)');
+        t.expect(m.font >= 12, 'its text stays readable (' + m.font + ' px)');
+      } else t.expect(Math.abs(m.font - 14.4) < 0.6, 'the desktop card keeps its text size (' + m.font + ' px)');
+      await t.shot('C4-08-coach');
+    },
+  },
 ];
