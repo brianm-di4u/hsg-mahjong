@@ -28,7 +28,7 @@ const TESTS = [
 
       await t.page.click('#b-play');
       t.equal((await t.state()).scene, 'layouts', 'Play opens the layout picker');
-      t.equal(await t.page.locator('.card').count(), 18, 'eighteen layout cards (seven originals and eleven shorter or newer boards)');
+      t.equal(await t.page.locator('.card').count(), 20, 'twenty layout cards (seven originals, eleven shorter or newer boards and two of wave 4b)');
       await t.shot('01-layouts', { fullPage: true });
       await t.checkLayout();
 

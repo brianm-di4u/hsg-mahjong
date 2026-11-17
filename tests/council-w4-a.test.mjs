@@ -43,7 +43,7 @@ export const tests = [
     viewports: ['desktop'],
     async run(t) {
       const ids = await t.page.evaluate(() => { window.__game.scene('layouts'); return [...document.querySelectorAll('#cards .card')].map((c) => c.dataset.layout); });
-      t.equal(ids.length, 18, 'the picker lists 18 layouts');
+      t.equal(ids.length, 20, 'the picker lists 20 layouts');
       for (const id of ids) {
         await t.game('newGame', { layout: id, seed: 3 }); await t.waitIdle(15000);
         const s = await t.state();

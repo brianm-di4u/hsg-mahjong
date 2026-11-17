@@ -217,7 +217,7 @@ export const tests = [
       await t.game('scene', 'layouts'); await t.waitIdle(15000);
       t.expect(/^"?Marcellus/.test(await fam('.card b')), 'the board names are in Marcellus: ' + await fam('.card b'));
       const cards = await t.page.evaluate(() => [...document.querySelectorAll('.card')].map((c) => { const b = c.querySelector('b'), r = c.getBoundingClientRect(), q = b.getBoundingClientRect(); return { id: c.dataset.layout, ok: q.left >= r.left - 1 && q.right <= r.right + 1 && b.scrollWidth <= b.clientWidth + 1, lines: Math.round(q.height / parseFloat(getComputedStyle(b).lineHeight === 'normal' ? parseFloat(getComputedStyle(b).fontSize) * 1.2 : getComputedStyle(b).lineHeight)) }; }));
-      t.expect(cards.length === 18 && cards.every((c) => c.ok), 'every board name stays inside its card: ' + JSON.stringify(cards.filter((c) => !c.ok)));
+      t.expect(cards.length === 20 && cards.every((c) => c.ok), 'every board name stays inside its card: ' + JSON.stringify(cards.filter((c) => !c.ok)));
       await t.shot('S4-11-layouts-font', { fullPage: false });
       // a name that fits the top bar in the old stack still fits in Marcellus (on a 390 px phone the same nine long names are cut in both)
       const worse = [];
