@@ -39,8 +39,8 @@ Out of scope for v1: the 4-player traditional mahjong mode (stretch goal; see §
 | Combo (a match within 4 s of the previous one) | +5 × combo level, capped at +25 |
 | Clearing all 36 Bathhouse tiles | +100 one time ("Bathhouse Row complete") |
 | Clearing every Springs tile, and every Lakes & Fish tile | +50 each, one time per suit (S3-11) |
-| Hint | −15 |
-| Shuffle | −50 |
+| Hint | −40 on Classic; free on Relaxed; Expert has no hints |
+| Shuffle | −50 on Classic, −100 on Expert (three shuffles at most); free on Relaxed |
 | Win | +500, plus +1 per second under 10:00 |
 The score never goes below 0. Undo takes back only the undone match's own points; hint and shuffle penalties are never refunded.
 
