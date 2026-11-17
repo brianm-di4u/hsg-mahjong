@@ -1,5 +1,9 @@
 // Council wave 4, batch C: sound; layout and accessibility; world, words and ceremony (S5-20, C4-08, C4-09, C4-02, C4-04, S2-27).
 // Every check reads what the player sees or hears and waits for a condition, never for a time.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 const FLAT = 'index.html?gl=0';
 const median = (a) => a.slice().sort((x, y) => x - y)[a.length >> 1];
 
@@ -165,6 +169,31 @@ export const tests = [
       t.expect(shown && f.indexOf(shown) >= 123, 'the card shows a new fact, the only kind not read yet: ' + card);
       t.equal((await t.game('goals')).wins.length, 124, 'and it counts as read');
       await t.shot('C4-04-win-fact');
+    },
+  },
+  {
+    name: 'C4-04: rerunning tools/extract-facts.mjs keeps the 23 approved records and the 2013 correction, and only adds what is missing',
+    node: true,
+    async run(t) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bhm-facts-')), copy = path.join(dir, 'index.html');
+      const read = () => JSON.parse(fs.readFileSync(copy, 'utf8').match(/<script type="application\/json" id="facts">([\s\S]*?)<\/script>/)[1]);
+      const run = () => execFileSync(process.execPath, ['tools/extract-facts.mjs', '--file', copy], { cwd: process.cwd(), encoding: 'utf8' });
+      try {
+        fs.copyFileSync('index.html', copy);
+        const before = read();
+        t.equal(before.length, 146, 'the page holds 146 facts');
+        run();
+        t.equal(read(), before, 'a rerun leaves the facts exactly as they were');
+        t.equal(read().find((f) => f.id === 'hs-0102').e.includes('in 2013'), true, 'the brewery still says 2013');
+        // A page that lost a bank record gets it back at the end, and the approved ones stay.
+        const html = fs.readFileSync(copy, 'utf8'), without = before.filter((f) => f.id !== before[10].id);
+        fs.writeFileSync(copy, html.replace(/(<script type="application\/json" id="facts">)[\s\S]*?(<\/script>)/, (_, a, b) => a + JSON.stringify(without) + b));
+        run();
+        const after = read();
+        t.equal(after.length, 146, 'a missing bank record is added again');
+        t.equal(after.slice(0, 122), without.slice(0, 122), 'the others keep their place');
+        t.equal(after.slice(122, 145), before.slice(123), 'the 23 approved records are unchanged');
+      } finally { fs.rmSync(dir, { recursive: true, force: true }); }
     },
   },
   // ------------------------------------------------------------------ S2-27
