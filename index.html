@@ -1606,7 +1606,7 @@ function makeCues(c, dest, jit) {
     src.connect(f); f.connect(g); g.connect(out(pan)); src.start(t0, (J.o + t0 * 0.37) % 1.5); src.stop(t0 + dur + 0.02);
   }
   // Per-cue level, so each family of cue lands between 0.2 and 0.45 at the speakers (measured with audioRender)
-  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4, hintCost: 3.8, shuffleCost: 3.6, streak: 3.0 };
+  const TRIM = { click: 4.1, deselect: 5.5, match: 2.7, row: 3.2, thud: 2.4, chime: 2.95, rattle: 3.5, deal: 3.4, undo: 3.25, stuck: 2.7, dead: 2.15, best: 3.3, win: 1.55 /* was 1.8, before the second bar was added */, pause: 4.1, resume: 4.5, zoomIn: 3.8, zoomOut: 3.9, tick: 4.5, achieve: 3.0, comboEnd: 3.4, hintCost: 3.8, shuffleCost: 3.6, streak: 2.6 /* was 3.0: some seeds peaked over 0.45 */ };
   const begin = (name) => { J = jit(); J.g *= TRIM[name]; };
   const cues = {
     click(t, pan = 0) { begin('click'); noise(t, 0.05, 2400, 3, 0.8, 'bandpass', 0.004, pan); tone(1800, t, 0.05, 'sine', 0.2, 0, pan); tone(880, t, 0.09, 'triangle', 0.22, 0.9, pan); },

@@ -36,4 +36,16 @@ export const tests = [
       }
     },
   },
+  // ------------------------------------------------------------------ K-04
+  {
+    name: 'K-04: the streak cue at its default volume peaks inside 0.2 to 0.45 on every seed and every day of a streak, not only at the median',
+    url: FLAT, viewports: ['desktop'],
+    async run(t) {
+      // Measured over seeds 101 to 200 at streak days 2 to 6 before this change: max 0.480 (TRIM 3.0); after: max 0.418 (TRIM 2.6). The rendering is seeded, so the same seeds give the same peaks every run.
+      const peaks = [];
+      for (const n of [2, 3, 4, 5, 6]) for (let seed = 101; seed <= 140; seed++) peaks.push((await t.game('audioRender', 'cue:streak:' + n, 3, false, seed)).peak);
+      t.expect(Math.max(...peaks) <= 0.45, 'the loudest of ' + peaks.length + ' renders is under 0.45: ' + Math.max(...peaks).toFixed(3));
+      t.expect(Math.min(...peaks) >= 0.2, 'and the quietest is over 0.2: ' + Math.min(...peaks).toFixed(3));
+    },
+  },
 ];

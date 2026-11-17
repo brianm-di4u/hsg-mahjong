@@ -35,7 +35,7 @@ export const tests = [
       t.expect(last.every((o) => near(o, 880) && near(o, 1046.5) && near(o, 1174.66) && !near(o, 659.25, 0.01)), 'day 6 starts four steps up');
       const peaks = [], wins = [], rms = [];
       for (let seed = 101; seed <= 120; seed++) { const s = await t.game('audioRender', 'cue:streak:3', 3, false, seed), w = await t.game('audioRender', 'cue:win', 3, false, seed); peaks.push(s.peak); rms.push(s.rmsDb); wins.push(w.rmsDb); }
-      t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.max(...peaks.slice(0, 7)) <= 0.45, 'its peak is in the cue range: median ' + median(peaks));
+      t.expect(median(peaks) >= 0.2 && median(peaks) <= 0.45 && Math.max(...peaks) <= 0.45 && Math.min(...peaks) >= 0.2, 'its peak is in the cue range for every one of 20 seeds (K-04): median ' + median(peaks) + ', max ' + Math.max(...peaks));
       t.expect(median(rms) < median(wins), 'and it is quieter than the win (' + median(rms) + ' dB against ' + median(wins) + ' dB)');
       const mixes = []; for (let k = 0; k < 4; k++) mixes.push((await t.game('audioRender', 'mix', 8, false, 201 + k, 100)).peak);
       t.expect(Math.max(...mixes) <= 0.92, 'the busiest moment at volume 100 still peaks under 0.92: ' + Math.max(...mixes));
