@@ -314,6 +314,7 @@ export const tests = [
       const v = await t.page.evaluate(() => window.__vib.filter((p) => Array.isArray(p)));
       t.equal(v.length, 1, 'one pattern for the win');
       t.expect(v[0].length >= 3 && v[0].every((x) => x >= 15 && x <= 60), 'made of short pulses: ' + JSON.stringify(v[0]));
+      t.expect(v[0].filter((x, k) => k % 2 === 0).every((x) => x >= 10 && x <= 25), 'and every pulse (not the gaps between) is 10 to 25 ms: ' + JSON.stringify(v[0]));
     },
   },
   {

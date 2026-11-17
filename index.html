@@ -1221,7 +1221,7 @@ setupGoals();
 const mqReduce = window.matchMedia ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 const mqDark = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
 // A short tick on the events a touch player would otherwise only see (S1-09): a pick, a match, a blocked tile, a cleared board. Off with Reduced motion.
-const HAPTIC = { select: 10, match: 20, blocked: 25, win: [20, 50, 20, 50, 40] };
+const HAPTIC = { select: 10, match: 20, blocked: 25, win: [20, 50, 20, 50, 25] /* the last pulse was 40 */ };
 function buzz(pattern) { if (SETTINGS.haptics && typeof navigator.vibrate === 'function' && !reduced()) { try { navigator.vibrate(pattern); } catch (e) { /* the browser refused: no tick */ } } }
 function reduced() { return SETTINGS.motion === 'reduced' || (SETTINGS.motion === 'auto' && mqReduce.matches); }
 function isDark() { return SETTINGS.theme === 'dark' || (SETTINGS.theme === 'auto' && mqDark.matches); }
