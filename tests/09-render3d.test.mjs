@@ -120,7 +120,7 @@ const TESTS = [
       await t.game('scene', 'layouts');
       const first = await t.page.locator('.card').first().getAttribute('data-layout');
       t.expect(first === 'terraces', 'phone layouts lead the picker (' + first + ')');
-      t.expect(await t.page.locator('.card .tag', { hasText: 'Fits phones' }).count() === 4, 'the four portrait boards (the two originals and two new ones) carry a "Fits phones" tag');
+      t.expect(await t.page.locator('.card .tag', { hasText: 'Fits phones' }).count() === 5, 'the five portrait boards (the two originals, two new ones and Sunset Trail) carry a "Fits phones" tag');
       await t.shot('09-phone-picker');
     },
   },

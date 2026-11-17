@@ -295,7 +295,7 @@ export const tests = [
       await t.game('unlockAll');
       await t.game('scene', 'layouts');
       const tags = await t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, tags: [...c.querySelectorAll('.tag')].map((x) => x.textContent) })));
-      const portrait = ['terraces', 'display', 'sugarloaf', 'cascade', 'rix', 'sunset'];
+      const portrait = ['terraces', 'display', 'sugarloaf', 'cascade', 'sunset'];
       for (const c of tags) {
         if (portrait.includes(c.id)) t.expect(c.tags.includes('Fits phones') && !c.tags.includes('Best in landscape'), c.id + ' is tagged Fits phones');
         else t.expect(c.tags.includes('Best in landscape') && !c.tags.includes('Fits phones'), c.id + ' is tagged Best in landscape');

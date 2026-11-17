@@ -94,8 +94,8 @@ export const tests = [
       await reload(t); await t.game('scene', 'layouts');
       let c = await cards(t), by = Object.fromEntries(c.map((x) => [x.id, x]));
       t.equal(c.length, 20, 'twenty cards');
-      const ids = c.map((x) => x.id); // a phone held upright leads with the boards that fit it, so the two new ones come with those
-      t.equal(t.vp.width < 700 ? ids.slice(0, 6).sort() : ids.slice(18), t.vp.width < 700 ? ['cascade', 'display', 'rix', 'sugarloaf', 'sunset', 'terraces'] : ['rix', 'sunset'], t.vp.width < 700 ? 'the two new ones sit among the six boards that fit a phone' : 'the two new ones come last');
+      const ids = c.map((x) => x.id); // a phone held upright leads with the boards that fit it, so Sunset Trail comes with those
+      t.equal(t.vp.width < 700 ? ids.slice(0, 5).sort() : ids.slice(18), t.vp.width < 700 ? ['cascade', 'display', 'sugarloaf', 'sunset', 'terraces'] : ['rix', 'sunset'], t.vp.width < 700 ? 'Sunset Trail sits among the five boards that fit a phone, and Rix Tower (27 px tiles on a phone, like Mountain Tower) does not' : 'the two new ones come last');
       t.expect(Object.keys(NEW_BOARDS).every((id) => by[id] && by[id].name === NEW_BOARDS[id].name), 'each card shows its own name');
       t.expect(by.rix.locked && /Clear 8 different layouts to unlock \(7 of 8\)/.test(by.rix.best), 'Rix Tower waits for 8 cleared layouts: ' + by.rix.best);
       t.expect(by.sunset.locked && /Clear 10 different layouts to unlock \(7 of 10\)/.test(by.sunset.best), 'Sunset Trail waits for 10: ' + by.sunset.best);

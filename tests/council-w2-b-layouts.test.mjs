@@ -69,7 +69,7 @@ export const tests = [
         t.equal(c.phones, !!L.portrait, c.id + ' phone tag matches its shape');
       }
       t.expect(cards.filter((c) => c.rating === 'Easy').length >= 3 && cards.filter((c) => c.rating === 'Hard').length >= 3, 'the ratings spread: easy, medium and hard boards all exist');
-      t.equal(cards.filter((c) => c.phones).map((c) => c.id).sort(), ['cascade', 'display', 'rix', 'sugarloaf', 'sunset', 'terraces'], 'six boards fit a phone held upright (the two of wave 4b among them)');
+      t.equal(cards.filter((c) => c.phones).map((c) => c.id).sort(), ['cascade', 'display', 'sugarloaf', 'sunset', 'terraces'], 'five boards fit a phone held upright (Sunset Trail of wave 4b among them)');
       await t.shot('S3-04-picker-short-boards');
       await t.page.click('#cards .card[data-layout="hale"]'); await t.waitIdle(15000);
       const s = await t.state();
