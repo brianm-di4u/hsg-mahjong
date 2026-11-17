@@ -1,5 +1,14 @@
-// Council wave 4b, batch A: clean-up (K-04 and K-06 as they land).
+// Council wave 4b, batch A: clean-up (K-01, K-02, K-04, K-06).
 const FLAT = 'index.html?gl=0';
+import { loadEngine } from '../tools/engine-load.mjs';
+const E = loadEngine();
+// The eighteen boards that shipped before K-02: a fingerprint of each one's tile positions and its measured rating, taken on council/wave-4 (the build is unchanged).
+const OLD_BOARDS = {"pyramid":[30407121,37],"tower":[2846638198,29],"arlington":[3188498039,31],"row":[2324947466,19],"islands":[1012854104,69],"terraces":[2514675955,35],"display":[180268120,68],"hale":[2599074331,36],"lamar":[1346181682,36],"quapaw":[12523608,30],"lake":[220495125,50],"promenade":[670843869,27],"central":[1663590990,29],"valley":[1193547111,28],"northmtn":[3805481258,27],"westmtn":[1687109814,27],"sugarloaf":[1986492041,52],"cascade":[2615291768,71]};
+const NEW_BOARDS = { rix: { name: 'Rix Tower', need: 8 }, sunset: { name: 'Sunset Trail', need: 10 } };
+const put = (t, k, v) => t.page.evaluate(([k, v]) => localStorage.setItem(k, JSON.stringify(v)), [k, v]);
+const reload = async (t) => { await t.page.reload(); await t.page.waitForFunction(() => !!window.__game); await t.waitIdle(15000); };
+const stats = (n, won) => ({ played: won + 2, won, streak: 0, bestStreak: 0, layouts: Object.fromEntries(Object.keys(OLD_BOARDS).slice(0, n).map((id) => [id, { played: 1, won: 1, bestMs: 400000, bestScore: 900 }])), daily: { last: null, streak: 0, best: 0, done: {} } });
+const cards = (t) => t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, name: c.querySelector('b').textContent, locked: c.classList.contains('locked'), best: c.querySelector('.best').textContent })));
 const freePair = (s) => { const f = s.tiles.filter((x) => x.present && x.free); for (let a = 0; a < f.length; a++) for (let b = a + 1; b < f.length; b++) if (f[a].key === f[b].key) return [f[a].i, f[b].i]; return null; };
 
 const factsOf = (t) => t.page.evaluate(() => JSON.parse(document.getElementById('facts').textContent));
@@ -51,6 +60,65 @@ export const tests = [
       t.equal(Object.keys(APPROVED_E).filter((id) => !by[id] || by[id].e !== APPROVED_E[id]), [], 'each is in the game character for character');
       t.equal(f.filter((x) => /^(It|He|She|They|Its|Their|His)/.test(x.e)).map((x) => x.id), [], 'and no explanation opens with a pronoun that names nothing');
       t.expect(by['hs-0102'].e.includes('in 2013'), 'the brewery still says 2013');
+    },
+  },
+  // ------------------------------------------------------------------ K-02
+  {
+    name: 'K-02: two new boards of 144 tiles sit after the eighteen, with their own names; no earlier board changed',
+    node: true,
+    async run(t) {
+      const L = E.LAYOUTS, ids = L.map((l) => l.id);
+      t.equal(ids.slice(0, 18), Object.keys(OLD_BOARDS), 'the eighteen boards keep their places');
+      t.equal(ids.slice(18), ['rix', 'sunset'], 'and the two new ones are last');
+      for (const id of Object.keys(OLD_BOARDS)) { const l = L.find((x) => x.id === id); t.equal([E.hashStr(JSON.stringify(l.build())), l.measured], OLD_BOARDS[id], id + ' is exactly as it was'); }
+      t.equal(new Set(L.map((l) => l.name)).size, L.length, 'every board has its own name');
+      for (const [id, n] of Object.entries(NEW_BOARDS)) {
+        const l = L.find((x) => x.id === id), pos = l.build(), g = E.buildGeometry(pos);
+        t.equal(l.name, n.name, id + ' is called ' + n.name);
+        t.equal(pos.length, 144, id + ' has 144 tiles');
+        t.equal(E.validateLayout(pos), [], id + ' passes the layout check (support, overlap, even count)');
+        t.expect(l.measured > 0 && l.measured < 100, id + ' has a measured rating: ' + l.measured);
+        for (let seed = 1; seed <= 6; seed++) for (const shape of [-1, 0, 1]) {
+          const d = E.deal(g, E.makeRng(seed * 7919), shape);
+          t.expect(d && E.planValid(g, new Array(g.n).fill(true), d.faces, d.plan), id + ' seed ' + seed + ' shape ' + shape + ' deals a board that replays to empty');
+        }
+        for (let seed = 1; seed <= 6; seed++) { const d = E.deal(g, E.makeRng(1000 + seed)); t.expect(!!E.solve(g, new Array(g.n).fill(true), d.faces, 25000), id + ' seed ' + (1000 + seed) + " is solved by the game's own solver"); }
+      }
+    },
+  },
+  {
+    name: 'K-02: the new boards are in the picker, locked until 8 and 10 different layouts are cleared, and both deal 144 tiles',
+    url: FLAT, viewports: ['desktop', 'mobile'],
+    async run(t) {
+      await put(t, 'bhm.stats.v1', stats(7, 7));
+      await reload(t); await t.game('scene', 'layouts');
+      let c = await cards(t), by = Object.fromEntries(c.map((x) => [x.id, x]));
+      t.equal(c.length, 20, 'twenty cards');
+      const ids = c.map((x) => x.id); // a phone held upright leads with the boards that fit it, so the two new ones come with those
+      t.equal(t.vp.width < 700 ? ids.slice(0, 6).sort() : ids.slice(18), t.vp.width < 700 ? ['cascade', 'display', 'rix', 'sugarloaf', 'sunset', 'terraces'] : ['rix', 'sunset'], t.vp.width < 700 ? 'the two new ones sit among the six boards that fit a phone' : 'the two new ones come last');
+      t.expect(Object.keys(NEW_BOARDS).every((id) => by[id] && by[id].name === NEW_BOARDS[id].name), 'each card shows its own name');
+      t.expect(by.rix.locked && /Clear 8 different layouts to unlock \(7 of 8\)/.test(by.rix.best), 'Rix Tower waits for 8 cleared layouts: ' + by.rix.best);
+      t.expect(by.sunset.locked && /Clear 10 different layouts to unlock \(7 of 10\)/.test(by.sunset.best), 'Sunset Trail waits for 10: ' + by.sunset.best);
+      await put(t, 'bhm.stats.v1', stats(8, 8));
+      await reload(t); await t.game('scene', 'layouts');
+      by = Object.fromEntries((await cards(t)).map((x) => [x.id, x]));
+      t.expect(!by.rix.locked && by.rix.best === '144 tiles', 'with 8 cleared Rix Tower is open: ' + by.rix.best);
+      t.expect(by.sunset.locked, 'and Sunset Trail is still shut');
+      await put(t, 'bhm.stats.v1', stats(10, 10));
+      await reload(t); await t.game('scene', 'layouts');
+      by = Object.fromEntries((await cards(t)).map((x) => [x.id, x]));
+      t.expect(!by.rix.locked && !by.sunset.locked, 'with 10 cleared both are open');
+      await t.page.locator('#cards .card[data-layout="sunset"]').scrollIntoViewIfNeeded();
+      await t.shot('K-02-picker');
+      for (const id of Object.keys(NEW_BOARDS)) {
+        await t.page.click('#cards .card[data-layout="' + id + '"]'); await t.waitIdle(15000);
+        const st = await t.state();
+        t.equal([st.layoutId, st.total], [id, 144], id + ' starts a 144-tile board');
+        await t.shot('K-02-' + id);
+        await t.game('scene', 'layouts');
+      }
+      const kept = await t.page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('bhm.stats.v1')).layouts));
+      t.equal(Object.keys(OLD_BOARDS).slice(0, 10).filter((id) => !kept.includes(id)), [], 'the save still holds its record for every board it had');
     },
   },
   // ------------------------------------------------------------------ K-06

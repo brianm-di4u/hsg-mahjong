@@ -5,6 +5,7 @@ import { measure } from '../tools/balance.mjs';
 const URL = 'index.html?gl=0';
 const E = loadEngine();
 const NEW = ['hale', 'lamar', 'quapaw', 'lake', 'promenade', 'central', 'valley', 'northmtn', 'westmtn', 'sugarloaf', 'cascade'];
+const LATER = ['rix', 'sunset']; // wave 4b (K-02): two more boards after the eleven
 const ORIGINAL = ['pyramid', 'tower', 'arlington', 'row', 'islands', 'terraces', 'display'];
 const SIZE = { hale: 72, lamar: 72, quapaw: 96, lake: 96, sugarloaf: 96, cascade: 96, promenade: 120, central: 120, valley: 120, northmtn: 120, westmtn: 120 };
 const WEEK = ['islands', 'display', 'pyramid', 'terraces', 'arlington', 'tower', 'row']; // Monday to Sunday, by the balance probe's win rate; it was ORIGINAL by day number
@@ -15,7 +16,7 @@ export const tests = [
     name: 'S3-04: the eleven new layouts are valid, deal solvable boards, and keep whole quads and the Bathhouse share',
     node: true,
     async run(t) {
-      t.equal(E.LAYOUTS.map((l) => l.id), [...ORIGINAL, ...NEW], 'the seven original boards come first, then the eleven new ones');
+      t.equal(E.LAYOUTS.map((l) => l.id), [...ORIGINAL, ...NEW, ...LATER], 'the seven original boards come first, then the eleven new ones, then the two of wave 4b');
       for (const id of NEW) {
         const L = E.LAYOUTS.find((l) => l.id === id), pos = L.build(), g = E.buildGeometry(pos);
         t.equal(E.validateLayout(pos), [], id + ' passes validateLayout (support, overlap, even count)');
@@ -52,14 +53,14 @@ export const tests = [
     },
   },
   {
-    name: 'S3-04: the picker lists all eighteen boards with size, a measured rating and a phone tag',
+    name: 'S3-04: the picker lists all twenty boards with size, a measured rating and a phone tag',
     url: URL,
     viewports: ['desktop', 'mobile'],
     async run(t) {
       await t.game('unlockAll'); // the new boards are locked for a new player (S3-02)
       await t.game('scene', 'layouts');
       const cards = await t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, rating: (c.querySelector('.rate') || {}).textContent, meas: (c.querySelector('.meas') || {}).textContent, best: c.querySelector('.best').textContent, phones: !!Array.from(c.querySelectorAll('.tag')).find((x) => x.textContent === 'Fits phones') })));
-      t.equal(cards.length, 18, 'eighteen cards');
+      t.equal(cards.length, 20, 'twenty cards');
       for (const c of cards) {
         const L = E.LAYOUTS.find((l) => l.id === c.id);
         t.equal(c.rating, band(L.measured), c.id + ' is tagged ' + band(L.measured));
@@ -68,7 +69,7 @@ export const tests = [
         t.equal(c.phones, !!L.portrait, c.id + ' phone tag matches its shape');
       }
       t.expect(cards.filter((c) => c.rating === 'Easy').length >= 3 && cards.filter((c) => c.rating === 'Hard').length >= 3, 'the ratings spread: easy, medium and hard boards all exist');
-      t.equal(cards.filter((c) => c.phones).map((c) => c.id).sort(), ['cascade', 'display', 'sugarloaf', 'terraces'], 'four boards fit a phone held upright');
+      t.equal(cards.filter((c) => c.phones).map((c) => c.id).sort(), ['cascade', 'display', 'rix', 'sugarloaf', 'sunset', 'terraces'], 'six boards fit a phone held upright (the two of wave 4b among them)');
       await t.shot('S3-04-picker-short-boards');
       await t.page.click('#cards .card[data-layout="hale"]'); await t.waitIdle(15000);
       const s = await t.state();

@@ -295,7 +295,7 @@ export const tests = [
       await t.game('unlockAll');
       await t.game('scene', 'layouts');
       const tags = await t.page.$$eval('#cards .card', (cs) => cs.map((c) => ({ id: c.dataset.layout, tags: [...c.querySelectorAll('.tag')].map((x) => x.textContent) })));
-      const portrait = ['terraces', 'display', 'sugarloaf', 'cascade'];
+      const portrait = ['terraces', 'display', 'sugarloaf', 'cascade', 'rix', 'sunset'];
       for (const c of tags) {
         if (portrait.includes(c.id)) t.expect(c.tags.includes('Fits phones') && !c.tags.includes('Best in landscape'), c.id + ' is tagged Fits phones');
         else t.expect(c.tags.includes('Best in landscape') && !c.tags.includes('Fits phones'), c.id + ' is tagged Best in landscape');
@@ -345,7 +345,7 @@ export const tests = [
     viewports: ['desktop'],
     async run(t) {
       const ids = await t.page.evaluate(() => { const o = []; window.__game.scene('layouts'); document.querySelectorAll('#cards .card').forEach((c) => o.push(c.dataset.layout)); return o; });
-      t.equal(ids.length, 18, 'eighteen layouts');
+      t.equal(ids.length, 20, 'twenty layouts');
       const tints = {};
       for (const id of ids) { await t.game('newGame', { layout: id, seed: 4 }); tints[id] = (await t.game('act', 'table')).tint; t.expect(!!tints[id], id + ' has a tint'); }
       const rgb = (h, s, l) => { s /= 100; l /= 100; const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return [f(0), f(8), f(4)].map((v) => v * 255); };

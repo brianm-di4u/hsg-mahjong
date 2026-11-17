@@ -6,7 +6,7 @@
 <title>Bathhouse Mahjong · Hot Springs Games</title>
 <meta name="theme-color" content="#173F47">
 <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Bathhouse%20Mahjong%22%2C%22short_name%22%3A%22Mahjong%22%2C%22description%22%3A%22Mahjong%20solitaire%20on%20Bathhouse%20Row%20with%20Hot%20Springs%20tiles.%22%2C%22display%22%3A%22standalone%22%2C%22theme_color%22%3A%22%23173F47%22%2C%22background_color%22%3A%22%23173F47%22%2C%22categories%22%3A%5B%22games%22%5D%7D">
-<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, eighteen local layouts, three difficulty levels, always-solvable deals.">
+<meta name="description" content="Mahjong solitaire on Bathhouse Row: 144 hand-drawn Hot Springs tiles, twenty local layouts, three difficulty levels, always-solvable deals.">
 <!--
   Bathhouse Mahjong, part of Hot Springs Games (MIT License).
   One HTML file plus painted art in assets/ (vector fallbacks built in); all sound is WebAudio, all data is inlined.
@@ -475,6 +475,7 @@ const ENGINE = (() => {
       rect(z, x, y, w, h) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) t.push([x + 2 * i, y + 2 * j, z]); return api; },
       row(z, x, y, w) { return api.rect(z, x, y, w, 1); },
       one(z, x, y) { t.push([x, y, z]); return api; },
+      map(z, rows) { rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') t.push([2 * i, 2 * j, z]); }); return api; }, // a layer drawn as text
       tiles: t,
     };
     return api;
@@ -634,6 +635,23 @@ const ENGINE = (() => {
         for (let r = 1; r < 11; r++) b.row(1, sh(r) + 2, 2 * r, 3);
         for (let r = 4; r < 7; r++) b.row(2, sh(r) + 3, 2 * r, 2);
         return b.tiles;
+      },
+    },
+    // Wave 4b (K-02): two boards drawn as proposals in wave 4 (S4-10). One '#' is one tile; the strings are the rows of a layer, drawn on the same grid, so layers stack straight up.
+    {
+      id: 'rix', measured: 29, name: 'Rix Tower', portrait: true, caption: "The steel tower on Hot Springs Mountain before today's: about 165 ft, with an elevator and a telescope.",
+      build() {
+        return L().map(0, ['......#......', '.....###.....', '....#####....', '...#######...', '....#####....', '......#......', '.....#.#.....', '.....#.#.....', '....#...#....', '....#.#.#....', '...#..#..#...', '...#.###.#...', '..#..#.#..#..', '..##########.', '#############'])
+          .map(1, ['......#......', '.....###.....', '....#####....', '...#######...', '....#####....', '......#......', '.....#.#.....', '.....#.#.....', '....#...#....', '....#.#.#....', '...#..#..#...', '...#.###.#...', '..#..#.#..#..', '..##########.', '#############'])
+          .map(2, ['.............', '.............', '....#####....', '...#######...', '.............', '.............', '.............', '.............', '.............', '.............', '.............', '.............', '.............', '.............', '.............']).tiles;
+      },
+    },
+    {
+      id: 'sunset', measured: 39, name: 'Sunset Trail', portrait: true, caption: 'The longest trail in Hot Springs National Park, about 10 miles one way, climbing in steps.',
+      build() {
+        return L().map(0, ['..####..', '..####..', '..####..', '.######.', '.######.', '########', '########', '########', '########', '########', '########', '########'])
+          .map(1, ['..####..', '........', '..####..', '........', '.######.', '........', '########', '........', '########', '........', '########', '........'])
+          .map(2, ['........', '........', '..####..', '........', '.######.', '........', '########', '........', '########', '........', '........', '........']).tiles;
       },
     },
   ];
@@ -1113,6 +1131,8 @@ const UNLOCK_STEPS = [
   { cleared: 3, items: [['camera', 'tilted'], ['layout', 'quapaw'], ['layout', 'lake']] },
   { cleared: 5, items: [['tileset', 'peacock'], ['layout', 'sugarloaf'], ['layout', 'cascade']] },
   { cleared: 6, items: [['camera', 'top'], ['layout', 'promenade'], ['layout', 'central'], ['layout', 'valley'], ['layout', 'northmtn'], ['layout', 'westmtn']] },
+  { cleared: 8, items: [['layout', 'rix']] },  // wave 4b (K-02): the two newest boards open last
+  { cleared: 10, items: [['layout', 'sunset']] },
 ];
 const UNLOCKS = [];
 for (const st of UNLOCK_STEPS) for (const [kind, key] of st.items) UNLOCKS.push({ id: kind + ':' + key, kind, key, wins: st.wins || 0, cleared: st.cleared || 0 });
@@ -2958,6 +2978,7 @@ const PLACE_TINT = {
   hale: { h: 282, s: 28, l: 26 }, lamar: { h: 316, s: 30, l: 26 }, quapaw: { h: 258, s: 34, l: 26 }, lake: { h: 218, s: 52, l: 24 },
   sugarloaf: { h: 90, s: 32, l: 22 }, cascade: { h: 186, s: 58, l: 26 }, promenade: { h: 18, s: 42, l: 25 }, central: { h: 46, s: 40, l: 24 },
   valley: { h: 112, s: 26, l: 22 }, northmtn: { h: 205, s: 14, l: 28 }, westmtn: { h: 345, s: 12, l: 28 },
+  rix: { h: 300, s: 50, l: 26 }, sunset: { h: 8, s: 50, l: 26 },
 };
 function placeTint(id) { return PLACE_TINT[id] || null; }
 function tintCss(t, dl, a) { return 'hsla(' + t.h + ',' + t.s + '%,' + (t.l + dl) + '%,' + a + ')'; }
