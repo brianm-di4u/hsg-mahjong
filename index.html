@@ -2514,8 +2514,8 @@ function tilePan(i) { try { const x = screenCenter(i)[0]; return Math.max(-0.7, 
 // What stops tile i being taken: the tiles on top of it, or else the tiles on both its sides (a tile is free with one side open)
 function blockersOf(i) {
   const up = G.top[i].filter((j) => S.present[j]);
-  if (up.length) return { tiles: up, text: up.length > 1 ? 'Covered: the tiles on top of it must go first.' : 'Covered: the tile on top of it must go first.' };
-  return { tiles: G.left[i].concat(G.right[i]).filter((j) => S.present[j]), text: 'Hemmed in: it has a tile on its left and one on its right.' };
+  if (up.length) return { tiles: up, text: up.length > 1 ? 'Covered. The tiles on top of it must go first.' : 'Covered. The tile on top of it must go first.' };
+  return { tiles: G.left[i].concat(G.right[i]).filter((j) => S.present[j]), text: 'Hemmed in. It has a tile on its left and one on its right.' };
 }
 // The free tiles that would match the selected one, ringed softly while it is selected. It follows the Highlight free tiles
 // setting (and Expert, which shows no free-tile help at all), so it can be switched off.

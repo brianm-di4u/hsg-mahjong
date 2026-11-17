@@ -215,13 +215,15 @@ export const tests = [
       await t.game('act', 'click', covered.i);
       let info = await t.game('act', 'animInfo');
       t.equal([...info.block].sort((a, b) => a - b), above(covered).sort((a, b) => a - b), 'the ring is on the tiles above the covered tile');
-      t.expect(/^Blocked: .*Covered: the tiles? on top of it must go first.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      t.expect(/^Blocked: .*Covered\. The tiles? on top of it must go first\.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      t.expect(((await t.state()).status.match(/:/g) || []).length <= 1, 'the covered line holds one colon at most (K-05): ' + (await t.state()).status);
       await t.shot('S1-10-covered');
       await t.game('act', 'click', hemmed.i);
       info = await t.game('act', 'animInfo');
       t.equal([...info.block].sort((a, b) => a - b), sides(hemmed).sort((a, b) => a - b), 'for a tile hemmed in, the ring is on the tiles at its sides');
       t.equal(info.block.length, 2, 'one each side');
-      t.expect(/Hemmed in: it has a tile on its left and one on its right.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      t.expect(/Hemmed in\. It has a tile on its left and one on its right\.$/.test((await t.state()).status), 'and the line says so: ' + (await t.state()).status);
+      t.expect(((await t.state()).status.match(/:/g) || []).length <= 1, 'the hemmed line holds one colon at most (K-05): ' + (await t.state()).status);
       await t.shot('S1-10-hemmed');
       await t.game('act', 'animAt', null);
       await t.waitIdle(15000);
