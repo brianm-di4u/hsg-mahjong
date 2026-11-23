@@ -10,7 +10,7 @@ export const tests = [
       await t.waitFrames(2); await t.game('act', 'animAt', 300, 'deal'); // hold the clock mid-deal
       await t.page.mouse.click(c.x, c.y);
       t.equal((await t.state()).selected, -1, 'nothing is selected while the deal is running');
-      await t.game('act', 'animAt', null);
+      await t.game('act', 'animAt', 1200, 'deal'); await t.waitFrames(3); await t.game('act', 'animAt', null); // step past the end first: the game drops an early tap after 3 s of real time, which a slow runner spends on the click
       await t.waitIdle(15000); await t.waitFrames(3);
       t.equal((await t.state()).selected, f.i, 'the early tap selects once the deal is done');
       await t.page.mouse.click(c.x, c.y);
@@ -19,7 +19,7 @@ export const tests = [
       s = await t.state(); const g = s.tiles.find((x) => x.free); c = await t.game('act', 'tileCenter', g.i);
       await t.page.mouse.click(c.x, c.y);
       t.equal((await t.state()).selected, -1, 'nothing is selected during the shuffle flip');
-      await t.game('act', 'animAt', null);
+      await t.game('act', 'animAt', 1000, 'shuffle'); await t.waitFrames(3); await t.game('act', 'animAt', null); // step past the end first: the game drops an early tap after 3 s of real time, which a slow runner spends on the click
       await t.waitIdle(15000); await t.waitFrames(3);
       t.equal((await t.state()).selected, g.i, 'the early tap selects once the shuffle is done');
     },
