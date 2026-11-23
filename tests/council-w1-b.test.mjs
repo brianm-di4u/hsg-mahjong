@@ -2,6 +2,7 @@
 export const tests = [
   {
     name: 'S1-01: a tap made during the deal-in or shuffle flip is applied when it ends',
+    url: 'index.html?gl=1', // the deal-in is 3D only; without this the harness's software WebGL gets flat tiles
     async run(t) {
       await t.game('newGame', { layout: 'pyramid', seed: 8 });
       let s = await t.state(); const f = s.tiles.find((x) => x.free);
