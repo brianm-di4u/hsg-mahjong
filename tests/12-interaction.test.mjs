@@ -89,7 +89,7 @@ const TESTS = [
       await t.waitFrames(2); await t.game('act', 'animAt', 300, 'deal'); // hold the clock mid-deal (software WebGL is slow)
       await t.page.mouse.click(c.x, c.y);
       t.equal((await t.state()).selected, -1, 'a tap during the deal-in does not select yet');
-      await t.game('act', 'animAt', null);
+      await t.game('act', 'animAt', 1200, 'deal'); await t.waitFrames(3); await t.game('act', 'animAt', null); // step past the end first: the game drops an early tap after 3 s of real time, which a slow runner spends on the click
       await t.waitIdle(15000); await t.waitFrames(3);
       t.equal((await t.state()).selected, f.i, 'the tap made during the deal-in is applied once it ends (S1-01)');
       await t.page.mouse.click(c.x, c.y);
@@ -107,7 +107,7 @@ const TESTS = [
       s = await t.state(); const g2 = s.tiles.find((x) => x.free); c = await t.game('act', 'tileCenter', g2.i);
       await t.page.mouse.click(c.x, c.y);
       t.equal((await t.state()).selected, -1, 'a tap during the shuffle flip does not select yet');
-      await t.game('act', 'animAt', null);
+      await t.game('act', 'animAt', 1000, 'shuffle'); await t.waitFrames(3); await t.game('act', 'animAt', null); // step past the end first: the game drops an early tap after 3 s of real time, which a slow runner spends on the click
       await t.waitIdle(15000); await t.waitFrames(3);
       t.equal((await t.state()).selected, g2.i, 'the tap made during the flip is applied once it ends (S1-01)');
       await t.page.mouse.click(c.x, c.y);
@@ -141,7 +141,8 @@ const TESTS = [
       // stuck: keys before the dialog appears do not double-act; the dialog then shows
       t.expect(await t.game('act', 'stuck'), 'test board made stuck'); await t.game('act', 'key', 'h');
       t.equal((await t.state()).hints, 0, 'no hint on a stuck board');
-      await t.page.waitForTimeout(800); t.equal((await t.state()).overlay, 'o-stuck', 'stuck dialog opens');
+      await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-stuck', null, { timeout: 10000 }).catch(() => {}); // opens 650 ms after the move, later on a slow runner
+      t.equal((await t.state()).overlay, 'o-stuck', 'stuck dialog opens');
       await t.page.click('#os-undo'); t.equal((await t.state()).gameStatus, 'playing', 'undo from the stuck dialog');
       // the shuffle button is re-enabled for the next game even after a refused shuffle
       await t.page.evaluate(() => { document.getElementById('os-shuffle').disabled = true; });
