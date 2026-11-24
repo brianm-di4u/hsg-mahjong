@@ -141,7 +141,8 @@ const TESTS = [
       // stuck: keys before the dialog appears do not double-act; the dialog then shows
       t.expect(await t.game('act', 'stuck'), 'test board made stuck'); await t.game('act', 'key', 'h');
       t.equal((await t.state()).hints, 0, 'no hint on a stuck board');
-      await t.page.waitForTimeout(800); t.equal((await t.state()).overlay, 'o-stuck', 'stuck dialog opens');
+      await t.page.waitForFunction(() => window.__game.getState().overlay === 'o-stuck', null, { timeout: 10000 }).catch(() => {}); // opens 650 ms after the move, later on a slow runner
+      t.equal((await t.state()).overlay, 'o-stuck', 'stuck dialog opens');
       await t.page.click('#os-undo'); t.equal((await t.state()).gameStatus, 'playing', 'undo from the stuck dialog');
       // the shuffle button is re-enabled for the next game even after a refused shuffle
       await t.page.evaluate(() => { document.getElementById('os-shuffle').disabled = true; });
